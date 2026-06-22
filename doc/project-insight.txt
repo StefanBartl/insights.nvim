@@ -1,0 +1,489 @@
+*project-insight.txt*  Project analysis: symbols, metrics, tree, fileinfo.
+
+==============================================================================
+CONTENTS                                          *project-insight-contents*
+
+  1. Introduction ................. |project-insight-intro|
+  2. Requirements ................. |project-insight-requirements|
+  3. Installation ................. |project-insight-installation|
+  4. Commands ..................... |project-insight-commands|
+     4.1 Symbols .................. |project-insight-symbols|
+     4.2 Metrics .................. |project-insight-metrics|
+     4.3 Tree ..................... |project-insight-tree|
+     4.4 File info ................ |project-insight-fileinfo|
+     4.5 Cache .................... |project-insight-cache|
+  5. Configuration ................ |project-insight-config|
+     5.1 symbols .................. |project-insight-config-symbols|
+     5.2 metrics .................. |project-insight-config-metrics|
+     5.3 tree ..................... |project-insight-config-tree|
+     5.4 fileinfo ................. |project-insight-config-fileinfo|
+     5.5 keymaps .................. |project-insight-config-keymaps|
+  6. Symbol types ................. |project-insight-symbol-types|
+  7. Pickers ...................... |project-insight-pickers|
+  8. Lua API ...................... |project-insight-api|
+  9. Health check ................. |project-insight-health|
+ 10. Troubleshooting .............. |project-insight-troubleshooting|
+
+==============================================================================
+1. INTRODUCTION                                     *project-insight-intro*
+
+project-insight.nvim is a project-analysis plugin that combines five
+previously separate tools into a single unified interface:
+
+  • Symbol index   — ripgrep-based function/method finder across 11 languages,
+                     with optional Tree-sitter Lua scanner and persistent cache.
+  • Code metrics   — Lua file statistics: lines, comments, annotations, word
+                     counts, and ratio analysis per file and folder.
+  • File tree      — Async project file tree writer, file counter, and
+                     clipboard copy.
+  • File info      — Floating window with filesystem metadata (`fs.stat`)
+                     for the current buffer.
+
+All subcommands are exposed under a single unified command:
+>
+  :ProjectInsight <subcommand> [args]
+<
+Tab-completion works at every level.
+
+==============================================================================
+2. REQUIREMENTS                                *project-insight-requirements*
+
+  • Neovim ≥ 0.9           (required)
+  • rg (ripgrep)            (required for symbol indexing)
+  • telescope.nvim          (optional, for telescope symbol picker)
+  • fzf-lua                 (optional, for fzf symbol picker)
+  • nvim-treesitter         (optional, for Tree-sitter Lua scanner)
+
+On Windows the file tree uses PowerShell; on Unix it uses `find` + `sed`.
+
+==============================================================================
+3. INSTALLATION                                *project-insight-installation*
+
+lazy.nvim: >
+  {
+    "StefanBartl/project-insight.nvim",
+    cmd  = "ProjectInsight",
+    keys = {
+      { "<leader>ps", desc = "Project symbols (telescope)" },
+      { "<leader>pS", desc = "Project symbols (fzf)" },
+    },
+    config = function()
+      require("project_insight").setup()
+    end,
+  }
+<
+Local development: >
+  {
+    dir    = "E:/repos/project-insight.nvim",
+    cmd    = "ProjectInsight",
+    config = function()
+      require("project_insight").setup()
+    end,
+  }
+<
+==============================================================================
+4. COMMANDS                                      *project-insight-commands*
+
+                                                       *:ProjectInsight*
+:ProjectInsight {subcommand} [args]
+
+  Unified dispatcher. {subcommand} is one of:
+  symbols, metrics, tree, count, clipboard, fileinfo, cache.
+
+  Tab-completion is available at every argument position.
+
+------------------------------------------------------------------------------
+4.1 Symbols                                       *project-insight-symbols*
+
+                                         *:ProjectInsight-symbols*
+:ProjectInsight symbols [scope] [ui] [rebuild]
+
+  Build or load the symbol index and open a picker.
+
+  [scope]    cwd      Search the current working directory (default).
+             buffer   Search only the current buffer.
+
+  [ui]       telescope   Open in telescope.nvim.
+             fzf         Open in fzf-lua.
+             scratch     Open in a read-only scratch buffer.
+             (unset)     Auto-detect: telescope → fzf → scratch.
+
+  rebuild    Force a cache rebuild before opening the picker.
+
+  Arguments can appear in any order. Examples: >
+
+    :ProjectInsight symbols
+    :ProjectInsight symbols buffer
+    :ProjectInsight symbols cwd telescope
+    :ProjectInsight symbols rebuild
+    :ProjectInsight symbols fzf rebuild
+<
+  Picker keymaps (telescope / fzf):
+    <Enter>   Jump to the symbol definition.
+    <C-p>     Toggle preview (telescope only).
+
+  Scratch buffer keymaps:
+    q / <Esc>   Close the buffer.
+    gf          Follow `path:line` on the current line.
+
+  Display format in the picker: >
+    path/to/file.lua:42  [module] my_function
+<
+  The label in square brackets is the symbol type (see |project-insight-symbol-types|).
+
+------------------------------------------------------------------------------
+4.2 Metrics                                       *project-insight-metrics*
+
+                                         *:ProjectInsight-metrics*
+:ProjectInsight metrics
+
+  Analyze all Lua files under the current working directory and display a
+  statistics report in a scratch buffer. The report is also written to the
+  file configured in |project-insight-config-metrics|.
+
+  Report sections:
+    • Total line and word counts.
+    • Per-folder breakdown: file count, total lines, code%, annotation%.
+    • Ratio analysis (comment density, annotation density, code density).
+
+------------------------------------------------------------------------------
+4.3 Tree                                           *project-insight-tree*
+
+                                             *:ProjectInsight-tree*
+:ProjectInsight tree
+
+  Write the project file tree to the configured output file
+  (see |project-insight-config-tree|). Lists all project files relative to
+  cwd, one per line, sorted, excluding configured patterns.
+
+                                            *:ProjectInsight-count*
+:ProjectInsight count
+
+  Count the total number of project files (respects exclude_patterns).
+
+                                        *:ProjectInsight-clipboard*
+:ProjectInsight clipboard
+
+  Copy the content of the previously written tree file to the system
+  clipboard. Run |:ProjectInsight-tree| first if no tree file exists.
+
+------------------------------------------------------------------------------
+4.4 File info                                   *project-insight-fileinfo*
+
+                                         *:ProjectInsight-fileinfo*
+:ProjectInsight fileinfo
+
+  Toggle a centered floating window showing filesystem metadata for the
+  current buffer:
+
+    Path, Type, Size, Permissions, UID, GID, Accessed, Modified, Changed.
+
+  Calling the command again while the window is open closes it.
+  Also available via the keymap configured in |project-insight-config-fileinfo|
+  (default: `<leader>fi`).
+
+  Keys inside the float:
+    q / <Esc>   Close the window.
+
+------------------------------------------------------------------------------
+4.5 Cache                                         *project-insight-cache*
+
+                                     *:ProjectInsight-cache-build*
+:ProjectInsight cache build
+
+  Rebuild the symbol cache for the current working directory.
+  Runs ripgrep over the project and saves the result to the configured
+  cache directory (see |project-insight-config-symbols|).
+
+                                      *:ProjectInsight-cache-info*
+:ProjectInsight cache info
+
+  Print cache statistics: number of indexed symbols, timestamp, CWD,
+  file size, and cache file path.
+
+                                     *:ProjectInsight-cache-clear*
+:ProjectInsight cache clear
+
+  Delete the symbol cache for the current working directory.
+
+==============================================================================
+5. CONFIGURATION                                   *project-insight-config*
+
+Call `setup()` once during Neovim startup: >
+
+  require("project_insight").setup({
+    -- options here (see below)
+  })
+<
+All keys are optional. Unset keys use the defaults shown below.
+
+------------------------------------------------------------------------------
+5.1 symbols                               *project-insight-config-symbols*
+>
+  symbols = {
+    enable        = true,
+    default_scope = "cwd",   -- "cwd" | "buffer"
+
+    languages = {
+      lua        = true,
+      python     = true,
+      javascript = true,
+      typescript = true,
+      go         = true,
+      rust       = true,
+      c          = true,
+      cpp        = true,
+      java       = true,
+      ruby       = true,
+      php        = true,
+    },
+
+    -- When true, Lua symbols are scanned via Tree-sitter (more precise
+    -- names for complex patterns); all other languages still use rg.
+    use_treesitter_for_lua = false,
+
+    indexing = {
+      exclude_patterns = {
+        ".git/", "node_modules/", ".cache/",
+        "build/", "dist/", "target/",
+      },
+      max_file_size_kb = 1024,   -- 0 = no limit
+      follow_symlinks  = false,
+    },
+
+    cache = {
+      enabled     = true,
+      dir         = vim.fn.stdpath("cache") .. "/project-insight/symbols",
+      ttl_seconds = 3600,   -- seconds before cache is considered stale; 0 = never
+    },
+  },
+<
+`default_scope`
+  Scope used when `:ProjectInsight symbols` is called without an explicit
+  scope argument. Either `"cwd"` or `"buffer"`.
+
+`use_treesitter_for_lua`
+  When `true`, Lua files are scanned with Tree-sitter's AST (via `bufadd` /
+  `bufload`). This produces more precise names for all Lua definition
+  patterns but is slower than regex for large projects. Requires
+  `nvim-treesitter` with the `lua` parser installed.
+
+`indexing.exclude_patterns`
+  Glob patterns passed to `rg --glob '!<pattern>'` to skip files and
+  directories. Use `node_modules/` (no leading `*/`) for any occurrence of
+  that directory; use `*/node_modules/*` to match only at the root level.
+
+`cache.ttl_seconds`
+  How long a cached index is considered fresh. The cache is also
+  invalidated automatically when source files are modified (mtime check).
+  Set to `0` to disable TTL-based expiry (mtime check still applies).
+
+------------------------------------------------------------------------------
+5.2 metrics                               *project-insight-config-metrics*
+>
+  metrics = {
+    enable             = true,
+    output_file        = vim.fn.stdpath("state") .. "/project-insight/metrics.md",
+    show_ratios        = true,
+    show_deviations    = true,
+    top_n              = 50,
+    exclude_type_files = true,
+  },
+<
+`output_file`
+  Path where the Markdown report is written. The directory is created
+  automatically. Set to `""` to skip writing a file.
+
+`exclude_type_files`
+  When `true`, files under `@types/` directories are excluded from ratio
+  analysis (comment density, annotation density) but still counted in
+  totals.
+
+------------------------------------------------------------------------------
+5.3 tree                                     *project-insight-config-tree*
+>
+  tree = {
+    enable           = true,
+    exclude_patterns = { "*/.git/*", "*/node_modules/*", "*/.cache/*" },
+    outdir           = vim.fn.stdpath("state") .. "/project-insight/tree",
+    outfile_fmt      = "%s-tree.txt",
+  },
+<
+`outfile_fmt`
+  Printf-style format string for the output filename. `%s` is replaced with
+  the project name (tail of the current working directory). Example:
+  for `/home/user/myproject` with `outfile_fmt = "%s-tree.txt"` the output
+  is `myproject-tree.txt` inside `outdir`.
+
+------------------------------------------------------------------------------
+5.4 fileinfo                             *project-insight-config-fileinfo*
+>
+  fileinfo = {
+    enable = true,
+    keymap = "<leader>fi",   -- false to disable the keymap
+  },
+<
+------------------------------------------------------------------------------
+5.5 keymaps                              *project-insight-config-keymaps*
+>
+  keymaps = {
+    symbols_telescope = "<leader>ps",   -- false to disable
+    symbols_fzf       = "<leader>pS",   -- false to disable
+  },
+<
+`commands`
+  Set to `false` to skip registering the `:ProjectInsight` user command
+  entirely (use the Lua API instead). Default: `true`.
+
+==============================================================================
+6. SYMBOL TYPES                            *project-insight-symbol-types*
+
+The picker displays a type label for each symbol in square brackets.
+
+  local      `local function foo()`
+  global     `function foo()` or top-level `def foo():` in Python
+  module     `function M.foo()` or `M.foo = function()`
+  method     receiver method in Go, class method in Python/Java/Ruby
+  anonymous  `const foo = () =>` or `foo = function()`
+  exported   `export function foo()` in JavaScript/TypeScript
+  unknown    pattern matched but type could not be inferred
+
+==============================================================================
+7. PICKERS                                      *project-insight-pickers*
+
+`:ProjectInsight symbols` auto-selects a picker in this order:
+  1. telescope.nvim  (if installed)
+  2. fzf-lua         (if installed)
+  3. scratch buffer  (always available)
+
+Force a specific picker by passing its name as an argument: >
+
+  :ProjectInsight symbols telescope
+  :ProjectInsight symbols fzf
+  :ProjectInsight symbols scratch
+<
+                                        *project-insight-picker-telescope*
+Telescope picker~
+
+  Displays symbols as `path:line  [type] name`.
+  Default actions:
+    <Enter>    edit file at symbol line
+    <C-p>      toggle file preview
+
+                                             *project-insight-picker-fzf*
+fzf-lua picker~
+
+  Same display format. Default action:
+    <Enter>    edit file at symbol line
+
+                                          *project-insight-picker-scratch*
+Scratch buffer~
+
+  Read-only buffer, one symbol per line in the format: >
+    lua/project_insight/init.lua:14  [module] M.setup
+<
+  Keymaps:
+    q / <Esc>    close buffer
+    gf           follow `path:line` under cursor
+
+==============================================================================
+8. LUA API                                          *project-insight-api*
+
+After calling `setup()`, the following functions are available:
+
+                                             *project_insight.get_symbols()*
+`require("project_insight").get_symbols([scope [, force_rebuild]])`
+
+  Returns `(entries, message)` where `entries` is a list of symbol tables
+  and `message` is a status string.
+
+  `scope`         `"cwd"` | `"buffer"` | nil (uses default_scope)
+  `force_rebuild` boolean, force a cache rebuild
+
+  Each entry has: >
+    {
+      filename  = "lua/foo/bar.lua",
+      lnum      = 42,
+      col       = 0,
+      name      = "my_function",
+      func_type = "module",
+      language  = "lua",
+      signature = "my_function(a, b)",
+      text      = "function M.my_function(a, b)",
+    }
+<
+                                             *project_insight.run_metrics()*
+`require("project_insight").run_metrics()`
+
+  Run the Lua metrics analysis for the current project and open the report
+  in a scratch buffer.
+
+                                              *project_insight.write_tree()*
+`require("project_insight").write_tree([callback])`
+
+  Write the project file tree.
+  `callback` receives `(success, message, outpath)`.
+
+                                           *project_insight.show_fileinfo()*
+`require("project_insight").show_fileinfo()`
+
+  Toggle the file info float for the current buffer.
+
+==============================================================================
+9. HEALTH CHECK                                   *project-insight-health*
+
+>
+  :checkhealth project-insight
+<
+Reports:
+
+  Neovim version      Requires ≥ 0.9; notes vim.system availability (0.10+).
+  External tools      rg (required), fd (optional), find/sed (Unix tree).
+  Optional pickers    telescope.nvim, fzf-lua.
+  Tree-sitter         nvim-treesitter installation status.
+  Configuration       Active language list, scope, cache settings.
+  Cache               Symbol count, last-indexed timestamp, file path.
+
+==============================================================================
+10. TROUBLESHOOTING                       *project-insight-troubleshooting*
+
+No symbols found~
+
+  • Is `rg` in your `PATH`? Check with `:checkhealth project-insight`.
+  • Is the current working directory correct? (`:pwd`)
+  • Are the target languages enabled in `symbols.languages`?
+  • Run `:ProjectInsight cache build` to force a fresh index.
+
+Symbols are stale~
+
+  • The cache is invalidated automatically when source files change (mtime).
+  • To force a rebuild: `:ProjectInsight symbols rebuild` or
+    `:ProjectInsight cache build`.
+  • Lower `symbols.cache.ttl_seconds` or set it to `0` to disable TTL.
+
+Tree command fails~
+
+  • On Unix, `find` and `sed` must be available.
+  • On Windows, PowerShell 5.1+ is required.
+  • Check `tree.outdir` is writable.
+
+File tree clipboard empty~
+
+  • Run `:ProjectInsight tree` first to generate the tree file.
+  • The clipboard write uses `setreg("+", …)`; ensure the `+` register is
+    available (Neovim has clipboard support built in).
+
+Tree-sitter Lua scanner shows no results~
+
+  • `nvim-treesitter` must be installed with the `lua` parser:
+    `:TSInstall lua`
+  • The scanner loads each file with `bufadd`/`bufload`; very large
+    projects may be slow — use the rg scanner for those.
+
+Picker not opening~
+
+  • If you specified `telescope` or `fzf`, verify the plugin is installed.
+  • Fall back to `:ProjectInsight symbols scratch` which has no dependencies.
+
+==============================================================================
+vim:ft=help:tw=78:ts=2:et:

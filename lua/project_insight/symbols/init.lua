@@ -124,4 +124,42 @@ function M.rebuild()
   return rg_index.rebuild(config.get())
 end
 
+---Get Lua table definitions for the given scope.
+---@param scope "cwd"|"buffer"|nil
+---@return table[], string|nil
+function M.get_tables(scope)
+  scope = scope or "buffer"
+  local scanner = require("project_insight.symbols.ts_lua_tables")
+
+  if scope == "buffer" then
+    local path   = vim.api.nvim_buf_get_name(0)
+    local bufnr  = vim.api.nvim_get_current_buf()
+    local result = scanner.scan_buffer(bufnr)
+    for _, e in ipairs(result) do e.filename = path end
+    return result, string.format("%d tables (buffer)", #result)
+  end
+
+  local entries = scanner.scan_cwd()
+  return entries, string.format("%d tables (cwd)", #entries)
+end
+
+---Get Lua string literals for the given scope.
+---@param scope "cwd"|"buffer"|nil
+---@return table[], string|nil
+function M.get_strings(scope)
+  scope = scope or "buffer"
+  local scanner = require("project_insight.symbols.ts_lua_strings")
+
+  if scope == "buffer" then
+    local path   = vim.api.nvim_buf_get_name(0)
+    local bufnr  = vim.api.nvim_get_current_buf()
+    local result = scanner.scan_buffer(bufnr)
+    for _, e in ipairs(result) do e.filename = path end
+    return result, string.format("%d strings (buffer)", #result)
+  end
+
+  local entries = scanner.scan_cwd()
+  return entries, string.format("%d strings (cwd)", #entries)
+end
+
 return M

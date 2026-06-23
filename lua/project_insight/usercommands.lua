@@ -14,6 +14,7 @@ local M = {}
 local SUBCOMMANDS   = { "symbols", "metrics", "tree", "count", "clipboard", "fileinfo", "cache" }
 local SYMBOL_SCOPES = { "cwd", "buffer" }
 local SYMBOL_UIS    = { "telescope", "fzf", "scratch", "rebuild" }
+local SYMBOL_TYPES  = { "functions", "tables", "strings" }
 local CACHE_SUBS    = { "build", "info", "clear" }
 
 local notify = require("project_insight.util.notify").create("[project_insight]")
@@ -47,9 +48,10 @@ local function default_ui()
 end
 
 local function handle_symbols(args)
-  local scope = "cwd"
-  local ui    = nil
-  local rebuild = false
+  local scope    = "cwd"
+  local ui       = nil
+  local rebuild  = false
+  local sym_type = "functions"
 
   for _, a in ipairs(args) do
     if a == "cwd" or a == "buffer" then
@@ -58,23 +60,35 @@ local function handle_symbols(args)
       ui = a
     elseif a == "rebuild" then
       rebuild = true
+    elseif a == "tables" or a == "strings" or a == "functions" then
+      sym_type = a
     end
   end
 
   ui = ui or default_ui()
 
   local symbols = require("project_insight.symbols")
-  notify.info("scanning symbols…")
+  local entries, msg
 
-  local entries, msg = symbols.get(scope, rebuild)
+  if sym_type == "tables" then
+    notify.info("scanning Lua tables…")
+    entries, msg = symbols.get_tables(scope)
+  elseif sym_type == "strings" then
+    notify.info("scanning Lua strings…")
+    entries, msg = symbols.get_strings(scope)
+  else
+    notify.info("scanning symbols…")
+    entries, msg = symbols.get(scope, rebuild)
+  end
+
   if msg then notify.info(msg) end
 
-  if #entries == 0 then
-    notify.warn("no symbols found")
+  if not entries or #entries == 0 then
+    notify.warn("nothing found")
     return
   end
 
-  open_symbol_picker(entries, ui, scope)
+  open_symbol_picker(entries, ui, scope .. " " .. sym_type)
 end
 
 local function handle_metrics()
@@ -178,14 +192,19 @@ function M.setup()
         if sub_typed == "symbols" then
           local opts = {}
           for _, v in ipairs(SYMBOL_SCOPES) do opts[#opts + 1] = v end
+          for _, v in ipairs(SYMBOL_TYPES)  do opts[#opts + 1] = v end
           for _, v in ipairs(SYMBOL_UIS)    do opts[#opts + 1] = v end
           return opts
         end
         if sub_typed == "cache" then return CACHE_SUBS end
       end
 
-      if pos == 4 and sub_typed == "symbols" then
-        return SYMBOL_UIS
+      if pos >= 4 and sub_typed == "symbols" then
+        local opts = {}
+        for _, v in ipairs(SYMBOL_SCOPES) do opts[#opts + 1] = v end
+        for _, v in ipairs(SYMBOL_TYPES)  do opts[#opts + 1] = v end
+        for _, v in ipairs(SYMBOL_UIS)    do opts[#opts + 1] = v end
+        return opts
       end
 
       return {}

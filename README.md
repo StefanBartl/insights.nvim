@@ -25,7 +25,7 @@ into a single unified command with zero external dependencies beyond Neovim itse
 
 | Module | What it does |
 |--------|-------------|
-| **symbols** | Ripgrep symbol index (11 languages) + optional Tree-sitter Lua scanner; telescope / fzf-lua / scratch picker |
+| **symbols** | Ripgrep symbol index (11 languages) + Tree-sitter Lua scanner for functions, tables, and string literals; telescope / fzf-lua / scratch picker |
 | **metrics** | Lua file statistics: lines, comments, annotations, word counts, ratios per file and folder |
 | **tree** | Async project file tree (write to file / count / copy to clipboard) |
 | **fileinfo** | Floating window with `fs.stat` metadata for the current buffer |
@@ -90,15 +90,33 @@ Tab-completion works at every level.
 #### Symbol index
 
 ```vim
-:ProjectInsight symbols                   " cwd scope, best available picker
-:ProjectInsight symbols cwd               " explicit cwd scope
-:ProjectInsight symbols buffer            " current buffer only
-:ProjectInsight symbols telescope         " force telescope
-:ProjectInsight symbols fzf               " force fzf-lua
-:ProjectInsight symbols scratch           " scratch buffer (no picker needed)
-:ProjectInsight symbols cwd telescope     " scope + picker
-:ProjectInsight symbols rebuild           " force cache rebuild, then open picker
+:ProjectInsight symbols                       " cwd scope, best available picker
+:ProjectInsight symbols cwd                   " explicit cwd scope
+:ProjectInsight symbols buffer                " current buffer only
+:ProjectInsight symbols telescope             " force telescope
+:ProjectInsight symbols fzf                   " force fzf-lua
+:ProjectInsight symbols scratch               " scratch buffer (no picker needed)
+:ProjectInsight symbols cwd telescope         " scope + picker
+:ProjectInsight symbols rebuild               " force cache rebuild, then open picker
+
+" Lua-specific Tree-sitter scanners (tables and string literals)
+:ProjectInsight symbols buffer tables         " Lua table definitions in current buffer
+:ProjectInsight symbols cwd tables            " Lua table definitions across cwd
+:ProjectInsight symbols buffer strings        " Lua string literals in current buffer
+:ProjectInsight symbols cwd strings           " Lua string literals across cwd
+:ProjectInsight symbols buffer functions      " Lua functions (explicit; same as default for Lua)
 ```
+
+The `[type]` argument selects the symbol kind:
+
+| Type | Scanner | What is found |
+|------|---------|---------------|
+| `functions` | rg + optional TS | function declarations and assignments (default) |
+| `tables` | Tree-sitter | table constructor assignments, dot-index paths, table fields |
+| `strings` | Tree-sitter | unique string literals (useful for auditing magic strings, require paths, event names) |
+
+`tables` and `strings` require `nvim-treesitter` with the `lua` parser installed.
+Arguments can appear in any order.
 
 In the picker:
 
@@ -231,6 +249,8 @@ The symbol index uses the following type labels:
 | `anonymous` | `const foo = () =>` / `foo = function()` |
 | `exported` | `export function foo()` |
 | `unknown` | pattern matched but type not inferred |
+| `table` | Lua table constructor (`:ProjectInsight symbols … tables`) |
+| `string` | Lua string literal (`:ProjectInsight symbols … strings`) |
 
 ---
 
@@ -250,8 +270,10 @@ lua/project_insight/
     patterns.lua        PCRE2 patterns + extension maps (11 languages)
     parser.lua          rg --vimgrep output → SymbolEntry
     rg_index.lua        rg-based indexer with cache integration
-    ts_lua.lua          Tree-sitter Lua scanner (AST traversal)
-    init.lua            unified entry: rg + optional TS merge
+    ts_lua.lua          Tree-sitter Lua function scanner (AST traversal)
+    ts_lua_tables.lua   Tree-sitter Lua table constructor scanner
+    ts_lua_strings.lua  Tree-sitter Lua string literal scanner
+    init.lua            unified entry: rg + optional TS merge; get_tables/get_strings
   metrics/
     analyzer.lua        per-file line/word/comment statistics
     init.lua            project scan, ASCII report, file output

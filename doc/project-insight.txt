@@ -19,6 +19,8 @@ CONTENTS                                          *project-insight-contents*
      5.4 fileinfo ................. |project-insight-config-fileinfo|
      5.5 keymaps .................. |project-insight-config-keymaps|
   6. Symbol types ................. |project-insight-symbol-types|
+     6.1 Function types ........... |project-insight-symbol-functions|
+     6.2 Lua TS types ............. |project-insight-symbol-lua-ts|
   7. Pickers ...................... |project-insight-pickers|
   8. Lua API ...................... |project-insight-api|
   9. Health check ................. |project-insight-health|
@@ -96,12 +98,16 @@ Local development: >
 4.1 Symbols                                       *project-insight-symbols*
 
                                          *:ProjectInsight-symbols*
-:ProjectInsight symbols [scope] [ui] [rebuild]
+:ProjectInsight symbols [scope] [type] [ui] [rebuild]
 
   Build or load the symbol index and open a picker.
 
   [scope]    cwd      Search the current working directory (default).
              buffer   Search only the current buffer.
+
+  [type]     functions   Function declarations and assignments (default).
+             tables      Lua table constructor definitions (Tree-sitter).
+             strings     Lua string literals, deduplicated (Tree-sitter).
 
   [ui]       telescope   Open in telescope.nvim.
              fzf         Open in fzf-lua.
@@ -109,6 +115,7 @@ Local development: >
              (unset)     Auto-detect: telescope → fzf → scratch.
 
   rebuild    Force a cache rebuild before opening the picker.
+             (Only applies to `functions` scope; tables/strings are not cached.)
 
   Arguments can appear in any order. Examples: >
 
@@ -117,7 +124,12 @@ Local development: >
     :ProjectInsight symbols cwd telescope
     :ProjectInsight symbols rebuild
     :ProjectInsight symbols fzf rebuild
+    :ProjectInsight symbols buffer tables
+    :ProjectInsight symbols cwd strings
+    :ProjectInsight symbols buffer tables scratch
 <
+  Note: `tables` and `strings` require nvim-treesitter with the `lua`
+  parser (`:TSInstall lua`). They work on Lua files only.
   Picker keymaps (telescope / fzf):
     <Enter>   Jump to the symbol definition.
     <C-p>     Toggle preview (telescope only).
@@ -340,13 +352,19 @@ All keys are optional. Unset keys use the defaults shown below.
 
 The picker displays a type label for each symbol in square brackets.
 
-  local      `local function foo()`
-  global     `function foo()` or top-level `def foo():` in Python
-  module     `function M.foo()` or `M.foo = function()`
+Function symbols (default `functions` type): >
+  local      local function foo()
+  global     function foo()  /  top-level def foo(): in Python
+  module     function M.foo()  /  M.foo = function()
   method     receiver method in Go, class method in Python/Java/Ruby
-  anonymous  `const foo = () =>` or `foo = function()`
-  exported   `export function foo()` in JavaScript/TypeScript
+  anonymous  const foo = () =>  /  foo = function()
+  exported   export function foo() in JavaScript/TypeScript
   unknown    pattern matched but type could not be inferred
+<
+Lua-specific Tree-sitter types: >
+  table      table constructor: local t = {}  /  state.win = {}  /  { field = {} }
+  string     unique string literal: "require path", event name, magic value
+<
 
 ==============================================================================
 7. PICKERS                                      *project-insight-pickers*
@@ -412,6 +430,28 @@ After calling `setup()`, the following functions are available:
       text      = "function M.my_function(a, b)",
     }
 <
+                                            *project_insight.get_tables()*
+`require("project_insight").get_tables([scope])`
+
+  Scan Lua table definitions via Tree-sitter.
+  Returns `(entries, message)`.
+
+  `scope`  `"buffer"` (default) | `"cwd"`
+
+  Each entry has `filename`, `lnum`, `col`, `name`, `func_type = "table"`.
+  Requires `nvim-treesitter` with the `lua` parser.
+
+                                           *project_insight.get_strings()*
+`require("project_insight").get_strings([scope])`
+
+  Scan unique Lua string literals via Tree-sitter.
+  Returns `(entries, message)`.
+
+  `scope`  `"buffer"` (default) | `"cwd"`
+
+  Each entry has `filename`, `lnum`, `col`, `name`, `func_type = "string"`.
+  Requires `nvim-treesitter` with the `lua` parser.
+
                                              *project_insight.run_metrics()*
 `require("project_insight").run_metrics()`
 
@@ -479,6 +519,16 @@ Tree-sitter Lua scanner shows no results~
     `:TSInstall lua`
   • The scanner loads each file with `bufadd`/`bufload`; very large
     projects may be slow — use the rg scanner for those.
+  • This applies to all three TS-based types: `functions`, `tables`, `strings`.
+
+Tables or strings scan returns nothing~
+
+  • Verify the current buffer (or cwd) contains Lua files.
+  • For `buffer` scope, the buffer must have `filetype=lua`.
+  • The `tables` scanner finds `{}` constructor assignments only; bare
+    `require("mod")` calls are not matched as tables.
+  • The `strings` scanner deduplicates by content, so repeated literals
+    appear once regardless of how many times they occur.
 
 Picker not opening~
 

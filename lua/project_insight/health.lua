@@ -89,42 +89,49 @@ local function check_config()
   info_s("tree.outdir = " .. (cfg.tree and cfg.tree.outdir or "?"))
 end
 
-local function check_archive()
-  start_s("Archive feature")
+local function check_compress()
+  start_s("Compress feature")
   local ok, cfg_mod = pcall(require, "project_insight.config")
   if not ok then err_s("cannot load config"); return end
-  local arc = cfg_mod.get().archive or {}
+  local cmp = cfg_mod.get().compress or {}
 
-  if not arc.enable then
-    info_s("archive feature disabled (archive.enable = false)")
+  if not cmp.enable then
+    info_s("compress feature disabled (compress.enable = false)")
     return
   end
 
-  local outdir = vim.fn.expand(arc.outdir or "~/temp")
-  if vim.fn.isdirectory(outdir) == 1 then
-    ok_s("archive.outdir exists: " .. outdir)
-  else
-    local can_create = pcall(vim.fn.mkdir, outdir, "p")
-    if can_create then
-      ok_s("archive.outdir created: " .. outdir)
+  local engine = cmp.engine or "auto"
+  info_s("compress.engine = " .. engine)
+
+  if cmp.outdir and cmp.outdir ~= "" then
+    local outdir = vim.fn.expand(cmp.outdir)
+    if vim.fn.isdirectory(outdir) == 1 then
+      ok_s("compress.outdir exists: " .. outdir)
     else
-      warn_s("archive.outdir not writable: " .. outdir)
+      local can_create = pcall(vim.fn.mkdir, outdir, "p")
+      if can_create then ok_s("compress.outdir created: " .. outdir)
+      else               warn_s("compress.outdir not writable: " .. outdir) end
     end
+  else
+    info_s("compress.outdir = \"\" → will write to <path>/compressed/ at runtime")
   end
 
-  if platform_is_windows() then
-    ok_s("Windows: will use PowerShell Compress-Archive (.zip)")
-  else
-    if exe("tar") then
-      ok_s("tar available (.tar.gz)")
+  local effective = (engine == "auto")
+    and (platform_is_windows() and "powershell" or "tar")
+    or  engine
+
+  if effective == "powershell" then
+    if platform_is_windows() then
+      ok_s("engine=powershell — PowerShell Compress-Archive available")
     else
-      warn_s("tar not found — archive will fail on this system")
+      warn_s("engine=powershell requested but not on Windows")
     end
-    if exe("find") then
-      ok_s("find available (file listing)")
-    else
-      warn_s("find not found — file listing step will fail")
-    end
+  elseif effective == "tar" then
+    if exe("tar") then ok_s("tar available") else warn_s("tar not found") end
+    if exe("find") then ok_s("find available") else warn_s("find not found") end
+  elseif effective == "zip" then
+    if exe("zip") then ok_s("zip available") else warn_s("zip not found") end
+    if exe("find") then ok_s("find available") else warn_s("find not found") end
   end
 end
 
@@ -155,7 +162,7 @@ function M.check()
   check_pickers()
   check_treesitter()
   check_config()
-  check_archive()
+  check_compress()
   check_cache()
 end
 

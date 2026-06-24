@@ -1,4 +1,11 @@
 ---@module 'project_insight.config'
+
+---@alias ProjectInsight.CompressEngine
+---| '"auto"'        # tar on Unix, Compress-Archive on Windows (default)
+---| '"tar"'         # find + tar → .tar.gz  (Unix/macOS)
+---| '"zip"'         # find + zip → .zip     (Unix/macOS, requires zip)
+---| '"powershell"'  # PowerShell Compress-Archive → .zip  (Windows)
+
 local M = {}
 
 ---@type ProjectInsightConfig
@@ -61,9 +68,11 @@ local defaults = {
     symbols_fzf       = "<leader>pS",
   },
 
-  archive = {
+  compress = {
     enable = true,
-    outdir = vim.fn.expand("~/temp"),
+    ---@type ProjectInsight.CompressEngine
+    engine = "auto",
+    outdir = "",  -- "" = place compressed/ next to the source directory
   },
 
   commands = true,

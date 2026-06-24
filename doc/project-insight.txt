@@ -12,14 +12,14 @@ CONTENTS                                          *project-insight-contents*
      4.3 Tree ..................... |project-insight-tree|
      4.4 File info ................ |project-insight-fileinfo|
      4.5 Cache .................... |project-insight-cache|
-     4.6 Archive .................. |project-insight-archive|
+     4.6 Compress ................. |project-insight-compress|
   5. Configuration ................ |project-insight-config|
      5.1 symbols .................. |project-insight-config-symbols|
      5.2 metrics .................. |project-insight-config-metrics|
      5.3 tree ..................... |project-insight-config-tree|
      5.4 fileinfo ................. |project-insight-config-fileinfo|
      5.5 keymaps .................. |project-insight-config-keymaps|
-     5.6 archive .................. |project-insight-config-archive|
+     5.6 compress ................. |project-insight-config-compress|
   6. Symbol types ................. |project-insight-symbol-types|
      6.1 Function types ........... |project-insight-symbol-functions|
      6.2 Lua TS types ............. |project-insight-symbol-lua-ts|
@@ -92,7 +92,7 @@ Local development: >
 :ProjectInsight {subcommand} [args]
 
   Unified dispatcher. {subcommand} is one of:
-  symbols, metrics, tree, count, clipboard, fileinfo, cache, archive.
+  symbols, metrics, tree, count, clipboard, fileinfo, cache, compress.
 
   Tab-completion is available at every argument position.
 
@@ -221,24 +221,41 @@ Local development: >
   Delete the symbol cache for the current working directory.
 
 ------------------------------------------------------------------------------
-4.6 Archive                                       *project-insight-archive*
+4.6 Compress                                     *project-insight-compress*
 
-                                        *:ProjectInsight-archive*
-:ProjectInsight archive
+                                       *:ProjectInsight-compress*
+:ProjectInsight compress [path] [outdir]
 
-  Compress the current working directory (excluding `.git/`) into a
-  subdirectory of the configured `archive.outdir`. The output directory is
-  created automatically. Two files are produced:
+  Compress a project directory using the configured engine. Both arguments
+  are optional.
 
-    <name>-archive/<name>.tar.gz   (Unix/macOS — requires tar + find)
-    <name>-archive/<name>.zip      (Windows   — uses PowerShell Compress-Archive)
-    <name>-archive/file-list.txt   (all archived paths, one per line)
+  [path]    Directory to compress. Default: current working directory.
+            Tab-completion suggests directories.
+  [outdir]  Output directory override (overrides compress.outdir for this
+            invocation). Tab-completion suggests directories.
+
+  Two files are always created in the output directory: >
+    compressed/<name>.tar.gz   — archive  (engine=tar)
+    compressed/<name>.zip      — archive  (engine=zip or powershell)
+    compressed/file-list.txt   — all archived paths, one per line
+<
+  Output directory resolution:
+    compress.outdir = "" (default)  →  <path>/compressed/
+    compress.outdir = "/some/dir"   →  /some/dir/<name>-compressed/
+
+  Available engines:
+    auto        tar on Unix, Compress-Archive on Windows (default)
+    tar         find + tar → .tar.gz  (requires tar + find)
+    zip         find + zip → .zip     (requires zip + find)
+    powershell  Get-ChildItem + Compress-Archive → .zip  (Windows)
 
   Runs asynchronously. A notification is shown on completion (or failure).
-  Requires `archive.enable = true` (default) in the config.
+  Requires `compress.enable = true` (default).
 
   Examples: >
-    :ProjectInsight archive
+    :ProjectInsight compress
+    :ProjectInsight compress /home/user/myproject
+    :ProjectInsight compress . ~/backups
 <
 ==============================================================================
 5. CONFIGURATION                                   *project-insight-config*
@@ -370,21 +387,32 @@ All keys are optional. Unset keys use the defaults shown below.
   entirely (use the Lua API instead). Default: `true`.
 
 ------------------------------------------------------------------------------
-5.6 archive                               *project-insight-config-archive*
+5.6 compress                             *project-insight-config-compress*
 >
-  archive = {
+  compress = {
     enable = true,
-    outdir = vim.fn.expand("~/temp"),   -- base output directory
+    engine = "auto",   -- "auto"|"tar"|"zip"|"powershell"
+    outdir = "",       -- "" = compressed/ next to source
   },
 <
 `enable`
-  Set to `false` to hide the `archive` subcommand and skip archive-related
+  Set to `false` to hide the `compress` subcommand and skip compress-related
   health checks.
 
+`engine`                                   *project-insight-compress-engine*
+  Compression backend. LuaLS completes the valid string values:
+
+    "auto"        OS detection: tar on Unix, powershell on Windows. Default.
+    "tar"         find + tar → .tar.gz  (Unix/macOS, requires tar + find)
+    "zip"         find + zip → .zip     (Unix/macOS, requires zip + find)
+    "powershell"  PowerShell Compress-Archive → .zip  (Windows)
+
 `outdir`
-  Base directory where per-project archive subdirectories are created.
-  A subfolder `<project-name>-archive/` is created inside this directory.
-  Default: `~/temp` (expanded at startup).
+  Base directory for output. Two behaviours:
+    ""          (default) — place `compressed/` adjacent to the source dir.
+    "/path"     — create `<outdir>/<name>-compressed/` for each project.
+
+  The command's second argument overrides this for a single invocation.
 
 ==============================================================================
 6. SYMBOL TYPES                            *project-insight-symbol-types*
@@ -521,7 +549,7 @@ Reports:
   Optional pickers    telescope.nvim, fzf-lua.
   Tree-sitter         nvim-treesitter installation status.
   Configuration       Active language list, scope, cache settings.
-  Archive             Output directory writability, tar/find (Unix) or PowerShell (Windows).
+  Compress            Engine availability (tar/find/zip/powershell), outdir writability.
   Cache               Symbol count, last-indexed timestamp, file path.
 
 ==============================================================================
@@ -575,15 +603,16 @@ Picker not opening~
   • If you specified `telescope` or `fzf`, verify the plugin is installed.
   • Fall back to `:ProjectInsight symbols scratch` which has no dependencies.
 
-Archive fails~
+Compress fails~
 
-  • On Unix: `tar` and `find` must be in `PATH`. Check with
-    `:checkhealth project-insight`.
-  • On Windows: PowerShell 5.1+ is required (`Compress-Archive` cmdlet).
-  • Verify `archive.outdir` is writable and the disk has enough space.
-  • If the archive path contains spaces or special characters, the
-    PowerShell single-quoted string escaping should handle them; if not,
-    use a simpler path as `outdir`.
+  • Run `:checkhealth project-insight` to see which engine tools are
+    available on your system.
+  • `tar` engine: `tar` and `find` must be in `PATH`.
+  • `zip` engine: `zip` and `find` must be in `PATH`.
+  • `powershell` engine: PowerShell 5.1+ required (`Compress-Archive`).
+  • Verify the output directory (or its parent) is writable.
+  • Paths with spaces: the PowerShell engine uses single-quoted strings
+    which handle spaces, but if problems occur use a simpler `outdir`.
 
 ==============================================================================
 vim:ft=help:tw=78:ts=2:et:

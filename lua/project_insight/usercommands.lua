@@ -9,9 +9,10 @@
 ---   :ProjectInsight clipboard
 ---   :ProjectInsight fileinfo
 ---   :ProjectInsight cache build|info|clear
+---   :ProjectInsight compress [path] [outdir]
 local M = {}
 
-local SUBCOMMANDS   = { "symbols", "metrics", "tree", "count", "clipboard", "fileinfo", "cache", "archive" }
+local SUBCOMMANDS   = { "symbols", "metrics", "tree", "count", "clipboard", "fileinfo", "cache", "compress" }
 local SYMBOL_SCOPES = { "cwd", "buffer" }
 local SYMBOL_UIS    = { "telescope", "fzf", "scratch", "rebuild" }
 local SYMBOL_TYPES  = { "functions", "tables", "strings" }
@@ -117,19 +118,26 @@ local function handle_fileinfo()
   require("project_insight.fileinfo").show()
 end
 
-local function handle_archive()
+local function handle_compress(args)
   local cfg = require("project_insight.config").get()
-  if not (cfg.archive and cfg.archive.enable) then
-    notify.warn("archive feature is disabled (set archive.enable = true in setup)")
+  if not (cfg.compress and cfg.compress.enable) then
+    notify.warn("compress feature is disabled (set compress.enable = true in setup)")
     return
   end
-  notify.info("archiving project…")
-  require("project_insight.archive").compress(cfg.archive, function(ok, msg)
-    if ok then
-      notify.info(msg)
-    else
-      notify.error(msg)
-    end
+
+  -- arg 1: optional path (default = cwd); arg 2: optional outdir override
+  local path = args[1]
+    and vim.fn.fnamemodify(vim.fn.expand(args[1]), ":p")
+    or  vim.fn.getcwd()
+
+  local compress_cfg = args[2]
+    and vim.tbl_extend("force", cfg.compress, { outdir = args[2] })
+    or  cfg.compress
+
+  notify.info(string.format("compressing %s …", vim.fn.fnamemodify(path, ":t")))
+  require("project_insight.compress").compress(path, compress_cfg, function(ok, msg)
+    if ok then notify.info(msg)
+    else      notify.error(msg) end
   end)
 end
 
@@ -180,11 +188,11 @@ function M.setup()
     elseif sub == "clipboard" then handle_clipboard()
     elseif sub == "fileinfo"  then handle_fileinfo()
     elseif sub == "cache"     then handle_cache(raw)
-    elseif sub == "archive"   then handle_archive()
+    elseif sub == "compress"  then handle_compress(raw)
     else
       vim.notify(
         "[project-insight] unknown subcommand '" .. sub .. "'\n"
-        .. "Use: symbols | metrics | tree | count | clipboard | fileinfo | cache",
+        .. "Use: symbols | metrics | tree | count | clipboard | fileinfo | cache | compress",
         vim.log.levels.ERROR)
     end
   end, {
@@ -213,7 +221,14 @@ function M.setup()
           for _, v in ipairs(SYMBOL_UIS)    do opts[#opts + 1] = v end
           return opts
         end
-        if sub_typed == "cache" then return CACHE_SUBS end
+        if sub_typed == "cache"    then return CACHE_SUBS end
+        if sub_typed == "compress" then
+          return vim.fn.getcompletion(arglead, "dir")
+        end
+      end
+
+      if pos == 4 and sub_typed == "compress" then
+        return vim.fn.getcompletion(arglead, "dir")
       end
 
       if pos >= 4 and sub_typed == "symbols" then

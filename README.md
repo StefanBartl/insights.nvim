@@ -30,7 +30,7 @@ into a single unified command with zero external dependencies beyond Neovim itse
 | **tree** | Async project file tree (write to file / count / copy to clipboard) |
 | **fileinfo** | Floating window with `fs.stat` metadata for the current buffer |
 | **cache** | CWD-keyed JSON cache for the symbol index (TTL-based, mtime-aware) |
-| **archive** | Compress the current project directory (`.tar.gz` on Unix, `.zip` on Windows via PowerShell) |
+| **compress** | Compress a project directory — configurable engine: `tar` (.tar.gz), `zip`, or PowerShell (.zip) |
 
 ---
 
@@ -159,18 +159,24 @@ The report is also written to `metrics.output_file` (default:
 :ProjectInsight cache clear  " delete cache for current cwd
 ```
 
-#### Archive
+#### Compress
 
 ```vim
-:ProjectInsight archive      " compress current project directory
+:ProjectInsight compress                " compress cwd with configured engine
+:ProjectInsight compress /path/to/dir   " compress a specific directory
+:ProjectInsight compress . ~/backups    " compress cwd, write to ~/backups/
 ```
 
-Creates a subdirectory `<project-name>-archive/` inside `archive.outdir`
-containing the compressed archive and a `file-list.txt`.
-`.git/` is excluded automatically.
+Creates a `compressed/` sub-directory inside the target path (default) or
+inside `compress.outdir` if set, and places the archive + `file-list.txt`
+there. `.git/` is excluded automatically.
 
-- **Unix/macOS**: `find` + `tar` → `<name>.tar.gz`
-- **Windows**: PowerShell `Compress-Archive` → `<name>.zip`
+| Engine | Produces | Platform |
+|---|---|---|
+| `tar` | `.tar.gz` | Unix/macOS |
+| `zip` | `.zip` | Unix/macOS |
+| `powershell` | `.zip` | Windows |
+| `auto` (default) | tar on Unix, powershell on Windows | any |
 
 ---
 
@@ -243,10 +249,13 @@ require("project_insight").setup({
     symbols_fzf       = "<leader>pS",
   },
 
-  -- Project archival
-  archive = {
+  -- Project compression (:ProjectInsight compress)
+  compress = {
     enable = true,
-    outdir = vim.fn.expand("~/temp"),  -- base output directory
+    ---@type ProjectInsight.CompressEngine  "auto"|"tar"|"zip"|"powershell"
+    engine = "auto",   -- auto → tar on Unix, powershell on Windows
+    outdir = "",       -- "" = compressed/ next to the source directory
+                       -- non-empty = <outdir>/<name>-compressed/
   },
 
   -- false = register no user commands at all
@@ -303,7 +312,7 @@ lua/project_insight/
     telescope.lua       telescope entry_maker + picker
     fzf.lua             fzf-lua picker
     scratch.lua         read-only scratch buffer display
-  archive/init.lua      async project archival (tar.gz / PowerShell zip)
+  compress/init.lua     async compression — engine dispatch (tar / zip / powershell)
   health.lua            :checkhealth project-insight
   usercommands.lua      :ProjectInsight dispatcher + tab-completion
 plugin/project_insight.lua   guard + lazy-load trigger

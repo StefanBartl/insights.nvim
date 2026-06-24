@@ -30,6 +30,7 @@ into a single unified command with zero external dependencies beyond Neovim itse
 | **tree** | Async project file tree (write to file / count / copy to clipboard) |
 | **fileinfo** | Floating window with `fs.stat` metadata for the current buffer |
 | **cache** | CWD-keyed JSON cache for the symbol index (TTL-based, mtime-aware) |
+| **archive** | Compress the current project directory (`.tar.gz` on Unix, `.zip` on Windows via PowerShell) |
 
 ---
 
@@ -158,6 +159,19 @@ The report is also written to `metrics.output_file` (default:
 :ProjectInsight cache clear  " delete cache for current cwd
 ```
 
+#### Archive
+
+```vim
+:ProjectInsight archive      " compress current project directory
+```
+
+Creates a subdirectory `<project-name>-archive/` inside `archive.outdir`
+containing the compressed archive and a `file-list.txt`.
+`.git/` is excluded automatically.
+
+- **Unix/macOS**: `find` + `tar` → `<name>.tar.gz`
+- **Windows**: PowerShell `Compress-Archive` → `<name>.zip`
+
 ---
 
 ## Configuration
@@ -229,6 +243,12 @@ require("project_insight").setup({
     symbols_fzf       = "<leader>pS",
   },
 
+  -- Project archival
+  archive = {
+    enable = true,
+    outdir = vim.fn.expand("~/temp"),  -- base output directory
+  },
+
   -- false = register no user commands at all
   commands = true,
 })
@@ -283,6 +303,7 @@ lua/project_insight/
     telescope.lua       telescope entry_maker + picker
     fzf.lua             fzf-lua picker
     scratch.lua         read-only scratch buffer display
+  archive/init.lua      async project archival (tar.gz / PowerShell zip)
   health.lua            :checkhealth project-insight
   usercommands.lua      :ProjectInsight dispatcher + tab-completion
 plugin/project_insight.lua   guard + lazy-load trigger

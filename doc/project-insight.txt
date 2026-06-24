@@ -12,12 +12,14 @@ CONTENTS                                          *project-insight-contents*
      4.3 Tree ..................... |project-insight-tree|
      4.4 File info ................ |project-insight-fileinfo|
      4.5 Cache .................... |project-insight-cache|
+     4.6 Archive .................. |project-insight-archive|
   5. Configuration ................ |project-insight-config|
      5.1 symbols .................. |project-insight-config-symbols|
      5.2 metrics .................. |project-insight-config-metrics|
      5.3 tree ..................... |project-insight-config-tree|
      5.4 fileinfo ................. |project-insight-config-fileinfo|
      5.5 keymaps .................. |project-insight-config-keymaps|
+     5.6 archive .................. |project-insight-config-archive|
   6. Symbol types ................. |project-insight-symbol-types|
      6.1 Function types ........... |project-insight-symbol-functions|
      6.2 Lua TS types ............. |project-insight-symbol-lua-ts|
@@ -90,7 +92,7 @@ Local development: >
 :ProjectInsight {subcommand} [args]
 
   Unified dispatcher. {subcommand} is one of:
-  symbols, metrics, tree, count, clipboard, fileinfo, cache.
+  symbols, metrics, tree, count, clipboard, fileinfo, cache, archive.
 
   Tab-completion is available at every argument position.
 
@@ -218,6 +220,26 @@ Local development: >
 
   Delete the symbol cache for the current working directory.
 
+------------------------------------------------------------------------------
+4.6 Archive                                       *project-insight-archive*
+
+                                        *:ProjectInsight-archive*
+:ProjectInsight archive
+
+  Compress the current working directory (excluding `.git/`) into a
+  subdirectory of the configured `archive.outdir`. The output directory is
+  created automatically. Two files are produced:
+
+    <name>-archive/<name>.tar.gz   (Unix/macOS — requires tar + find)
+    <name>-archive/<name>.zip      (Windows   — uses PowerShell Compress-Archive)
+    <name>-archive/file-list.txt   (all archived paths, one per line)
+
+  Runs asynchronously. A notification is shown on completion (or failure).
+  Requires `archive.enable = true` (default) in the config.
+
+  Examples: >
+    :ProjectInsight archive
+<
 ==============================================================================
 5. CONFIGURATION                                   *project-insight-config*
 
@@ -346,6 +368,23 @@ All keys are optional. Unset keys use the defaults shown below.
 `commands`
   Set to `false` to skip registering the `:ProjectInsight` user command
   entirely (use the Lua API instead). Default: `true`.
+
+------------------------------------------------------------------------------
+5.6 archive                               *project-insight-config-archive*
+>
+  archive = {
+    enable = true,
+    outdir = vim.fn.expand("~/temp"),   -- base output directory
+  },
+<
+`enable`
+  Set to `false` to hide the `archive` subcommand and skip archive-related
+  health checks.
+
+`outdir`
+  Base directory where per-project archive subdirectories are created.
+  A subfolder `<project-name>-archive/` is created inside this directory.
+  Default: `~/temp` (expanded at startup).
 
 ==============================================================================
 6. SYMBOL TYPES                            *project-insight-symbol-types*
@@ -482,6 +521,7 @@ Reports:
   Optional pickers    telescope.nvim, fzf-lua.
   Tree-sitter         nvim-treesitter installation status.
   Configuration       Active language list, scope, cache settings.
+  Archive             Output directory writability, tar/find (Unix) or PowerShell (Windows).
   Cache               Symbol count, last-indexed timestamp, file path.
 
 ==============================================================================
@@ -534,6 +574,16 @@ Picker not opening~
 
   • If you specified `telescope` or `fzf`, verify the plugin is installed.
   • Fall back to `:ProjectInsight symbols scratch` which has no dependencies.
+
+Archive fails~
+
+  • On Unix: `tar` and `find` must be in `PATH`. Check with
+    `:checkhealth project-insight`.
+  • On Windows: PowerShell 5.1+ is required (`Compress-Archive` cmdlet).
+  • Verify `archive.outdir` is writable and the disk has enough space.
+  • If the archive path contains spaces or special characters, the
+    PowerShell single-quoted string escaping should handle them; if not,
+    use a simpler path as `outdir`.
 
 ==============================================================================
 vim:ft=help:tw=78:ts=2:et:

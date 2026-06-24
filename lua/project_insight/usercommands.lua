@@ -11,7 +11,7 @@
 ---   :ProjectInsight cache build|info|clear
 local M = {}
 
-local SUBCOMMANDS   = { "symbols", "metrics", "tree", "count", "clipboard", "fileinfo", "cache" }
+local SUBCOMMANDS   = { "symbols", "metrics", "tree", "count", "clipboard", "fileinfo", "cache", "archive" }
 local SYMBOL_SCOPES = { "cwd", "buffer" }
 local SYMBOL_UIS    = { "telescope", "fzf", "scratch", "rebuild" }
 local SYMBOL_TYPES  = { "functions", "tables", "strings" }
@@ -117,6 +117,22 @@ local function handle_fileinfo()
   require("project_insight.fileinfo").show()
 end
 
+local function handle_archive()
+  local cfg = require("project_insight.config").get()
+  if not (cfg.archive and cfg.archive.enable) then
+    notify.warn("archive feature is disabled (set archive.enable = true in setup)")
+    return
+  end
+  notify.info("archiving project…")
+  require("project_insight.archive").compress(cfg.archive, function(ok, msg)
+    if ok then
+      notify.info(msg)
+    else
+      notify.error(msg)
+    end
+  end)
+end
+
 local function handle_cache(args)
   local sub = args[1] or ""
   local cfg = require("project_insight.config").get().symbols.cache
@@ -164,6 +180,7 @@ function M.setup()
     elseif sub == "clipboard" then handle_clipboard()
     elseif sub == "fileinfo"  then handle_fileinfo()
     elseif sub == "cache"     then handle_cache(raw)
+    elseif sub == "archive"   then handle_archive()
     else
       vim.notify(
         "[project-insight] unknown subcommand '" .. sub .. "'\n"

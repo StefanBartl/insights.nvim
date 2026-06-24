@@ -61,6 +61,11 @@ local defaults = {
     symbols_fzf       = "<leader>pS",
   },
 
+  archive = {
+    enable = true,
+    outdir = vim.fn.expand("~/temp"),
+  },
+
   commands = true,
 }
 

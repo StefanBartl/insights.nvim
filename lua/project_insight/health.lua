@@ -89,6 +89,45 @@ local function check_config()
   info_s("tree.outdir = " .. (cfg.tree and cfg.tree.outdir or "?"))
 end
 
+local function check_archive()
+  start_s("Archive feature")
+  local ok, cfg_mod = pcall(require, "project_insight.config")
+  if not ok then err_s("cannot load config"); return end
+  local arc = cfg_mod.get().archive or {}
+
+  if not arc.enable then
+    info_s("archive feature disabled (archive.enable = false)")
+    return
+  end
+
+  local outdir = vim.fn.expand(arc.outdir or "~/temp")
+  if vim.fn.isdirectory(outdir) == 1 then
+    ok_s("archive.outdir exists: " .. outdir)
+  else
+    local can_create = pcall(vim.fn.mkdir, outdir, "p")
+    if can_create then
+      ok_s("archive.outdir created: " .. outdir)
+    else
+      warn_s("archive.outdir not writable: " .. outdir)
+    end
+  end
+
+  if platform_is_windows() then
+    ok_s("Windows: will use PowerShell Compress-Archive (.zip)")
+  else
+    if exe("tar") then
+      ok_s("tar available (.tar.gz)")
+    else
+      warn_s("tar not found — archive will fail on this system")
+    end
+    if exe("find") then
+      ok_s("find available (file listing)")
+    else
+      warn_s("find not found — file listing step will fail")
+    end
+  end
+end
+
 local function check_cache()
   start_s("Symbol cache")
   local ok, cfg_mod = pcall(require, "project_insight.config")
@@ -116,6 +155,7 @@ function M.check()
   check_pickers()
   check_treesitter()
   check_config()
+  check_archive()
   check_cache()
 end
 

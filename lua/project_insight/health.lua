@@ -87,6 +87,8 @@ local function check_config()
   info_s("symbols.cache.enabled = " .. tostring(sym.cache and sym.cache.enabled))
   info_s("metrics.output_file = " .. (cfg.metrics and cfg.metrics.output_file or "?"))
   info_s("tree.outdir = " .. (cfg.tree and cfg.tree.outdir or "?"))
+  info_s("imports.enable = " .. tostring(cfg.imports and cfg.imports.enable))
+  info_s("imports.engine = " .. (cfg.imports and cfg.imports.engine or "auto"))
 end
 
 local function check_compress()

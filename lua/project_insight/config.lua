@@ -75,6 +75,21 @@ local defaults = {
     outdir = "",  -- "" = place compressed/ next to the source directory
   },
 
+  imports = {
+    enable      = true,
+    -- "auto"       use Tree-sitter when the Lua parser is available, else rg
+    -- "treesitter" force AST scan (falls back to rg if parser missing)
+    -- "ripgrep"    force the line/regex scan
+    engine      = "auto",
+    output_file = vim.fn.stdpath("state") .. "/project-insight/imports.md",
+    -- Named groups expand to a list of module prefixes when used as a filter,
+    -- e.g. :ProjectInsight imports lib  →  matches lib, lib.nvim, lib.usrcmds.
+    groups = {
+      lib = { "lib", "lib.nvim", "lib.usrcmds" },
+    },
+    classify_external = true,  -- tag modules without a local .lua file as (extern)
+  },
+
   commands = true,
 }
 

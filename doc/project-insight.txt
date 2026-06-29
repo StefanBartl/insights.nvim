@@ -13,6 +13,7 @@ CONTENTS                                          *project-insight-contents*
      4.4 File info ................ |project-insight-fileinfo|
      4.5 Cache .................... |project-insight-cache|
      4.6 Compress ................. |project-insight-compress|
+     4.7 Imports .................. |project-insight-imports|
   5. Configuration ................ |project-insight-config|
      5.1 symbols .................. |project-insight-config-symbols|
      5.2 metrics .................. |project-insight-config-metrics|
@@ -20,6 +21,7 @@ CONTENTS                                          *project-insight-contents*
      5.4 fileinfo ................. |project-insight-config-fileinfo|
      5.5 keymaps .................. |project-insight-config-keymaps|
      5.6 compress ................. |project-insight-config-compress|
+     5.7 imports .................. |project-insight-config-imports|
   6. Symbol types ................. |project-insight-symbol-types|
      6.1 Function types ........... |project-insight-symbol-functions|
      6.2 Lua TS types ............. |project-insight-symbol-lua-ts|
@@ -92,7 +94,7 @@ Local development: >
 :ProjectInsight {subcommand} [args]
 
   Unified dispatcher. {subcommand} is one of:
-  symbols, metrics, tree, count, clipboard, fileinfo, cache, compress.
+  symbols, metrics, tree, count, clipboard, fileinfo, cache, compress, imports.
 
   Tab-completion is available at every argument position.
 
@@ -257,6 +259,53 @@ Local development: >
     :ProjectInsight compress /home/user/myproject
     :ProjectInsight compress . ~/backups
 <
+------------------------------------------------------------------------------
+4.7 Imports                                       *project-insight-imports*
+
+                                         *:ProjectInsight-imports*
+:ProjectInsight imports [filter...]
+
+  Scan every Lua file under the current working directory for `require(...)`
+  calls and display a report in a scratch buffer. The report is also written
+  to the file configured in |project-insight-config-imports|.
+
+  [filter]  Zero or more module filters. A module matches a filter when it
+            equals the filter or begins with `filter.` (prefix on the module
+            hierarchy). `lib` matches `lib`, `lib.nvim`, `lib.usrcmds` but not
+            `mylib`. A filter that names a configured group (see
+            |project-insight-config-imports|) expands to that group's prefix
+            list. Multiple filters are OR-combined. Tab-completion suggests
+            configured group names.
+
+  How modules are detected: by default the scan uses Tree-sitter and counts
+  only genuine `require("…")` calls in the syntax tree, so the word `require`
+  inside comments or string literals is ignored. The string argument is taken
+  as the module path; the bound variable and an optional trailing field access
+  (`require("x").field`) are read from the AST. When the Lua Tree-sitter parser
+  is unavailable the scan falls back to a ripgrep line match (which matches the
+  word `require` anywhere and is therefore less precise). The active backend is
+  shown in the report header and is selectable via
+  |project-insight-config-imports|.
+
+  Report sections:
+    Count        Each module with its occurrence count, sorted descending.
+                 A module with no matching `.lua` file inside the project is
+                 tagged `(extern)` — e.g. `vim`, `bit`, `telescope.actions`.
+    Occurrences  Every call as `path:line  module  imported-name (.field)`,
+                 sorted by module, then file, then line.
+
+  Scratch buffer keymaps:
+    q / <Esc>   Close the buffer.
+    gf          Follow `path:line` on the current line.
+
+  Currently Lua-only; other languages are tracked in the project roadmap.
+
+  Examples: >
+    :ProjectInsight imports
+    :ProjectInsight imports lib
+    :ProjectInsight imports project_insight
+    :ProjectInsight imports lib foo.bar
+<
 ==============================================================================
 5. CONFIGURATION                                   *project-insight-config*
 
@@ -414,6 +463,47 @@ All keys are optional. Unset keys use the defaults shown below.
 
   The command's second argument overrides this for a single invocation.
 
+------------------------------------------------------------------------------
+5.7 imports                               *project-insight-config-imports*
+>
+  imports = {
+    enable      = true,
+    engine      = "auto",   -- "auto" | "treesitter" | "ripgrep"
+    output_file = vim.fn.stdpath("state") .. "/project-insight/imports.md",
+    groups = {
+      lib = { "lib", "lib.nvim", "lib.usrcmds" },
+    },
+    classify_external = true,
+  },
+<
+`enable`
+  Set to `false` to hide the `imports` subcommand.
+
+`engine`
+  Detection backend for require() calls:
+    "auto"        (default) Tree-sitter when the Lua parser is available,
+                  otherwise the ripgrep line scan.
+    "treesitter"  Force the AST scan. Falls back to ripgrep (with a warning)
+                  if the Lua parser is missing.
+    "ripgrep"     Force the line scan. Faster and dependency-light, but the
+                  word `require` in comments/strings is matched too.
+  The Tree-sitter backend requires `nvim-treesitter` with the `lua` parser
+  (`:TSInstall lua`).
+
+`output_file`
+  Path where the report is written (in addition to the scratch buffer). The
+  directory is created automatically. Set to `""` to skip writing a file.
+
+`groups`
+  Named filter groups. Each name maps to a list of module prefixes. Passing
+  the group name as a filter to |:ProjectInsight-imports| expands to those
+  prefixes. Group names are offered in tab-completion.
+
+`classify_external`
+  When `true`, modules that have no matching `.lua` file inside the project
+  (checked under `lua/<path>.lua`, `lua/<path>/init.lua`, `<path>.lua`, and
+  `<path>/init.lua`) are tagged `(extern)` in the count table.
+
 ==============================================================================
 6. SYMBOL TYPES                            *project-insight-symbol-types*
 
@@ -524,6 +614,15 @@ After calling `setup()`, the following functions are available:
 
   Run the Lua metrics analysis for the current project and open the report
   in a scratch buffer.
+
+                                             *project_insight.run_imports()*
+`require("project_insight").run_imports([filters])`
+
+  Scan require() usage for the current project and open the report in a
+  scratch buffer.
+
+  `filters`  optional list of module prefixes / group names to filter by,
+             e.g. `{ "project_insight" }` or `{ "lib" }`.
 
                                               *project_insight.write_tree()*
 `require("project_insight").write_tree([callback])`

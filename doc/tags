@@ -6,6 +6,7 @@
 :ProjectInsight-compress	project-insight.txt	/*:ProjectInsight-compress*
 :ProjectInsight-count	project-insight.txt	/*:ProjectInsight-count*
 :ProjectInsight-fileinfo	project-insight.txt	/*:ProjectInsight-fileinfo*
+:ProjectInsight-imports	project-insight.txt	/*:ProjectInsight-imports*
 :ProjectInsight-metrics	project-insight.txt	/*:ProjectInsight-metrics*
 :ProjectInsight-symbols	project-insight.txt	/*:ProjectInsight-symbols*
 :ProjectInsight-tree	project-insight.txt	/*:ProjectInsight-tree*
@@ -17,6 +18,7 @@ project-insight-compress-engine	project-insight.txt	/*project-insight-compress-e
 project-insight-config	project-insight.txt	/*project-insight-config*
 project-insight-config-compress	project-insight.txt	/*project-insight-config-compress*
 project-insight-config-fileinfo	project-insight.txt	/*project-insight-config-fileinfo*
+project-insight-config-imports	project-insight.txt	/*project-insight-config-imports*
 project-insight-config-keymaps	project-insight.txt	/*project-insight-config-keymaps*
 project-insight-config-metrics	project-insight.txt	/*project-insight-config-metrics*
 project-insight-config-symbols	project-insight.txt	/*project-insight-config-symbols*
@@ -24,6 +26,7 @@ project-insight-config-tree	project-insight.txt	/*project-insight-config-tree*
 project-insight-contents	project-insight.txt	/*project-insight-contents*
 project-insight-fileinfo	project-insight.txt	/*project-insight-fileinfo*
 project-insight-health	project-insight.txt	/*project-insight-health*
+project-insight-imports	project-insight.txt	/*project-insight-imports*
 project-insight-installation	project-insight.txt	/*project-insight-installation*
 project-insight-intro	project-insight.txt	/*project-insight-intro*
 project-insight-metrics	project-insight.txt	/*project-insight-metrics*
@@ -40,6 +43,7 @@ project-insight.txt	project-insight.txt	/*project-insight.txt*
 project_insight.get_strings()	project-insight.txt	/*project_insight.get_strings()*
 project_insight.get_symbols()	project-insight.txt	/*project_insight.get_symbols()*
 project_insight.get_tables()	project-insight.txt	/*project_insight.get_tables()*
+project_insight.run_imports()	project-insight.txt	/*project_insight.run_imports()*
 project_insight.run_metrics()	project-insight.txt	/*project_insight.run_metrics()*
 project_insight.show_fileinfo()	project-insight.txt	/*project_insight.show_fileinfo()*
 project_insight.write_tree()	project-insight.txt	/*project_insight.write_tree()*

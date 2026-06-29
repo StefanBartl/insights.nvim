@@ -31,6 +31,7 @@ into a single unified command with zero external dependencies beyond Neovim itse
 | **fileinfo** | Floating window with `fs.stat` metadata for the current buffer |
 | **cache** | CWD-keyed JSON cache for the symbol index (TTL-based, mtime-aware) |
 | **compress** | Compress a project directory — configurable engine: `tar` (.tar.gz), `zip`, or PowerShell (.zip) |
+| **imports** | Count and list `require()` calls across Lua files — Tree-sitter-accurate (ignores `require` in comments/strings), per-module counts, every occurrence with imported name/field and `path:line`, with prefix/group filters |
 
 ---
 
@@ -42,7 +43,7 @@ into a single unified command with zero external dependencies beyond Neovim itse
 | `rg` (ripgrep) | **yes** | symbol indexing |
 | `telescope.nvim` | optional | telescope picker |
 | `fzf-lua` | optional | fzf picker |
-| `nvim-treesitter` | optional | TS-based Lua scanner |
+| `nvim-treesitter` | optional | TS-based Lua scanner + accurate import analysis |
 
 ---
 
@@ -178,6 +179,55 @@ there. `.git/` is excluded automatically.
 | `powershell` | `.zip` | Windows |
 | `auto` (default) | tar on Unix, powershell on Windows | any |
 
+#### Imports
+
+```vim
+:ProjectInsight imports                  " all require() calls in cwd
+:ProjectInsight imports lib              " only group "lib" (config.imports.groups)
+:ProjectInsight imports project_insight  " only modules under prefix project_insight
+:ProjectInsight imports lib foo.bar      " multiple filters (OR-combined)
+```
+
+Scans every Lua file in the cwd for `require(...)` calls and opens a scratch
+report (also written to `imports.output_file`). The report has two sections:
+
+```
+=== Imports — project-insight.nvim ===
+total require() calls : 74   unique modules : 29   backend : treesitter
+
+--- Count ---
+   13  project_insight.util.notify
+   10  project_insight.config
+    1  telescope.actions               (extern)
+   ...
+
+--- Occurrences ---
+lua/project_insight/metrics/init.lua:5   project_insight.util.notify   notify (.create)
+lua/project_insight/metrics/init.lua:7   project_insight.config        config
+...
+```
+
+- **Count**: each module with its occurrence count, sorted descending. Modules
+  with no matching `.lua` file in the project are tagged `(extern)`
+  (e.g. `vim`, `telescope.*`).
+- **Occurrences**: every call as `path:line  module  imported-name (.field)`.
+  `gf` in the scratch buffer jumps to the `path:line`.
+
+Filters match by module prefix: `lib` matches `lib`, `lib.nvim`,
+`lib.usrcmds` — but not `mylib`. Named groups in `imports.groups` expand to a
+list of prefixes. Tab-completion suggests configured group names.
+
+**Detection backend.** By default (`imports.engine = "auto"`) the scan uses
+Tree-sitter: only genuine `require("…")` calls in the AST are counted, so the
+word `require` inside comments or string literals is ignored. If the Lua
+Tree-sitter parser is unavailable it falls back to a ripgrep line scan (which
+matches the word `require` anywhere and is therefore less precise). The active
+backend is shown in the report header. Set `engine = "treesitter"` or
+`"ripgrep"` to force one.
+
+> Currently Lua-only. Support for other languages' imports is tracked in
+> [roadmap.md](roadmap.md).
+
 ---
 
 ## Configuration
@@ -258,6 +308,20 @@ require("project_insight").setup({
                        -- non-empty = <outdir>/<name>-compressed/
   },
 
+  -- require()/import analysis (:ProjectInsight imports)
+  imports = {
+    enable      = true,
+    engine      = "auto",   -- "auto" → Tree-sitter if Lua parser present, else
+                            -- ripgrep; "treesitter" / "ripgrep" force a backend
+    output_file = vim.fn.stdpath("state") .. "/project-insight/imports.md",
+    -- Named groups expand to module prefixes when used as a filter,
+    -- e.g. :ProjectInsight imports lib → matches lib, lib.nvim, lib.usrcmds
+    groups = {
+      lib = { "lib", "lib.nvim", "lib.usrcmds" },
+    },
+    classify_external = true,  -- tag modules without a local .lua file as (extern)
+  },
+
   -- false = register no user commands at all
   commands = true,
 })
@@ -313,6 +377,9 @@ lua/project_insight/
     fzf.lua             fzf-lua picker
     scratch.lua         read-only scratch buffer display
   compress/init.lua     async compression — engine dispatch (tar / zip / powershell)
+  imports/
+    init.lua            require() analysis — backend dispatch, counts, report
+    ts_requires.lua     Tree-sitter require() scanner (AST-accurate)
   health.lua            :checkhealth project-insight
   usercommands.lua      :ProjectInsight dispatcher + tab-completion
 plugin/project_insight.lua   guard + lazy-load trigger

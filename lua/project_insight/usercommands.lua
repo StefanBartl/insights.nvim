@@ -10,9 +10,10 @@
 ---   :ProjectInsight fileinfo
 ---   :ProjectInsight cache build|info|clear
 ---   :ProjectInsight compress [path] [outdir]
+---   :ProjectInsight imports [filter...]
 local M = {}
 
-local SUBCOMMANDS   = { "symbols", "metrics", "tree", "count", "clipboard", "fileinfo", "cache", "compress" }
+local SUBCOMMANDS   = { "symbols", "metrics", "tree", "count", "clipboard", "fileinfo", "cache", "compress", "imports" }
 local SYMBOL_SCOPES = { "cwd", "buffer" }
 local SYMBOL_UIS    = { "telescope", "fzf", "scratch", "rebuild" }
 local SYMBOL_TYPES  = { "functions", "tables", "strings" }
@@ -38,6 +39,19 @@ local function open_symbol_picker(entries, ui, scope)
   else
     require("project_insight.ui.telescope").open(entries, title)
   end
+end
+
+---Completion candidates for `:ProjectInsight imports` (configured group names).
+---@param arglead string
+---@return string[]
+local function import_groups(arglead)
+  local cfg = require("project_insight.config").get()
+  local out = {}
+  for name, _ in pairs((cfg.imports and cfg.imports.groups) or {}) do
+    if name:sub(1, #arglead) == arglead then out[#out + 1] = name end
+  end
+  table.sort(out)
+  return out
 end
 
 ---Choose best available picker.
@@ -141,6 +155,15 @@ local function handle_compress(args)
   end)
 end
 
+local function handle_imports(args)
+  local cfg = require("project_insight.config").get()
+  if not (cfg.imports and cfg.imports.enable) then
+    notify.warn("imports feature is disabled (set imports.enable = true in setup)")
+    return
+  end
+  require("project_insight.imports").run(args)
+end
+
 local function handle_cache(args)
   local sub = args[1] or ""
   local cfg = require("project_insight.config").get().symbols.cache
@@ -189,10 +212,11 @@ function M.setup()
     elseif sub == "fileinfo"  then handle_fileinfo()
     elseif sub == "cache"     then handle_cache(raw)
     elseif sub == "compress"  then handle_compress(raw)
+    elseif sub == "imports"   then handle_imports(raw)
     else
       vim.notify(
         "[project-insight] unknown subcommand '" .. sub .. "'\n"
-        .. "Use: symbols | metrics | tree | count | clipboard | fileinfo | cache | compress",
+        .. "Use: symbols | metrics | tree | count | clipboard | fileinfo | cache | compress | imports",
         vim.log.levels.ERROR)
     end
   end, {
@@ -225,10 +249,15 @@ function M.setup()
         if sub_typed == "compress" then
           return vim.fn.getcompletion(arglead, "dir")
         end
+        if sub_typed == "imports"  then return import_groups(arglead) end
       end
 
       if pos == 4 and sub_typed == "compress" then
         return vim.fn.getcompletion(arglead, "dir")
+      end
+
+      if pos >= 4 and sub_typed == "imports" then
+        return import_groups(arglead)
       end
 
       if pos >= 4 and sub_typed == "symbols" then

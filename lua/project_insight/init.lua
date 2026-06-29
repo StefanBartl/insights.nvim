@@ -64,6 +64,12 @@ function M.run_metrics()
   require("project_insight.metrics").run()
 end
 
+---Analyze require() usage for the current project and open the report.
+---@param filters string[]|nil  module prefixes / group names to filter by
+function M.run_imports(filters)
+  require("project_insight.imports").run(filters)
+end
+
 ---Write the project file tree.
 ---@param callback fun(success:boolean, msg:string, path:string|nil)|nil
 function M.write_tree(callback)

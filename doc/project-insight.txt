@@ -296,7 +296,19 @@ Local development: >
 
   Scratch buffer keymaps:
     q / <Esc>   Close the buffer.
-    gf          Follow `path:line` on the current line.
+    gf          Follow `path:line` on the current line (the require site).
+    gd          Go to the definition behind the import on the current line.
+    gp          Preview that definition in a floating window.
+
+  Go to definition: `gd` / `gp` resolve the required module to the file that
+  defines it — without executing `require(...)` — and reveal the definition of
+  the accessed field. On an Occurrence line the jump lands on the field's
+  definition (e.g. `…notify  notify (.create)` opens `function M.create`); on a
+  Count line it opens the module file. Field location is Tree-sitter-accurate
+  (`function M.f()`, `M.f = function`, `local f = …`, table fields) with a regex
+  fallback. Module resolution searches project-local `lua/` paths first, then
+  the Neovim loader cache, `package.path`, and the runtimepath. The view, float
+  border, and keys are configured under |project-insight-config-imports|.
 
   Currently Lua-only; other languages are tracked in the project roadmap.
 
@@ -474,6 +486,11 @@ All keys are optional. Unset keys use the defaults shown below.
       lib = { "lib", "lib.nvim", "lib.usrcmds" },
     },
     classify_external = true,
+    definition = {
+      view    = "edit",       -- "edit" | "float"
+      border  = "rounded",
+      keymaps = { jump = "gd", preview = "gp" },
+    },
   },
 <
 `enable`
@@ -503,6 +520,14 @@ All keys are optional. Unset keys use the defaults shown below.
   When `true`, modules that have no matching `.lua` file inside the project
   (checked under `lua/<path>.lua`, `lua/<path>/init.lua`, `<path>.lua`, and
   `<path>/init.lua`) are tagged `(extern)` in the count table.
+
+`definition`
+  Controls "go to definition" from the imports report (`gd` / `gp`).
+    view     "edit" jumps in the current window; "float" opens a preview
+             window. Affects `gd`; `gp` always uses a float.
+    border   Border style for the floating preview ("rounded", "single", …).
+    keymaps  Buffer-local keys in the report: `jump` (default "gd") and
+             `preview` (default "gp"). Set either to `false` to disable it.
 
 ==============================================================================
 6. SYMBOL TYPES                            *project-insight-symbol-types*

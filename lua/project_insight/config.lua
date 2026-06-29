@@ -88,6 +88,17 @@ local defaults = {
       lib = { "lib", "lib.nvim", "lib.usrcmds" },
     },
     classify_external = true,  -- tag modules without a local .lua file as (extern)
+
+    -- "Go to definition" from the imports report: resolve a required module to
+    -- its file and jump to / preview the definition of the accessed field.
+    definition = {
+      view   = "edit",       -- "edit" = jump in current window, "float" = preview window
+      border = "rounded",    -- float border (when view/preview opens a float)
+      keymaps = {
+        jump    = "gd",      -- reveal definition (uses `view`); false to disable
+        preview = "gp",      -- always reveal in a floating preview; false to disable
+      },
+    },
   },
 
   commands = true,

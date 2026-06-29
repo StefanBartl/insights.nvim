@@ -36,10 +36,19 @@ local function target_window()
   return api.nvim_get_current_win()
 end
 
+---Extra buffer-local keymap to install in a scratch buffer.
+---@class ScratchKeymap
+---@field [1] string         mode
+---@field [2] string         lhs
+---@field [3] string|function rhs
+---@field desc string|nil
+
 ---Open a scratch buffer containing `lines`, closing on `q` / `<Esc>`.
 ---@param lines string[]
 ---@param title string|nil
-function M.open(lines, title)
+---@param opts { keymaps: ScratchKeymap[]|nil }|nil   extra buffer-local keymaps
+---@return integer|nil bufnr
+function M.open(lines, title, opts)
   if not lines or #lines == 0 then
     vim.notify("[project-insight] nothing to display", vim.log.levels.WARN)
     return
@@ -77,6 +86,16 @@ function M.open(lines, title)
       end
     end
   end, km)
+
+  -- Caller-supplied buffer-local keymaps (e.g. imports' "go to definition").
+  if opts and opts.keymaps then
+    for _, m in ipairs(opts.keymaps) do
+      vim.keymap.set(m[1], m[2], m[3],
+        { noremap = true, silent = true, buffer = buf, desc = m.desc })
+    end
+  end
+
+  return buf
 end
 
 return M

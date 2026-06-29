@@ -241,11 +241,13 @@ local function matches(module, prefixes)
   return false
 end
 
---- Build the report lines.
+--- Build the report lines together with a per-line lookup table mapping each
+--- count / occurrence line (1-based, as displayed in the scratch buffer) to the
+--- import it represents. The lookup powers "go to definition" in the report.
 ---@param data ImportData
 ---@param filters string[]
----@return string[]
-function M.format_report(data, filters)
+---@return string[] lines, table<integer, { module: string, field: string|nil }> line_index
+function M.build_report(data, filters)
   local prefixes = expand_filters(filters or {})
   local root     = vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
 
@@ -274,6 +276,9 @@ function M.format_report(data, filters)
     "--- Count ---",
   }
 
+  ---@type table<integer, { module: string, field: string|nil }>
+  local line_index = {}
+
   -- Sort modules by count desc, then name asc
   local mods = {}
   for mod, c in pairs(counts) do
@@ -287,6 +292,8 @@ function M.format_report(data, filters)
   for _, m in ipairs(mods) do
     local tag = data.externals[m.module] and "  (extern)" or ""
     lines[#lines + 1] = string.format("  %3d  %s%s", m.count, m.module, tag)
+    -- Count line → module file (no field).
+    line_index[#lines] = { module = m.module }
   end
 
   lines[#lines + 1] = ""
@@ -304,12 +311,23 @@ function M.format_report(data, filters)
     if e.field then imported = imported .. " (." .. e.field .. ")" end
     lines[#lines + 1] = string.format("%s:%d  %-32s  %s",
       e.filename, e.lnum, e.module, imported)
+    -- Occurrence line → field definition (if a field was accessed).
+    line_index[#lines] = { module = e.module, field = e.field }
   end
 
   if #entries == 0 then
     lines[#lines + 1] = "  (no matching require() calls)"
   end
 
+  return lines, line_index
+end
+
+--- Build the report lines (compatibility wrapper around `build_report`).
+---@param data ImportData
+---@param filters string[]
+---@return string[]
+function M.format_report(data, filters)
+  local lines = M.build_report(data, filters)
   return lines
 end
 
@@ -345,7 +363,7 @@ function M.run(filters)
     return
   end
 
-  local report = M.format_report(data, filters)
+  local report, line_index = M.build_report(data, filters)
 
   local out_path = cfg.imports and cfg.imports.output_file
   if out_path and out_path ~= "" then
@@ -354,8 +372,35 @@ function M.run(filters)
     else       notify.warn("could not write report: " .. tostring(err)) end
   end
 
+  local def_cfg = (cfg.imports and cfg.imports.definition) or {}
+  local maps    = def_cfg.keymaps or {}
+
+  -- Resolve the import on the current report line and reveal its definition.
+  ---@param view "edit"|"float"
+  local function reveal(view)
+    local entry = line_index[vim.api.nvim_win_get_cursor(0)[1]]
+    if not entry then
+      notify.info("no import on this line (place the cursor on a Count or Occurrence line)")
+      return
+    end
+    require("project_insight.imports.definition").reveal(entry, view,
+      { border = def_cfg.border or "rounded" })
+  end
+
+  ---@type ScratchKeymap[]
+  local keymaps = {}
+  if maps.jump ~= false then
+    keymaps[#keymaps + 1] = { "n", maps.jump or "gd", function() reveal(def_cfg.view or "edit") end,
+      desc = "project-insight: go to import definition" }
+  end
+  if maps.preview ~= false then
+    keymaps[#keymaps + 1] = { "n", maps.preview or "gp", function() reveal("float") end,
+      desc = "project-insight: preview import definition" }
+  end
+
   require("project_insight.ui.scratch").open(report,
-    "Imports — " .. vim.fn.fnamemodify(vim.fn.getcwd(), ":t"))
+    "Imports — " .. vim.fn.fnamemodify(vim.fn.getcwd(), ":t"),
+    { keymaps = keymaps })
 end
 
 return M

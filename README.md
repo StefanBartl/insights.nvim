@@ -213,6 +213,25 @@ lua/project_insight/metrics/init.lua:7   project_insight.config        config
 - **Occurrences**: every call as `path:line  module  imported-name (.field)`.
   `gf` in the scratch buffer jumps to the `path:line`.
 
+**Go to definition.** Inside the report, two extra keymaps resolve a required
+module to the file that defines it — *without* executing `require(...)` — and
+reveal the definition of the accessed field:
+
+| Key  | Action |
+|------|--------|
+| `gd` | reveal the definition (jump in the current window, or a float — see `definition.view`) |
+| `gp` | always reveal the definition in a floating preview |
+
+On an **Occurrence** line (`module  name (.field)`) the jump lands on the
+definition of that field — e.g. on `… project_insight.util.notify  notify (.create)`,
+`gd` opens `notify.lua` at `function M.create(…)`. On a **Count** line it opens
+the module file itself. Field location is Tree-sitter-accurate (it understands
+`function M.f()`, `M.f = function`, `local f = …`, and table fields), with a
+regex fallback when the Lua parser is unavailable. Module resolution searches
+project-local `lua/` paths first, then the Neovim loader cache, `package.path`,
+and the runtimepath. Configure the view, float border, and keys under
+`imports.definition` (set a keymap to `false` to disable it).
+
 Filters match by module prefix: `lib` matches `lib`, `lib.nvim`,
 `lib.usrcmds` — but not `mylib`. Named groups in `imports.groups` expand to a
 list of prefixes. Tab-completion suggests configured group names.
@@ -320,6 +339,16 @@ require("project_insight").setup({
       lib = { "lib", "lib.nvim", "lib.usrcmds" },
     },
     classify_external = true,  -- tag modules without a local .lua file as (extern)
+
+    -- "Go to definition" from the imports report (gd / gp)
+    definition = {
+      view   = "edit",        -- "edit" = jump in current window, "float" = preview
+      border = "rounded",     -- float border
+      keymaps = {
+        jump    = "gd",       -- reveal definition (uses view); false to disable
+        preview = "gp",       -- always reveal in a float; false to disable
+      },
+    },
   },
 
   -- false = register no user commands at all
@@ -380,6 +409,8 @@ lua/project_insight/
   imports/
     init.lua            require() analysis — backend dispatch, counts, report
     ts_requires.lua     Tree-sitter require() scanner (AST-accurate)
+    resolve.lua         module path → file resolution (no require side-effects)
+    definition.lua      locate + jump/preview the definition behind an import
   health.lua            :checkhealth project-insight
   usercommands.lua      :ProjectInsight dispatcher + tab-completion
 plugin/project_insight.lua   guard + lazy-load trigger

@@ -55,6 +55,7 @@ Tab-completion works at every level.
 2. REQUIREMENTS                                *project-insight-requirements*
 
   • Neovim ≥ 0.9           (required)
+  • lib.nvim                (required, shared notify + cross-platform helpers)
   • rg (ripgrep)            (required for symbol indexing)
   • telescope.nvim          (optional, for telescope symbol picker)
   • fzf-lua                 (optional, for fzf symbol picker)
@@ -65,9 +66,12 @@ On Windows the file tree uses PowerShell; on Unix it uses `find` + `sed`.
 ==============================================================================
 3. INSTALLATION                                *project-insight-installation*
 
+project-insight.nvim is lazy by design; load it on `cmd = "ProjectInsight"`.
+
 lazy.nvim: >
   {
     "StefanBartl/project-insight.nvim",
+    dependencies = { "StefanBartl/lib.nvim" },
     cmd  = "ProjectInsight",
     keys = {
       { "<leader>ps", desc = "Project symbols (telescope)" },
@@ -78,14 +82,22 @@ lazy.nvim: >
     end,
   }
 <
-Local development: >
-  {
-    dir    = "E:/repos/project-insight.nvim",
+packer.nvim: >
+  use {
+    "StefanBartl/project-insight.nvim",
+    requires = { "StefanBartl/lib.nvim" },
     cmd    = "ProjectInsight",
     config = function()
       require("project_insight").setup()
     end,
   }
+<
+vim-plug: >
+  Plug 'StefanBartl/lib.nvim'
+  Plug 'StefanBartl/project-insight.nvim'
+
+  " after plug#end()
+  require("project_insight").setup()
 <
 ==============================================================================
 4. COMMANDS                                      *project-insight-commands*
@@ -664,7 +676,7 @@ After calling `setup()`, the following functions are available:
 9. HEALTH CHECK                                   *project-insight-health*
 
 >
-  :checkhealth project-insight
+  :checkhealth project_insight
 <
 Reports:
 
@@ -681,7 +693,7 @@ Reports:
 
 No symbols found~
 
-  • Is `rg` in your `PATH`? Check with `:checkhealth project-insight`.
+  • Is `rg` in your `PATH`? Check with `:checkhealth project_insight`.
   • Is the current working directory correct? (`:pwd`)
   • Are the target languages enabled in `symbols.languages`?
   • Run `:ProjectInsight cache build` to force a fresh index.
@@ -729,7 +741,7 @@ Picker not opening~
 
 Compress fails~
 
-  • Run `:checkhealth project-insight` to see which engine tools are
+  • Run `:checkhealth project_insight` to see which engine tools are
     available on your system.
   • `tar` engine: `tar` and `find` must be in `PATH`.
   • `zip` engine: `zip` and `find` must be in `PATH`.

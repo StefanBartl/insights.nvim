@@ -1,4 +1,4 @@
----@module 'project_insight.usercommands'
+---@module 'project_insight.bindings.usrcmds'
 ---@brief Unified :ProjectInsight command with tab-completion.
 ---
 ---   :ProjectInsight symbols [cwd|buffer] [telescope|fzf|scratch]

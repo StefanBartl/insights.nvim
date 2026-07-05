@@ -72,20 +72,25 @@ function M.open(lines, title, opts)
   local win = target_window()
   api.nvim_win_set_buf(win, buf)
 
+  local ui_cfg = require("project_insight.config").get().ui or {}
   local km = { noremap = true, silent = true, buffer = buf }
-  vim.keymap.set("n", "q",     "<cmd>bd!<cr>", km)
-  vim.keymap.set("n", "<Esc>", "<cmd>bd!<cr>", km)
-  vim.keymap.set("n", "gf", function()
-    local line = api.nvim_get_current_line()
-    -- Try to open path:line from current line
-    local file, lnum = line:match("^([^:]+):(%d+)")
-    if file then
-      vim.cmd("edit " .. vim.fn.fnameescape(file))
-      if lnum then
-        api.nvim_win_set_cursor(0, { tonumber(lnum), 0 })
+  for _, key in ipairs(ui_cfg.close_keys or { "q", "<Esc>" }) do
+    vim.keymap.set("n", key, "<cmd>bd!<cr>",
+      vim.tbl_extend("force", km, { desc = "project-insight: close scratch buffer" }))
+  end
+  if ui_cfg.follow_key and ui_cfg.follow_key ~= false then
+    vim.keymap.set("n", ui_cfg.follow_key, function()
+      local line = api.nvim_get_current_line()
+      -- Try to open path:line from current line
+      local file, lnum = line:match("^([^:]+):(%d+)")
+      if file then
+        vim.cmd("edit " .. vim.fn.fnameescape(file))
+        if lnum then
+          api.nvim_win_set_cursor(0, { tonumber(lnum), 0 })
+        end
       end
-    end
-  end, km)
+    end, vim.tbl_extend("force", km, { desc = "project-insight: follow path:line" }))
+  end
 
   -- Caller-supplied buffer-local keymaps (e.g. imports' "go to definition").
   if opts and opts.keymaps then

@@ -18,7 +18,7 @@ end
 local function format_permissions(stat)
   local mode  = stat.mode or 0
   local octal = str_fmt("%o", mode)
-  if vim.fn.has("win32") == 1 then
+  if require("project_insight.util.platform").is_windows() then
     return octal .. " (Windows / limited POSIX meaning)"
   end
   local perm = mode % 512
@@ -62,8 +62,11 @@ local function open_hover(path, lines)
       active_win, active_path = nil, nil
     end
   end
-  vim.keymap.set("n", "q",     close_fn, { buffer = buf, nowait = true })
-  vim.keymap.set("n", "<Esc>", close_fn, { buffer = buf, nowait = true })
+  local close_keys = (require("project_insight.config").get().ui or {}).close_keys or { "q", "<Esc>" }
+  for _, key in ipairs(close_keys) do
+    vim.keymap.set("n", key, close_fn,
+      { buffer = buf, nowait = true, desc = "project-insight: close file info float" })
+  end
 
   local width = 0
   for _, l in ipairs(lines) do width = math.max(width, #l) end

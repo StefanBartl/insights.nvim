@@ -8,16 +8,19 @@
                                            |___/
 ```
 
+> Pairs well with [buffer-ctx.nvim](https://github.com/StefanBartl/buffer-ctx.nvim) —
+> insert or copy the current buffer's path, module name, or other context that
+> complements the module-path resolution used by `:ProjectInsight imports`.
+
 ![version](https://img.shields.io/badge/version-0.1.0-blue.svg)
 ![status](https://img.shields.io/badge/status-beta-orange.svg)
 ![Neovim](https://img.shields.io/badge/Neovim-0.9%2B-success.svg)
 ![Lua](https://img.shields.io/badge/language-Lua-yellow.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)
 
 A project-analysis plugin for Neovim. Combines ripgrep-based symbol indexing,
 Tree-sitter Lua scanning, code metrics, file tree utilities, and buffer info
-into a single unified command with zero external dependencies beyond Neovim itself.
+into a single unified command.
 
 ---
 
@@ -40,6 +43,7 @@ into a single unified command with zero external dependencies beyond Neovim itse
 | Tool | Required | Purpose |
 |------|----------|---------|
 | Neovim | **≥ 0.9** | core |
+| [`lib.nvim`](https://github.com/StefanBartl/lib.nvim) | **yes** | shared notify + cross-platform helpers |
 | `rg` (ripgrep) | **yes** | symbol indexing |
 | `telescope.nvim` | optional | telescope picker |
 | `fzf-lua` | optional | fzf picker |
@@ -49,11 +53,17 @@ into a single unified command with zero external dependencies beyond Neovim itse
 
 ## Installation
 
+project-insight.nvim is lazy by design: `plugin/project_insight.lua` only sets
+a load guard, and every command runs through the single `:ProjectInsight`
+entry point. Load it on `cmd = "ProjectInsight"` — there is no benefit to
+loading it eagerly.
+
 ### lazy.nvim
 
 ```lua
 {
   "StefanBartl/project-insight.nvim",
+  dependencies = { "StefanBartl/lib.nvim" },
   cmd = "ProjectInsight",
   keys = {
     { "<leader>ps", desc = "Project symbols (telescope)" },
@@ -65,17 +75,33 @@ into a single unified command with zero external dependencies beyond Neovim itse
 }
 ```
 
-### Local development
+### packer.nvim
 
 ```lua
-{
-  dir = "E:/repos/project-insight.nvim",
+use {
+  "StefanBartl/project-insight.nvim",
+  requires = { "StefanBartl/lib.nvim" },
   cmd = "ProjectInsight",
   config = function()
     require("project_insight").setup()
   end,
 }
 ```
+
+### vim-plug
+
+```vim
+Plug 'StefanBartl/lib.nvim'
+Plug 'StefanBartl/project-insight.nvim'
+```
+
+```lua
+" after plug#end()
+require("project_insight").setup()
+```
+
+vim-plug has no built-in lazy-loading by command; the `setup()` call itself
+is cheap (no external process is spawned until a command runs).
 
 ---
 
@@ -245,7 +271,7 @@ backend is shown in the report header. Set `engine = "treesitter"` or
 `"ripgrep"` to force one.
 
 > Currently Lua-only. Support for other languages' imports is tracked in
-> [roadmap.md](roadmap.md).
+> [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ---
 
@@ -318,6 +344,12 @@ require("project_insight").setup({
     symbols_fzf       = "<leader>pS",
   },
 
+  -- Buffer-local keymaps on scratch reports and the fileinfo float
+  ui = {
+    close_keys = { "q", "<Esc>" },  -- {} = register no close keymap
+    follow_key = "gf",              -- follow path:line in a scratch buffer; false to disable
+  },
+
   -- Project compression (:ProjectInsight compress)
   compress = {
     enable = true,
@@ -381,10 +413,16 @@ The symbol index uses the following type labels:
 ```
 lua/project_insight/
   init.lua              setup() + public Lua façade
-  config.lua            merged defaults
+  config/
+    init.lua            merges user opts over DEFAULTS
+    DEFAULTS.lua         plugin-side default configuration
+  bindings/
+    usrcmds.lua         :ProjectInsight dispatcher + tab-completion
+    keymaps.lua         optional global keymaps (which-key discoverable)
+    autocmds.lua        no-op — project-insight registers no autocmds
   util/
-    notify.lua          vim.notify wrapper (no lib.* dependency)
-    platform.lua        is_windows(), run_shell(), copy_to_clipboard()
+    notify.lua          re-exports lib.nvim's notify factory
+    platform.lua        is_windows() (via lib.nvim), run_shell(), copy_to_clipboard()
   scan/
     rg.lua              ripgrep command builder + sync executor
     cache.lua           CWD-keyed JSON cache (mtime-aware TTL)
@@ -411,8 +449,7 @@ lua/project_insight/
     ts_requires.lua     Tree-sitter require() scanner (AST-accurate)
     resolve.lua         module path → file resolution (no require side-effects)
     definition.lua      locate + jump/preview the definition behind an import
-  health.lua            :checkhealth project-insight
-  usercommands.lua      :ProjectInsight dispatcher + tab-completion
+  health.lua            :checkhealth project_insight
 plugin/project_insight.lua   guard + lazy-load trigger
 ```
 
@@ -421,7 +458,7 @@ plugin/project_insight.lua   guard + lazy-load trigger
 ## Health check
 
 ```vim
-:checkhealth project-insight
+:checkhealth project_insight
 ```
 
 Reports: Neovim version, `rg` availability, picker plugins, Tree-sitter,
@@ -429,6 +466,3 @@ configuration summary, and cache status.
 
 ---
 
-## License
-
-MIT

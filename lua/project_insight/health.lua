@@ -8,7 +8,16 @@ local info_s  = vim.health.info  or vim.health.report_info
 local start_s = vim.health.start or vim.health.report_start
 
 local function exe(bin) return vim.fn.executable(bin) == 1 end
-local function platform_is_windows() return vim.fn.has("win32") == 1 or vim.fn.has("win64") == 1 end
+local function platform_is_windows() return require("project_insight.util.platform").is_windows() end
+
+local function check_lib()
+  start_s("lib.nvim")
+  if pcall(require, "lib.nvim.notify") then
+    ok_s("lib.nvim installed (notify + cross-platform helpers)")
+  else
+    err_s("lib.nvim not found — required dependency, install StefanBartl/lib.nvim")
+  end
+end
 
 local function check_neovim()
   start_s("Neovim version")
@@ -160,6 +169,7 @@ end
 
 function M.check()
   check_neovim()
+  check_lib()
   check_tools()
   check_pickers()
   check_treesitter()

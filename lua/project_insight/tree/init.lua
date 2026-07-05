@@ -101,11 +101,16 @@ function M.count_files(callback)
   local cwd, _, err = current_project()
   if not cwd then callback(false, err or "cwd error", nil); return end
 
-  local cmd = build_tree_cmd(cwd, cfg.exclude_patterns) .. " | wc -l"
+  -- Count lines of the tree listing directly in Lua rather than piping to an
+  -- external `wc` — on Windows that only works by coincidence when a Unix
+  -- toolchain (e.g. Git for Windows) happens to be on PATH.
+  local cmd = build_tree_cmd(cwd, cfg.exclude_patterns)
   platform.run_shell(cmd, function(success, out, stderr)
     if not success then callback(false, "count failed: " .. (stderr or ""), nil); return end
-    local n = tonumber((out or ""):match("(%d+)%s*$"))
-    if not n then callback(false, "cannot parse count", nil); return end
+    local n = 0
+    for _ in (out or ""):gmatch("[^\r\n]+") do
+      n = n + 1
+    end
     callback(true, string.format("files: %d", n), n)
   end)
 end

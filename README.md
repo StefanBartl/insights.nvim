@@ -270,6 +270,10 @@ matches the word `require` anywhere and is therefore less precise). The active
 backend is shown in the report header. Set `engine = "treesitter"` or
 `"ripgrep"` to force one.
 
+The scan runs asynchronously so it never blocks the editor: the ripgrep backend
+runs `rg` as a subprocess (`vim.system`), and the Tree-sitter backend parses
+files in scheduled chunks. The report opens when the scan completes.
+
 > Currently Lua-only. Support for other languages' imports is tracked in
 > [docs/ROADMAP.md](docs/ROADMAP.md).
 

@@ -324,6 +324,10 @@ vim-plug: >
 
   Currently Lua-only; other languages are tracked in the project roadmap.
 
+  The scan runs asynchronously and does not block the editor: the ripgrep
+  backend runs `rg` via |vim.system()| and the Tree-sitter backend parses files
+  in scheduled chunks. The report opens when the scan completes.
+
   Examples: >
     :ProjectInsight imports
     :ProjectInsight imports lib

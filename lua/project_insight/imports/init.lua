@@ -94,23 +94,26 @@ local function is_external(module, cwd)
   return true
 end
 
---- Collect raw requires via the line/regex backend (ripgrep).
---- Fast and dependency-light, but matches the word "require" in comments and
---- string literals too (mitigated by `is_module_path`).
+local IGNORE = { "/%.git/", "/node_modules/", "/%.cache/", "/build/", "/dist/", "/target/" }
+
+--- Build the ripgrep command for a cwd scan.
 ---@param cwd string
----@return RawImport[]
-local function collect_via_rg(cwd)
+---@return string[]
+local function rg_cmd(cwd)
   local cfg = config.get()
-  local cmd = rg.build_cmd("require", { "lua" }, {
+  return rg.build_cmd("require", { "lua" }, {
     cwd              = cwd,
     exclude_patterns = (cfg.symbols and cfg.symbols.indexing
                         and cfg.symbols.indexing.exclude_patterns) or {},
   })
-  local lines = rg.run(cmd, "imports")
+end
 
+--- Convert rg --vimgrep lines (path:line:col:text) into raw imports.
+---@param lines string[]
+---@return RawImport[]
+local function rg_lines_to_raw(lines)
   local raw = {}
   for _, line in ipairs(lines) do
-    -- rg --vimgrep format: path:line:col:text
     local path, lnum, text = line:match("^(.-):(%d+):%d+:(.*)$")
     if path and text then
       local rel  = vim.fn.fnamemodify(path, ":."):gsub("\\", "/")
@@ -129,68 +132,125 @@ local function collect_via_rg(cwd)
   return raw
 end
 
---- Collect raw requires via the Tree-sitter backend (AST-accurate).
---- Only genuine `require("…")` calls are matched; comments and strings are
---- ignored by construction.
+--- Scan one Lua file with Tree-sitter and append its requires to `raw`.
+---@param ts_req table
+---@param path string
+---@param raw RawImport[]
+local function ts_scan_file(ts_req, path, raw)
+  local ok, src = pcall(vim.fn.readfile, path)
+  if not ok or not src then return end
+  local rel = vim.fn.fnamemodify(path, ":."):gsub("\\", "/")
+  for _, e in ipairs(ts_req.scan_source(table.concat(src, "\n"))) do
+    raw[#raw + 1] = {
+      module   = e.module,
+      name     = e.name,
+      field    = e.field,
+      filename = rel,
+      lnum     = e.lnum,
+    }
+  end
+end
+
+--- List the Lua files in `cwd` that should be scanned (excludes IGNORE dirs).
+---@param cwd string
+---@return string[]
+local function lua_files(cwd)
+  local files = vim.fn.globpath(cwd, "**/*.lua", false, true)
+  local todo  = {}
+  for _, path in ipairs(files) do
+    local skip = false
+    for _, pat in ipairs(IGNORE) do
+      if path:gsub("\\", "/"):match(pat) then skip = true; break end
+    end
+    if not skip then todo[#todo + 1] = path end
+  end
+  return todo
+end
+
+--- Collect raw requires via ripgrep (synchronous).
+---@param cwd string
+---@return RawImport[]
+local function collect_via_rg(cwd)
+  return rg_lines_to_raw(rg.run(rg_cmd(cwd), "imports"))
+end
+
+--- Collect raw requires via Tree-sitter (synchronous).
 ---@param cwd string
 ---@return RawImport[]
 local function collect_via_ts(cwd)
   local ts_req = require("project_insight.imports.ts_requires")
-  local files  = vim.fn.globpath(cwd, "**/*.lua", false, true)
-
-  local ignore = { "/%.git/", "/node_modules/", "/%.cache/", "/build/", "/dist/", "/target/" }
-  local raw = {}
-  for _, path in ipairs(files) do
-    local skip = false
-    for _, pat in ipairs(ignore) do
-      if path:gsub("\\", "/"):match(pat) then skip = true; break end
-    end
-    if not skip then
-      local ok, src = pcall(vim.fn.readfile, path)
-      if ok and src then
-        local rel = vim.fn.fnamemodify(path, ":."):gsub("\\", "/")
-        for _, e in ipairs(ts_req.scan_source(table.concat(src, "\n"))) do
-          raw[#raw + 1] = {
-            module   = e.module,
-            name     = e.name,
-            field    = e.field,
-            filename = rel,
-            lnum     = e.lnum,
-          }
-        end
-      end
-    end
+  local raw    = {}
+  for _, path in ipairs(lua_files(cwd)) do
+    ts_scan_file(ts_req, path, raw)
   end
   return raw
 end
 
---- Pick the collection backend per config (`imports.engine`) and availability.
+--- Collect raw requires via ripgrep, asynchronously (vim.system, Neovim 0.10+).
+--- Falls back to the synchronous path when vim.system is unavailable.
 ---@param cwd string
----@return RawImport[], string method
-local function collect_raw(cwd)
-  local engine = (config.get().imports and config.get().imports.engine) or "auto"
-  local ts_ok  = require("project_insight.imports.ts_requires").available()
-
-  if engine == "ripgrep" then
-    return collect_via_rg(cwd), "ripgrep"
+---@param cb fun(raw: RawImport[])
+local function collect_via_rg_async(cwd, cb)
+  if not vim.system then
+    return cb(collect_via_rg(cwd))
   end
-  if engine == "treesitter" or (engine == "auto" and ts_ok) then
-    if ts_ok then return collect_via_ts(cwd), "treesitter" end
-    notify.warn("imports.engine = treesitter but the Lua parser is unavailable — falling back to ripgrep")
+  if vim.fn.executable("rg") ~= 1 then
+    notify.error("ripgrep (rg) not found in PATH")
+    return cb({})
   end
-  return collect_via_rg(cwd), "ripgrep"
+  vim.system(rg_cmd(cwd), { text = true }, function(res)
+    -- rg exit 1 = no matches (not an error); anything else with no stdout → empty
+    local lines = (res.code <= 1 and res.stdout)
+      and vim.split(res.stdout, "\n", { trimempty = true })
+      or  {}
+    vim.schedule(function() cb(rg_lines_to_raw(lines)) end)
+  end)
 end
 
---- Scan the cwd for all require() calls.
+--- Collect raw requires via Tree-sitter, non-blocking. Parsing runs on the main
+--- thread (Tree-sitter cannot be offloaded), but files are processed in
+--- scheduled chunks so the editor stays responsive on large projects.
+---@param cwd string
+---@param cb fun(raw: RawImport[])
+local function collect_via_ts_async(cwd, cb)
+  local ts_req = require("project_insight.imports.ts_requires")
+  local todo   = lua_files(cwd)
+  local raw    = {}
+  local CHUNK  = 40
+  local i      = 1
+
+  local function step()
+    local stop = math.min(i + CHUNK - 1, #todo)
+    for k = i, stop do
+      ts_scan_file(ts_req, todo[k], raw)
+    end
+    i = stop + 1
+    if i > #todo then cb(raw) else vim.schedule(step) end
+  end
+
+  if #todo == 0 then cb(raw) else step() end
+end
+
+--- Resolve the active backend from config + parser availability.
+---@return "treesitter"|"ripgrep"
+local function resolve_backend()
+  local engine = (config.get().imports and config.get().imports.engine) or "auto"
+  local ts_ok  = require("project_insight.imports.ts_requires").available()
+  if engine == "ripgrep" then return "ripgrep" end
+  if engine == "treesitter" or (engine == "auto" and ts_ok) then
+    if ts_ok then return "treesitter" end
+    notify.warn("imports.engine = treesitter but the Lua parser is unavailable — falling back to ripgrep")
+  end
+  return "ripgrep"
+end
+
+--- Aggregate raw imports into the classified/counted ImportData shape.
+---@param raw RawImport[]
+---@param method string
+---@param cwd string
 ---@return ImportData
-function M.scan_cwd()
-  local cwd = vim.fn.getcwd()
-  local raw, method = collect_raw(cwd)
-
-  local entries   = {}
-  local counts    = {}
-  local externals = {}
-
+local function build_data(raw, method, cwd)
+  local entries, counts, externals = {}, {}, {}
   for _, e in ipairs(raw) do
     local mod = e.module
     if externals[mod] == nil then
@@ -206,8 +266,27 @@ function M.scan_cwd()
       external = externals[mod],
     }
   end
-
   return { entries = entries, counts = counts, externals = externals, method = method }
+end
+
+--- Scan the cwd for all require() calls (synchronous — for the Lua API).
+---@return ImportData
+function M.scan_cwd()
+  local cwd    = vim.fn.getcwd()
+  local method = resolve_backend()
+  local raw    = (method == "treesitter") and collect_via_ts(cwd) or collect_via_rg(cwd)
+  return build_data(raw, method, cwd)
+end
+
+--- Scan the cwd for all require() calls without blocking the editor.
+---@param cb fun(data: ImportData)
+function M.scan_cwd_async(cb)
+  local cwd    = vim.fn.getcwd()
+  local method = resolve_backend()
+  local collect = (method == "treesitter") and collect_via_ts_async or collect_via_rg_async
+  collect(cwd, function(raw)
+    cb(build_data(raw, method, cwd))
+  end)
 end
 
 --- Expand filter arguments (group names + literal prefixes) into prefix list.
@@ -349,14 +428,11 @@ function M.write_report(lines, out_path)
   return true, nil
 end
 
---- Run the import analysis and open the report in a scratch buffer.
----@param filters string[]|nil
-function M.run(filters)
-  filters = filters or {}
+--- Build the report + keymaps for `data` and open it in a scratch buffer.
+---@param data ImportData
+---@param filters string[]
+local function present(data, filters)
   local cfg = config.get()
-
-  notify.info("scanning require() calls…")
-  local data = M.scan_cwd()
 
   if #data.entries == 0 then
     notify.warn("no require() calls found in cwd")
@@ -401,6 +477,18 @@ function M.run(filters)
   require("project_insight.ui.scratch").open(report,
     "Imports — " .. vim.fn.fnamemodify(vim.fn.getcwd(), ":t"),
     { keymaps = keymaps })
+end
+
+--- Run the import analysis and open the report in a scratch buffer.
+--- The scan runs asynchronously (ripgrep via vim.system, or chunked Tree-sitter
+--- parsing) so the editor is not blocked; the report opens when it completes.
+---@param filters string[]|nil
+function M.run(filters)
+  filters = filters or {}
+  notify.info("scanning require() calls…")
+  M.scan_cwd_async(function(data)
+    present(data, filters)
+  end)
 end
 
 return M

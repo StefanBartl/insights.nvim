@@ -158,14 +158,42 @@ In the picker:
 #### Code metrics
 
 ```vim
-:ProjectInsight metrics                 " analyze Lua files in cwd, open scratch report
-:ProjectInsight metrics /path/to/dir    " analyze a specific directory
+:ProjectInsight metrics                        " full report for cwd
+:ProjectInsight metrics /path/to/dir           " analyze a specific directory
+:ProjectInsight metrics --ratios --deviations  " emphasize the ratio analysis
+:ProjectInsight metrics --lua-only --no-top     " Lua only, skip top-N lists
+:ProjectInsight metrics --misc-only --misc-detailed  " only docs (md/txt/json)
+:ProjectInsight metrics --numbers-only /path   " raw counts, no percentages
+:ProjectInsight metrics --current              " analyze the current buffer only
 ```
 
 Without an argument the current working directory is analyzed. Pass a directory
-to analyze it instead (tab-completion suggests directories) — useful when the
-editor's cwd differs from the project you want to measure. The report is also
-written to `metrics.output_file` (default: `{state}/project-insight/metrics.md`).
+to analyze it instead (tab-completion suggests directories and flags) — useful
+when the editor's cwd differs from the project you want to measure. The report
+is also written to `metrics.output_file` (default:
+`{state}/project-insight/metrics.md`).
+
+The report contains:
+
+| Section | Content |
+|---------|---------|
+| **Total / Folder / File tables** | Lines (`L1` code, `L2` comments, `L3` no-annotations, `L4` annotations, `L5` blank) and words (`W1`–`W5`), each as count and/or percentage |
+| **Folder ratios** | Comment %, annotation %, doc %, code %, avg lines/file, annotation-to-comment ratio — with deviations from the project's global averages |
+| **Top-N lists** | Largest files by lines and by words; folders ranked by annotation ratio |
+| **Ratio guidelines** | Heuristic healthy ranges for each ratio |
+| **Documentation & config files** | Markdown / TXT / JSON file, line, and word counts (summary + optional per-file detail) |
+
+Behavior is configurable both per-invocation (flags) and globally (`metrics.*`
+in `setup()`): analysis scope (`analyze_lua`, `analyze_misc`), which sections
+appear (`show_file_tables`, `show_folder_tables`, `show_total_summary`,
+`show_ratios`, `show_deviations`, `show_top_lists`, `show_misc_detailed`),
+display (`percent_mode` = `both`/`percent`/`numbers`, `reverse_order`, `top_n`,
+`col_width`), and `exclude_type_files`.
+
+Flags: `--ratios`/`--no-ratios`, `--deviations`, `--lua-only`, `--misc-only`,
+`--no-misc`, `--misc-detailed`, `--no-top`, `--top-files-lines-only`,
+`--top-files-words-only`, `--percent-only`, `--numbers-only`, `--reverse`,
+`--topn=N`, `--colwidth=N`, `--file=PATH`, `--current`.
 
 #### File tree
 
@@ -321,14 +349,27 @@ require("project_insight").setup({
     },
   },
 
-  -- Lua code metrics
+  -- Lua code metrics + documentation-file analysis
   metrics = {
     enable             = true,
     output_file        = vim.fn.stdpath("state") .. "/project-insight/metrics.md",
-    show_ratios        = true,
-    show_deviations    = true,
-    top_n              = 50,
-    exclude_type_files = true,  -- exclude @types/ files from ratio analysis
+
+    analyze_lua        = true,   -- analyze Lua source files
+    analyze_misc       = true,   -- analyze Markdown / TXT / JSON files
+
+    show_file_tables   = true,   -- detailed per-file table (L1-L5 / W1-W5)
+    show_folder_tables = true,   -- per-folder aggregate table
+    show_total_summary = true,   -- grand-total row
+    show_ratios        = true,   -- folder ratio analysis
+    show_deviations    = true,   -- deviations from the global averages
+    show_top_lists     = true,   -- top-N files by lines/words
+    show_misc_detailed = true,   -- per-file listing for misc files
+
+    percent_mode       = "both", -- "both" | "percent" | "numbers"
+    reverse_order      = true,   -- summary first (vs. files first)
+    top_n              = 50,     -- items in top-N lists
+    col_width          = 7,      -- data column width in tables
+    exclude_type_files = true,   -- exclude @types files from ratio analysis
   },
 
   -- File tree
@@ -442,8 +483,10 @@ lua/project_insight/
     ts_lua_strings.lua  Tree-sitter Lua string literal scanner
     init.lua            unified entry: rg + optional TS merge; get_tables/get_strings
   metrics/
-    analyzer.lua        per-file line/word/comment statistics
-    init.lua            project scan, ASCII report, file output
+    analyzer.lua        per-file line/word stats, ratios, percentages, formatting
+    report.lua          ASCII tables (file/folder/total/ratios/top-N/guidelines)
+    misc.lua            Markdown/TXT/JSON documentation-file analysis
+    init.lua            scan, option resolution, report assembly, file output
   tree/init.lua         async file tree, count, clipboard
   fileinfo/init.lua     fs.stat floating window
   ui/

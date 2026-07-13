@@ -163,24 +163,56 @@ vim-plug: >
 4.2 Metrics                                       *project-insight-metrics*
 
                                          *:ProjectInsight-metrics*
-:ProjectInsight metrics [dir]
+:ProjectInsight metrics [flags] [dir]
 
-  Analyze all Lua files under [dir] and display a statistics report in a scratch
+  Analyze the project under [dir] and display a statistics report in a scratch
   buffer. The report is also written to the file configured in
   |project-insight-config-metrics|.
 
   [dir]  Directory to analyze. Default: the current working directory.
-         Tab-completion suggests directories. Relative paths and `~` are
-         expanded. Pass an explicit directory when the editor's cwd differs
+         Tab-completion suggests directories and flags. Relative paths and `~`
+         are expanded. Pass an explicit directory when the editor's cwd differs
          from the project you want to measure.
 
-  Report sections:
-    • Total line and word counts.
-    • Per-folder breakdown: file count, total lines, code%, annotation%.
-    • Ratio analysis (comment density, annotation density, code density).
+  Report sections (all configurable — see |project-insight-config-metrics|):
+    • Total / Folder / File tables — lines L1=code, L2=comments,
+      L3=no-annotations, L4=annotations, L5=blank; words W1-W5; shown as
+      counts and/or percentages.
+    • Folder ratios — comment%, annotation%, doc%, code%, avg lines/file,
+      annotation-to-comment ratio, with deviations from the global averages.
+    • Top-N lists — largest files by lines and words; folders by annotation
+      ratio.
+    • Ratio guidelines — heuristic healthy ranges.
+    • Documentation & config files — Markdown / TXT / JSON counts (summary and
+      optional per-file detail).
+
+  Flags (override the configured defaults for this invocation):
+    --ratios / --no-ratios          toggle the ratio analysis
+    --deviations / --no-deviations  toggle deviations in the ratio table
+    --lua-only                      Lua files only (no docs)
+    --misc-only                     documentation files only (no Lua)
+    --no-misc                       skip documentation files
+    --misc-detailed                 per-file listing of documentation files
+    --no-top                        skip the top-N lists
+    --top-files-lines-only          print ONLY the top files by lines
+    --top-files-words-only          print ONLY the top files by words
+    --percent-only / --numbers-only value display mode
+    --reverse / --no-reverse        summary first vs. files first
+    --topn=N                        number of items in top-N lists
+    --colwidth=N                    table column width
+    --file=PATH                     analyze a single file
+    --current                       analyze the current buffer
 
   Directories named `.git`, `node_modules`, `.cache`, `debuglog`, and `docs`
   are skipped (matched as whole path segments below the analyzed root).
+
+  Examples: >
+    :ProjectInsight metrics
+    :ProjectInsight metrics --ratios --deviations ~/projects/app
+    :ProjectInsight metrics --lua-only --no-top
+    :ProjectInsight metrics --misc-only --misc-detailed
+    :ProjectInsight metrics --current
+<
 
 ------------------------------------------------------------------------------
 4.3 Tree                                           *project-insight-tree*
@@ -420,20 +452,65 @@ All keys are optional. Unset keys use the defaults shown below.
   metrics = {
     enable             = true,
     output_file        = vim.fn.stdpath("state") .. "/project-insight/metrics.md",
-    show_ratios        = true,
-    show_deviations    = true,
-    top_n              = 50,
-    exclude_type_files = true,
+
+    analyze_lua        = true,    -- analyze Lua source files
+    analyze_misc       = true,    -- analyze Markdown / TXT / JSON files
+
+    show_file_tables   = true,    -- detailed per-file table (L1-L5 / W1-W5)
+    show_folder_tables = true,    -- per-folder aggregate table
+    show_total_summary = true,    -- grand-total row
+    show_ratios        = true,    -- folder ratio analysis
+    show_deviations    = true,    -- deviations from the global averages
+    show_top_lists     = true,    -- top-N files by lines/words
+    show_misc_detailed = true,    -- per-file listing for misc files
+
+    percent_mode       = "both",  -- "both" | "percent" | "numbers"
+    reverse_order      = true,    -- summary first (vs. files first)
+    top_n              = 50,       -- items in top-N lists
+    col_width          = 7,        -- data column width in tables
+    exclude_type_files = true,     -- exclude @types files from ratio analysis
   },
 <
 `output_file`
-  Path where the Markdown report is written. The directory is created
-  automatically. Set to `""` to skip writing a file.
+  Path where the report is written (in addition to the scratch buffer). The
+  directory is created automatically. Set to `""` to skip writing a file.
+
+`analyze_lua` / `analyze_misc`
+  Which file groups to analyze. `analyze_misc` covers Markdown (`*.md`),
+  text/help (`*.txt`), and JSON (`*.json`) files.
+
+`show_file_tables` / `show_folder_tables` / `show_total_summary`
+  Toggle the three Lua detail tables (per file, per folder, grand total).
+
+`show_ratios` / `show_deviations`
+  `show_ratios` adds the folder ratio table and the annotation-ratio ranking;
+  `show_deviations` adds per-folder deviation columns against the global
+  averages.
+
+`show_top_lists`
+  Add the "Top N Files by Lines/Words" lists (uses `top_n`).
+
+`show_misc_detailed`
+  When `true`, list every documentation file individually (in addition to the
+  per-type summary).
+
+`percent_mode`
+  How table cells display values: `"both"` (e.g. `120 (60.0%)`), `"percent"`,
+  or `"numbers"`.
+
+`reverse_order`
+  When `true`, the total summary and ratios come before the folder/file
+  tables; when `false`, files come first.
+
+`top_n` / `col_width`
+  Number of items in top-N lists, and the width of data columns in the tables.
 
 `exclude_type_files`
-  When `true`, files under `@types/` directories are excluded from ratio
-  analysis (comment density, annotation density) but still counted in
-  totals.
+  When `true`, `@types` files are excluded from ratio analysis (they would
+  otherwise skew annotation ratios) but still counted in totals.
+
+All of these can be overridden per invocation with the flags documented under
+|:ProjectInsight-metrics|.
 
 ------------------------------------------------------------------------------
 5.3 tree                                     *project-insight-config-tree*

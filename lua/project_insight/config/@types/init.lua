@@ -47,10 +47,20 @@
 ---@class ProjectInsight.MetricsConfig
 ---@field enable boolean
 ---@field output_file string
----@field show_ratios boolean
----@field show_deviations boolean
----@field top_n integer
----@field exclude_type_files boolean
+---@field analyze_lua boolean          analyze Lua source files
+---@field analyze_misc boolean         analyze Markdown / TXT / JSON files
+---@field show_file_tables boolean     detailed per-file table
+---@field show_folder_tables boolean   per-folder aggregate table
+---@field show_total_summary boolean   grand-total row
+---@field show_ratios boolean          folder ratio analysis
+---@field show_deviations boolean      deviations from global averages
+---@field show_top_lists boolean       top-N files by lines/words
+---@field show_misc_detailed boolean   per-file listing for misc files
+---@field percent_mode "both"|"percent"|"numbers"  value display mode
+---@field reverse_order boolean        summary first (vs. files first)
+---@field top_n integer                items in top-N lists
+---@field col_width integer            data column width in tables
+---@field exclude_type_files boolean   exclude @types files from ratio analysis
 
 ---@class ProjectInsight.TreeConfig
 ---@field enable boolean

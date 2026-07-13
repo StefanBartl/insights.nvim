@@ -41,6 +41,28 @@ local function open_symbol_picker(entries, ui, scope)
   end
 end
 
+local METRICS_FLAGS = {
+  "--reverse", "--no-reverse", "--percent-only", "--numbers-only",
+  "--ratios", "--no-ratios", "--deviations", "--no-deviations",
+  "--lua-only", "--misc-only", "--no-misc", "--misc-detailed",
+  "--no-top", "--top-files-lines-only", "--top-files-words-only",
+  "--current", "--topn=", "--colwidth=", "--file=",
+}
+
+---Completion candidates for `:ProjectInsight metrics` (flags + directories).
+---@param arglead string
+---@return string[]
+local function metrics_complete(arglead)
+  local out = {}
+  for _, f in ipairs(METRICS_FLAGS) do
+    if f:sub(1, #arglead) == arglead then out[#out + 1] = f end
+  end
+  if not arglead:match("^%-") then
+    vim.list_extend(out, vim.fn.getcompletion(arglead, "dir"))
+  end
+  return out
+end
+
 ---Completion candidates for `:ProjectInsight imports` (configured group names).
 ---@param arglead string
 ---@return string[]
@@ -106,9 +128,40 @@ local function handle_symbols(args)
   open_symbol_picker(entries, ui, scope .. " " .. sym_type)
 end
 
----@param args string[]  args[1] = optional directory to analyze (default: cwd)
+---Parse :ProjectInsight metrics flags + optional directory into an options table.
+---@param args string[]
+---@return table
+local function parse_metrics_args(args)
+  local opts = {}
+  for _, a in ipairs(args) do
+    if     a == "--reverse"               then opts.reverse_order = true
+    elseif a == "--no-reverse"            then opts.reverse_order = false
+    elseif a == "--percent-only"          then opts.percent_mode = "percent"
+    elseif a == "--numbers-only"          then opts.percent_mode = "numbers"
+    elseif a == "--ratios"                then opts.show_ratios = true
+    elseif a == "--no-ratios"             then opts.show_ratios = false
+    elseif a == "--deviations"            then opts.show_deviations = true
+    elseif a == "--no-deviations"         then opts.show_deviations = false
+    elseif a == "--lua-only"              then opts.analyze_lua = true;  opts.analyze_misc = false
+    elseif a == "--misc-only"             then opts.analyze_lua = false; opts.analyze_misc = true
+    elseif a == "--no-misc"               then opts.analyze_misc = false
+    elseif a == "--misc-detailed"         then opts.show_misc_detailed = true
+    elseif a == "--no-top"                then opts.show_top_lists = false
+    elseif a == "--top-files-lines-only"  then opts.only_top_lines = true
+    elseif a == "--top-files-words-only"  then opts.only_top_words = true
+    elseif a == "--current"               then opts.single_file = vim.fn.expand("%:p")
+    elseif a:match("^--topn=")            then opts.top_n = tonumber(a:sub(8))
+    elseif a:match("^--colwidth=")        then opts.col_width = tonumber(a:sub(12))
+    elseif a:match("^--file=")            then opts.single_file = a:sub(8)
+    elseif not a:match("^%-")             then opts.root = a
+    end
+  end
+  return opts
+end
+
+---@param args string[]  flags + optional directory (default: cwd)
 local function handle_metrics(args)
-  require("project_insight.metrics").run(args[1])
+  require("project_insight.metrics").run(parse_metrics_args(args))
 end
 
 local function handle_tree()
@@ -247,10 +300,15 @@ function M.setup()
           return opts
         end
         if sub_typed == "cache"    then return CACHE_SUBS end
-        if sub_typed == "compress" or sub_typed == "metrics" then
+        if sub_typed == "compress" then
           return vim.fn.getcompletion(arglead, "dir")
         end
+        if sub_typed == "metrics"  then return metrics_complete(arglead) end
         if sub_typed == "imports"  then return import_groups(arglead) end
+      end
+
+      if pos >= 3 and sub_typed == "metrics" then
+        return metrics_complete(arglead)
       end
 
       if pos == 4 and sub_typed == "compress" then

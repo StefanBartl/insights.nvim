@@ -13,22 +13,32 @@ local config   = require("project_insight.config")
 ---@field totals        table
 ---@field output_lines  string[]
 
----Scan `root_dir` for Lua files and aggregate stats.
+--- Normalize a directory path: absolute, forward slashes, no trailing slash.
+---@param path string
+---@return string
+function M.normalize_dir(path)
+  local p = vim.fn.fnamemodify(vim.fn.expand(path), ":p")
+  return (p:gsub("\\", "/"):gsub("/+$", ""))
+end
+
+---Scan `root_dir` for Lua files and aggregate stats. `root_dir` is normalized
+---internally so relative paths are computed against the actual scan root (not
+---the editor's cwd, which may differ).
 ---@param root_dir      string
 ---@param exclude_types boolean
 ---@return MetricsResult
 function M.scan(root_dir, exclude_types)
-  local files = analyzer.get_lua_files(root_dir)
+  local root  = M.normalize_dir(root_dir)
+  local files = analyzer.get_lua_files(root)
 
   local folder_summary = {}
   local totals         = analyzer.create_empty_stats()
-  local cwd            = vim.fn.getcwd()
 
   for _, file in ipairs(files) do
     if not (exclude_types and analyzer.is_type_file(file)) then
       local st = analyzer.analyze_file(file)
       if st then
-        local rel  = file:sub(#cwd + 2)
+        local rel  = file:sub(#root + 2)
         local dir  = rel:match("(.+)[/\\]") or "."
         if not folder_summary[dir] then
           folder_summary[dir] = vim.tbl_extend("force",
@@ -124,11 +134,17 @@ function M.write_report(lines, out_path)
   return true, nil
 end
 
----Run analysis for current project and open scratch buffer with report.
-function M.run()
+---Run analysis and open a scratch buffer with the report.
+---@param root string|nil  directory to analyze; defaults to the editor's cwd
+function M.run(root)
   local cfg     = config.get()
-  local root    = vim.fn.getcwd()
   local met_cfg = cfg.metrics
+  root = M.normalize_dir(root and root ~= "" and root or vim.fn.getcwd())
+
+  if vim.fn.isdirectory(root) == 0 then
+    notify.warn("not a directory: " .. root)
+    return
+  end
 
   notify.info("analyzing Lua files in " .. root .. " …")
   local result = M.scan(root, met_cfg.exclude_type_files ~= false)

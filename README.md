@@ -158,11 +158,14 @@ In the picker:
 #### Code metrics
 
 ```vim
-:ProjectInsight metrics      " analyze Lua files in cwd, open scratch report
+:ProjectInsight metrics                 " analyze Lua files in cwd, open scratch report
+:ProjectInsight metrics /path/to/dir    " analyze a specific directory
 ```
 
-The report is also written to `metrics.output_file` (default:
-`{state}/project-insight/metrics.md`).
+Without an argument the current working directory is analyzed. Pass a directory
+to analyze it instead (tab-completion suggests directories) — useful when the
+editor's cwd differs from the project you want to measure. The report is also
+written to `metrics.output_file` (default: `{state}/project-insight/metrics.md`).
 
 #### File tree
 

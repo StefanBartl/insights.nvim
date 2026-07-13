@@ -28,22 +28,29 @@ function M.is_type_file(path)
       or path:match("[/\\]@types%.lua$") ~= nil
 end
 
----Find all .lua files under `dir` (respects IGNORE_DIRS). Returns forward-slash
----paths. `dir` should be normalized (absolute, forward slashes, no trailing
----slash) so the ignore check runs against paths relative to it.
+---Find files matching `pattern` under `dir` (respects IGNORE_DIRS). Returns
+---forward-slash paths. `dir` should be normalized (absolute, forward slashes,
+---no trailing slash) so the ignore check runs against paths relative to it.
 ---@param dir string
+---@param pattern string   glob leaf, e.g. "*.lua", "*.md"
 ---@return string[]
-function M.get_lua_files(dir)
+function M.list_files(dir, pattern)
   local files = {}
-  local found = vim.fn.glob(dir .. "/**/*.lua", false, true)
+  local found = vim.fn.glob(dir .. "/**/" .. pattern, false, true)
   for _, f in ipairs(found) do
     f = f:gsub("\\", "/")
-    local rel = f:sub(#dir + 2)
-    if not should_ignore(rel) then
+    if not should_ignore(f:sub(#dir + 2)) then
       files[#files + 1] = f
     end
   end
   return files
+end
+
+---Find all .lua files under `dir`.
+---@param dir string
+---@return string[]
+function M.get_lua_files(dir)
+  return M.list_files(dir, "*.lua")
 end
 
 ---@param s string|nil
@@ -150,17 +157,84 @@ function M.create_empty_stats()
   }
 end
 
+---@return table  empty per-folder stats (aggregate + file list)
+function M.create_empty_folder_stats()
+  local st = M.create_empty_stats()
+  st.total_files = nil
+  st.file_count  = 0
+  st.files       = {}
+  return st
+end
+
+---Percentage helper.
+---@param part number
+---@param total number
+---@return number
+function M.percent(part, total)
+  if not total or total == 0 then return 0 end
+  return (part / total) * 100
+end
+
+---Compute the ten line/word percentages used by the detailed tables.
+---Order: L1 no-comments, L2 comments, L3 no-annotations, L4 annotations,
+---L5 blank, W1 no-comments, W2 no-annotations, W3 comments, W4 annotations,
+---W5 blank.
+---@param st table
+---@return number, number, number, number, number, number, number, number, number, number
+function M.compute_percentages(st)
+  local tl = st.total_lines or 0
+  local tw = st.total_words or 0
+  return
+    M.percent(st.lines_without_comments or 0, tl),
+    M.percent(st.comment_lines or 0, tl),
+    M.percent(st.lines_without_annotations or 0, tl),
+    M.percent(st.annotation_lines or 0, tl),
+    M.percent(st.blank_lines or 0, tl),
+    M.percent(st.words_without_comments or 0, tw),
+    M.percent(st.words_without_annotations or 0, tw),
+    M.percent(st.words_in_comments or 0, tw),
+    M.percent(st.words_in_annotations or 0, tw),
+    M.percent(st.words_in_blank or 0, tw)
+end
+
+---Format a value per display mode.
+---@param number number
+---@param perc number
+---@param mode "both"|"percent"|"numbers"
+---@return string
+function M.format_value(number, perc, mode)
+  local n = tonumber(number) or 0
+  local p = tonumber(perc) or 0
+  if mode == "percent" then return string.format("%.1f%%", p) end
+  if mode == "numbers" then return string.format("%d", n) end
+  return string.format("%d (%.1f%%)", n, p)
+end
+
+---Format a deviation from an average as a signed percentage.
+---@param value number
+---@param average number
+---@return string
+function M.format_deviation(value, average)
+  local delta = value - average
+  return string.format("%s%.1f%%", delta >= 0 and "+" or "", delta * 100)
+end
+
 ---Compute ratio metrics from a stats object.
 ---@param st table
----@return { comment_ratio:number, annotation_ratio:number, code_ratio:number, avg_lines_per_file:number }
+---@return { comment_ratio:number, annotation_ratio:number, doc_ratio:number, code_ratio:number, avg_lines_per_file:number, annotation_to_comment_ratio:number }
 function M.compute_ratios(st)
-  local total = st.total_lines or 0
-  local files = st.total_files or st.file_count or 1
+  local total       = st.total_lines or 0
+  local comments    = st.comment_lines or 0
+  local annotations = st.annotation_lines or 0
+  local code        = st.lines_without_comments or 0
+  local files       = st.total_files or st.file_count or 1
   return {
-    comment_ratio    = total > 0 and (st.comment_lines or 0) / total or 0,
-    annotation_ratio = total > 0 and (st.annotation_lines or 0) / total or 0,
-    code_ratio       = total > 0 and (st.lines_without_comments or 0) / total or 0,
-    avg_lines_per_file = files > 0 and total / files or 0,
+    comment_ratio               = total > 0 and comments / total or 0,
+    annotation_ratio            = total > 0 and annotations / total or 0,
+    doc_ratio                   = total > 0 and (comments + annotations) / total or 0,
+    code_ratio                  = total > 0 and code / total or 0,
+    avg_lines_per_file          = files > 0 and total / files or 0,
+    annotation_to_comment_ratio = comments > 0 and annotations / comments or 0,
   }
 end
 

@@ -42,10 +42,26 @@ local defaults = {
   metrics = {
     enable              = true,
     output_file         = vim.fn.stdpath("state") .. "/project-insight/metrics.md",
-    show_ratios         = true,
-    show_deviations     = true,
-    top_n               = 50,
-    exclude_type_files  = true,
+
+    -- Analysis scope
+    analyze_lua         = true,   -- analyze Lua source files
+    analyze_misc        = true,   -- analyze Markdown / TXT / JSON files
+
+    -- Lua output sections
+    show_file_tables    = true,   -- detailed per-file table (L1-L5 / W1-W5)
+    show_folder_tables  = true,   -- per-folder aggregate table
+    show_total_summary  = true,   -- grand-total row
+    show_ratios         = true,   -- folder ratio analysis
+    show_deviations     = true,   -- deviations from the global averages
+    show_top_lists      = true,   -- top-N files by lines/words
+    show_misc_detailed  = true,   -- per-file listing for misc files (vs. summary only)
+
+    -- Display
+    percent_mode        = "both", -- "both" | "percent" | "numbers"
+    reverse_order       = true,   -- summary first (vs. files first)
+    top_n               = 50,     -- items in top-N lists
+    col_width           = 7,      -- data column width in tables
+    exclude_type_files  = true,   -- exclude @types files from ratio analysis
   },
 
   tree = {

@@ -2,15 +2,20 @@
 ---@brief Per-file Lua code metrics: lines, comments, annotations, words.
 local M = {}
 
-local IGNORE_DIRS = { ".git", "node_modules", ".cache", "debuglog", "docs" }
+---@type table<string, boolean>  ignored directory names (matched per segment)
+local IGNORE_DIRS = {
+  [".git"] = true, ["node_modules"] = true,
+  [".cache"] = true, ["debuglog"] = true, ["docs"] = true,
+}
 
----Return true if path contains an ignored directory segment.
----@param path string
+---Return true if any path segment is an ignored directory. Matches whole
+---segments only (so a project rooted at e.g. `.../docs/` is not ignored, and
+---a file named `docs.lua` is kept).
+---@param rel string   path relative to the scan root, forward slashes
 ---@return boolean
-local function should_ignore(path)
-  local lp = path:lower()
-  for _, d in ipairs(IGNORE_DIRS) do
-    if lp:find(d:lower(), 1, true) then return true end
+local function should_ignore(rel)
+  for seg in rel:gmatch("[^/]+") do
+    if IGNORE_DIRS[seg:lower()] then return true end
   end
   return false
 end
@@ -23,15 +28,18 @@ function M.is_type_file(path)
       or path:match("[/\\]@types%.lua$") ~= nil
 end
 
----Find all .lua files under `dir` (respects IGNORE_DIRS).
+---Find all .lua files under `dir` (respects IGNORE_DIRS). Returns forward-slash
+---paths. `dir` should be normalized (absolute, forward slashes, no trailing
+---slash) so the ignore check runs against paths relative to it.
 ---@param dir string
 ---@return string[]
 function M.get_lua_files(dir)
   local files = {}
-  local pattern = dir .. "/**/*.lua"
-  local found = vim.fn.glob(pattern, false, true)
+  local found = vim.fn.glob(dir .. "/**/*.lua", false, true)
   for _, f in ipairs(found) do
-    if not should_ignore(f) then
+    f = f:gsub("\\", "/")
+    local rel = f:sub(#dir + 2)
+    if not should_ignore(rel) then
       files[#files + 1] = f
     end
   end

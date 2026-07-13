@@ -163,16 +163,24 @@ vim-plug: >
 4.2 Metrics                                       *project-insight-metrics*
 
                                          *:ProjectInsight-metrics*
-:ProjectInsight metrics
+:ProjectInsight metrics [dir]
 
-  Analyze all Lua files under the current working directory and display a
-  statistics report in a scratch buffer. The report is also written to the
-  file configured in |project-insight-config-metrics|.
+  Analyze all Lua files under [dir] and display a statistics report in a scratch
+  buffer. The report is also written to the file configured in
+  |project-insight-config-metrics|.
+
+  [dir]  Directory to analyze. Default: the current working directory.
+         Tab-completion suggests directories. Relative paths and `~` are
+         expanded. Pass an explicit directory when the editor's cwd differs
+         from the project you want to measure.
 
   Report sections:
     • Total line and word counts.
     • Per-folder breakdown: file count, total lines, code%, annotation%.
     • Ratio analysis (comment density, annotation density, code density).
+
+  Directories named `.git`, `node_modules`, `.cache`, `debuglog`, and `docs`
+  are skipped (matched as whole path segments below the analyzed root).
 
 ------------------------------------------------------------------------------
 4.3 Tree                                           *project-insight-tree*

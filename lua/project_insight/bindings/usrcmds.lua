@@ -106,8 +106,9 @@ local function handle_symbols(args)
   open_symbol_picker(entries, ui, scope .. " " .. sym_type)
 end
 
-local function handle_metrics()
-  require("project_insight.metrics").run()
+---@param args string[]  args[1] = optional directory to analyze (default: cwd)
+local function handle_metrics(args)
+  require("project_insight.metrics").run(args[1])
 end
 
 local function handle_tree()
@@ -205,7 +206,7 @@ function M.setup()
     local sub  = table.remove(raw, 1) or ""
 
     if sub == "symbols"   then handle_symbols(raw)
-    elseif sub == "metrics"   then handle_metrics()
+    elseif sub == "metrics"   then handle_metrics(raw)
     elseif sub == "tree"      then handle_tree()
     elseif sub == "count"     then handle_count()
     elseif sub == "clipboard" then handle_clipboard()
@@ -246,7 +247,7 @@ function M.setup()
           return opts
         end
         if sub_typed == "cache"    then return CACHE_SUBS end
-        if sub_typed == "compress" then
+        if sub_typed == "compress" or sub_typed == "metrics" then
           return vim.fn.getcompletion(arglead, "dir")
         end
         if sub_typed == "imports"  then return import_groups(arglead) end

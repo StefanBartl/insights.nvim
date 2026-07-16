@@ -65,6 +65,13 @@ a load guard, and every command runs through the single `:ProjectInsight`
 entry point. Load it on `cmd = "ProjectInsight"` — there is no benefit to
 loading it eagerly.
 
+> **If you use the automatic triggers**, load the plugin at startup
+> (`lazy = false`) instead. The `conflicts`, `unimported`, and `devserver`
+> autocmds are registered by `setup()`, so lazy-loading on `cmd` means they
+> never fire — nothing would register until you ran `:ProjectInsight` by hand.
+> Keep `cmd = "ProjectInsight"` only if all three are `enable = false`.
+> See [Automatic triggers](#automatic-triggers).
+
 ### lazy.nvim
 
 ```lua

@@ -77,11 +77,19 @@ On Windows the file tree uses PowerShell; on Unix it uses `find` + `sed`.
 
 project-insight.nvim is lazy by design; load it on `cmd = "ProjectInsight"`.
 
+                                         *project-insight-lazy-warning*
+Exception: the automatic triggers (|project-insight-autocmds|) are registered
+by `setup()`, so lazy-loading on `cmd` means their autocmds never fire —
+nothing registers until `:ProjectInsight` is run by hand. If you use
+`conflicts`, `unimported`, or `devserver`, load the plugin at startup
+(`lazy = false`) instead. Keep `cmd = "ProjectInsight"` only when all three
+are `enable = false`.
+
 lazy.nvim: >
   {
     "StefanBartl/project-insight.nvim",
     dependencies = { "StefanBartl/lib.nvim" },
-    cmd  = "ProjectInsight",
+    cmd  = "ProjectInsight",   -- lazy = false if you use the autocmds
     keys = {
       { "<leader>ps", desc = "Project symbols (telescope)" },
       { "<leader>pS", desc = "Project symbols (fzf)" },

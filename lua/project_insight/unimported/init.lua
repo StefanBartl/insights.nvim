@@ -16,16 +16,13 @@ local api = vim.api
 ---@param lines string[]
 ---@return string[]
 local function used_components(lines)
-  local seen, order = {}, {}
+  local order = {}
   for _, line in ipairs(lines) do
     for name in line:gmatch("<([A-Z][%w_]*)") do
-      if not seen[name] then
-        seen[name] = true
-        order[#order + 1] = name
-      end
+      order[#order + 1] = name
     end
   end
-  return order
+  return require("lib.lua.tables").dedup_list(order)
 end
 
 ---Is `name` bound in this file — imported, or declared locally?

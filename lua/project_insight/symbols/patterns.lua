@@ -131,18 +131,15 @@ end
 ---@param enabled_languages table<string, boolean>
 ---@return string[]
 function M.get_extensions(enabled_languages)
-  local seen, result = {}, {}
+  local result = {}
   for lang, exts in pairs(LANG_EXTS) do
     if enabled_languages[lang] then
       for _, ext in ipairs(exts) do
-        if not seen[ext] then
-          seen[ext] = true
-          result[#result + 1] = ext
-        end
+        result[#result + 1] = ext
       end
     end
   end
-  return result
+  return require("lib.lua.tables").dedup_list(result)
 end
 
 ---Detect language from filename.

@@ -839,7 +839,10 @@ All of these can be overridden per invocation with the flags documented under
 
 The picker displays a type label for each symbol in square brackets.
 
-Function symbols (default `functions` type): >
+------------------------------------------------------------------------------
+7.1 Function types                       *project-insight-symbol-functions*
+
+Symbols of the default `functions` type: >
   local      local function foo()
   global     function foo()  /  top-level def foo(): in Python
   module     function M.foo()  /  M.foo = function()
@@ -848,7 +851,11 @@ Function symbols (default `functions` type): >
   exported   export function foo() in JavaScript/TypeScript
   unknown    pattern matched but type could not be inferred
 <
-Lua-specific Tree-sitter types: >
+------------------------------------------------------------------------------
+7.2 Lua TS types                            *project-insight-symbol-lua-ts*
+
+Lua-specific types, produced by the Tree-sitter scanner
+(|:ProjectInsight-symbols| with `tables` or `strings`): >
   table      table constructor: local t = {}  /  state.win = {}  /  { field = {} }
   string     unique string literal: "require path", event name, magic value
 <

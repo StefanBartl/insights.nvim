@@ -102,6 +102,26 @@
 ---@field classify_external boolean
 ---@field definition ProjectInsight.Imports.Definition
 
+---@class ProjectInsight.ConflictsConfig
+---@field enable boolean
+---@field events string[]      autocmd events that trigger the scan; {} = manual only
+---@field git_cmd string
+---@field diff_filter string   git --diff-filter value; "U" = unmerged
+---@field open_qf boolean      :copen after populating the quickfix list
+---@field notify boolean       notify with the conflicting file names
+
+---@class ProjectInsight.UnimportedConfig
+---@field enable boolean
+---@field events string[]      autocmd events that trigger the check
+---@field filetypes string[]   filetypes the check applies to
+---@field ignore string[]      component names to never report
+
+---@class ProjectInsight.DevserverConfig
+---@field enable boolean
+---@field prompt boolean       ask via lib.nvim ui.kit; false = apply kill_on_exit silently
+---@field kill_on_exit boolean the answer used when prompt = false
+---@field patterns string[]    plain substrings matched case-insensitively against the terminal command
+
 ---@class ProjectInsightConfig
 ---@field symbols ProjectInsight.SymbolsConfig
 ---@field metrics ProjectInsight.MetricsConfig
@@ -111,6 +131,9 @@
 ---@field ui ProjectInsight.UIConfig
 ---@field compress ProjectInsight.CompressConfig
 ---@field imports ProjectInsight.ImportsConfig
+---@field conflicts ProjectInsight.ConflictsConfig
+---@field unimported ProjectInsight.UnimportedConfig
+---@field devserver ProjectInsight.DevserverConfig
 ---@field commands boolean  false = register no user commands at all
 
 return {}

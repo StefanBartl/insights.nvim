@@ -11,9 +11,13 @@
 ---   :ProjectInsight cache build|info|clear
 ---   :ProjectInsight compress [path] [outdir]
 ---   :ProjectInsight imports [filter...]
+---   :ProjectInsight conflicts
+---   :ProjectInsight unimported
+---   :ProjectInsight devserver list|kill
 local M = {}
 
-local SUBCOMMANDS   = { "symbols", "metrics", "tree", "count", "clipboard", "fileinfo", "cache", "compress", "imports" }
+local SUBCOMMANDS   = { "symbols", "metrics", "tree", "count", "clipboard", "fileinfo", "cache", "compress", "imports", "conflicts", "unimported", "devserver" }
+local DEVSERVER_SUBS = { "list", "kill" }
 local SYMBOL_SCOPES = { "cwd", "buffer" }
 local SYMBOL_UIS    = { "telescope", "fzf", "scratch", "rebuild" }
 local SYMBOL_TYPES  = { "functions", "tables", "strings" }
@@ -218,6 +222,55 @@ local function handle_imports(args)
   require("project_insight.imports").run(args)
 end
 
+local function handle_conflicts()
+  local cfg = require("project_insight.config").get()
+  if not (cfg.conflicts and cfg.conflicts.enable) then
+    notify.warn("conflicts feature is disabled (set conflicts.enable = true in setup)")
+    return
+  end
+  require("project_insight.conflicts").run()
+end
+
+local function handle_unimported()
+  local cfg = require("project_insight.config").get()
+  if not (cfg.unimported and cfg.unimported.enable) then
+    notify.warn("unimported feature is disabled (set unimported.enable = true in setup)")
+    return
+  end
+  require("project_insight.unimported").run()
+end
+
+local function handle_devserver(args)
+  local cfg = require("project_insight.config").get()
+  if not (cfg.devserver and cfg.devserver.enable) then
+    notify.warn("devserver feature is disabled (set devserver.enable = true in setup)")
+    return
+  end
+
+  local devserver = require("project_insight.devserver")
+  local sub = args[1] or "list"
+
+  if sub == "list" then
+    local lines = {}
+    for _, info in pairs(devserver.tracked()) do
+      lines[#lines + 1] = string.format("  pid %-8d %s  (kill on exit: %s)",
+        info.pid, info.cmd, tostring(info.kill_on_exit))
+    end
+    if #lines == 0 then
+      notify.info("no dev servers tracked in this session")
+    else
+      notify.info("tracked dev servers:\n" .. table.concat(lines, "\n"))
+    end
+
+  elseif sub == "kill" then
+    local killed = devserver.kill_all(true)
+    notify.info(string.format("killed %d dev server%s", killed, killed == 1 and "" or "s"))
+
+  else
+    notify.warn(":ProjectInsight devserver: unknown subcommand '" .. sub .. "' — use list|kill")
+  end
+end
+
 local function handle_cache(args)
   local sub = args[1] or ""
   local cfg = require("project_insight.config").get().symbols.cache
@@ -267,10 +320,14 @@ function M.setup()
     elseif sub == "cache"     then handle_cache(raw)
     elseif sub == "compress"  then handle_compress(raw)
     elseif sub == "imports"   then handle_imports(raw)
+    elseif sub == "conflicts"  then handle_conflicts()
+    elseif sub == "unimported" then handle_unimported()
+    elseif sub == "devserver"  then handle_devserver(raw)
     else
       vim.notify(
         "[project-insight] unknown subcommand '" .. sub .. "'\n"
-        .. "Use: symbols | metrics | tree | count | clipboard | fileinfo | cache | compress | imports",
+        .. "Use: symbols | metrics | tree | count | clipboard | fileinfo | cache | compress | imports\n"
+        .. "   | conflicts | unimported | devserver",
         vim.log.levels.ERROR)
     end
   end, {
@@ -299,7 +356,8 @@ function M.setup()
           for _, v in ipairs(SYMBOL_UIS)    do opts[#opts + 1] = v end
           return opts
         end
-        if sub_typed == "cache"    then return CACHE_SUBS end
+        if sub_typed == "cache"     then return CACHE_SUBS end
+        if sub_typed == "devserver" then return DEVSERVER_SUBS end
         if sub_typed == "compress" then
           return vim.fn.getcompletion(arglead, "dir")
         end

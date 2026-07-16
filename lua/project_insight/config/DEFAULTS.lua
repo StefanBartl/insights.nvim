@@ -121,6 +121,37 @@ local defaults = {
     },
   },
 
+  -- Populate the quickfix list with files holding unresolved merge conflicts.
+  conflicts = {
+    enable      = true,
+    events      = { "VimEnter" },  -- when to scan; {} = only :ProjectInsight conflicts
+    git_cmd     = "git",
+    diff_filter = "U",             -- git --diff-filter; U = unmerged
+    open_qf     = true,            -- :copen after populating the list
+    notify      = true,            -- notify with the conflicting file names
+  },
+
+  -- Warn about component tags (<Foo …>) that are used but never imported.
+  unimported = {
+    enable    = true,
+    events    = { "BufWritePost" },
+    filetypes = { "astro", "javascriptreact", "typescriptreact", "vue", "svelte" },
+    ignore    = {},  -- component names to never report (e.g. globals)
+  },
+
+  -- Notice dev servers started in a Neovim terminal and offer to kill them on
+  -- exit. Only terminals this Neovim owns are tracked — never every process on
+  -- the machine matching a name.
+  devserver = {
+    enable       = true,
+    prompt       = true,  -- ask via lib.nvim ui.kit; false = apply kill_on_exit silently
+    kill_on_exit = true,  -- the answer used when prompt = false
+    patterns     = {      -- plain substrings, matched case-insensitively
+      "astro dev", "npm run dev", "pnpm dev", "yarn dev", "bun dev",
+      "vite", "next dev", "nuxt dev", "ng serve", "rails server",
+    },
+  },
+
   commands = true,
 }
 

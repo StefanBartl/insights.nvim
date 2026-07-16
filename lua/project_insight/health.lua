@@ -17,6 +17,51 @@ local function check_lib()
   else
     err_s("lib.nvim not found — required dependency, install StefanBartl/lib.nvim")
   end
+  if pcall(require, "lib.nvim.ui.kit") then
+    ok_s("lib.nvim.ui.kit available (dev-server prompt)")
+  else
+    err_s("lib.nvim.ui.kit not found — required for the dev-server prompt; update StefanBartl/lib.nvim")
+  end
+end
+
+local function check_autocmds()
+  start_s("Automatic triggers")
+  local ok, cfg_mod = pcall(require, "project_insight.config")
+  if not ok then err_s("cannot load config"); return end
+  local cfg = cfg_mod.get()
+
+  local conflicts = cfg.conflicts or {}
+  if conflicts.enable then
+    if exe(conflicts.git_cmd or "git") then
+      ok_s("conflicts: enabled on " .. table.concat(conflicts.events or {}, ", "))
+    else
+      warn_s("conflicts enabled but git not executable: " .. (conflicts.git_cmd or "git"))
+    end
+  else
+    info_s("conflicts disabled (conflicts.enable = false)")
+  end
+
+  local unimported = cfg.unimported or {}
+  if unimported.enable then
+    ok_s("unimported: enabled for " .. table.concat(unimported.filetypes or {}, ", "))
+  else
+    info_s("unimported disabled (unimported.enable = false)")
+  end
+
+  local dev = cfg.devserver or {}
+  if dev.enable then
+    ok_s(string.format("devserver: enabled, %d pattern(s), prompt = %s",
+      #(dev.patterns or {}), tostring(dev.prompt ~= false)))
+    if platform_is_windows() then
+      if exe("taskkill") then ok_s("taskkill available — dev-server process tree can be killed")
+      else                    warn_s("taskkill not found — dev-server kill may not work") end
+    else
+      if exe("kill") then ok_s("kill available — dev-server process group can be killed")
+      else                warn_s("kill not found — dev-server kill may not work") end
+    end
+  else
+    info_s("devserver disabled (devserver.enable = false)")
+  end
 end
 
 local function check_neovim()
@@ -174,6 +219,7 @@ function M.check()
   check_pickers()
   check_treesitter()
   check_config()
+  check_autocmds()
   check_compress()
   check_cache()
 end

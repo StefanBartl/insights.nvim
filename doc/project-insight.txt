@@ -14,21 +14,28 @@ CONTENTS                                          *project-insight-contents*
      4.5 Cache .................... |project-insight-cache|
      4.6 Compress ................. |project-insight-compress|
      4.7 Imports .................. |project-insight-imports|
-  5. Configuration ................ |project-insight-config|
-     5.1 symbols .................. |project-insight-config-symbols|
-     5.2 metrics .................. |project-insight-config-metrics|
-     5.3 tree ..................... |project-insight-config-tree|
-     5.4 fileinfo ................. |project-insight-config-fileinfo|
-     5.5 keymaps .................. |project-insight-config-keymaps|
-     5.6 compress ................. |project-insight-config-compress|
-     5.7 imports .................. |project-insight-config-imports|
-  6. Symbol types ................. |project-insight-symbol-types|
-     6.1 Function types ........... |project-insight-symbol-functions|
-     6.2 Lua TS types ............. |project-insight-symbol-lua-ts|
-  7. Pickers ...................... |project-insight-pickers|
-  8. Lua API ...................... |project-insight-api|
-  9. Health check ................. |project-insight-health|
- 10. Troubleshooting .............. |project-insight-troubleshooting|
+     4.8 Conflicts ................ |project-insight-conflicts|
+     4.9 Unimported ............... |project-insight-unimported|
+     4.10 Devserver ............... |project-insight-devserver|
+  5. Automatic triggers ........... |project-insight-autocmds|
+  6. Configuration ................ |project-insight-config|
+     6.1 symbols .................. |project-insight-config-symbols|
+     6.2 metrics .................. |project-insight-config-metrics|
+     6.3 tree ..................... |project-insight-config-tree|
+     6.4 fileinfo ................. |project-insight-config-fileinfo|
+     6.5 keymaps .................. |project-insight-config-keymaps|
+     6.6 compress ................. |project-insight-config-compress|
+     6.7 imports .................. |project-insight-config-imports|
+     6.8 conflicts ................ |project-insight-config-conflicts|
+     6.9 unimported ............... |project-insight-config-unimported|
+     6.10 devserver ............... |project-insight-config-devserver|
+  7. Symbol types ................. |project-insight-symbol-types|
+     7.1 Function types ........... |project-insight-symbol-functions|
+     7.2 Lua TS types ............. |project-insight-symbol-lua-ts|
+  8. Pickers ...................... |project-insight-pickers|
+  9. Lua API ...................... |project-insight-api|
+ 10. Health check ................. |project-insight-health|
+ 11. Troubleshooting .............. |project-insight-troubleshooting|
 
 ==============================================================================
 1. INTRODUCTION                                     *project-insight-intro*
@@ -55,8 +62,10 @@ Tab-completion works at every level.
 2. REQUIREMENTS                                *project-insight-requirements*
 
   • Neovim ≥ 0.9           (required)
-  • lib.nvim                (required, shared notify + cross-platform helpers)
+  • lib.nvim                (required, shared notify + cross-platform helpers,
+                             ui.kit for the dev-server prompt)
   • rg (ripgrep)            (required for symbol indexing)
+  • git                     (optional, for the conflict scan)
   • telescope.nvim          (optional, for telescope symbol picker)
   • fzf-lua                 (optional, for fzf symbol picker)
   • nvim-treesitter         (optional, for Tree-sitter Lua scanner)
@@ -106,7 +115,8 @@ vim-plug: >
 :ProjectInsight {subcommand} [args]
 
   Unified dispatcher. {subcommand} is one of:
-  symbols, metrics, tree, count, clipboard, fileinfo, cache, compress, imports.
+  symbols, metrics, tree, count, clipboard, fileinfo, cache, compress, imports,
+  conflicts, unimported, devserver.
 
   Tab-completion is available at every argument position.
 
@@ -374,8 +384,98 @@ vim-plug: >
     :ProjectInsight imports project_insight
     :ProjectInsight imports lib foo.bar
 <
+------------------------------------------------------------------------------
+4.8 Conflicts                                   *project-insight-conflicts*
+
+                                         *:ProjectInsight-conflicts*
+:ProjectInsight conflicts
+
+  Ask git for files in the unmerged state (`git diff --diff-filter=U`), put
+  them in the |quickfix| list, and open it with |:copen|.
+
+  Does nothing outside a git repository or when the repo has no conflicts.
+  Also runs automatically on VimEnter — see |project-insight-autocmds|.
+
+  Configure under `conflicts` (|project-insight-config-conflicts|).
+
+------------------------------------------------------------------------------
+4.9 Unimported                                 *project-insight-unimported*
+
+                                         *:ProjectInsight-unimported*
+:ProjectInsight unimported
+
+  Report component tags used in the current buffer that have no matching
+  import or local definition.
+
+  A tag whose name starts with an uppercase letter (`<Card />`) is treated as
+  a component reference; lowercase tags are HTML elements and ignored. A name
+  counts as bound when it is imported (`import Card …`, `import { Card } …`)
+  or declared locally (`const`/`let`/`var`/`function`/`class`).
+
+  This is a textual check, not a type-checker: it never reads other files, so
+  it cannot tell whether an import actually resolves. Names that are
+  deliberately never imported (globals, framework injections) belong in
+  `unimported.ignore`.
+
+  Runs automatically on BufWritePost for the configured filetypes — see
+  |project-insight-autocmds|. Configure under `unimported`
+  (|project-insight-config-unimported|).
+
+------------------------------------------------------------------------------
+4.10 Devserver                                  *project-insight-devserver*
+
+                                         *:ProjectInsight-devserver*
+:ProjectInsight devserver [list|kill]
+
+  list   List the dev servers tracked in this session, with their pid and
+         whether they will be killed on exit (default).
+  kill   Kill every tracked dev server now, regardless of the answer given
+         to the prompt.
+
+  Tracking itself is automatic — see |project-insight-autocmds|. Configure
+  under `devserver` (|project-insight-config-devserver|).
+
 ==============================================================================
-5. CONFIGURATION                                   *project-insight-config*
+5. AUTOMATIC TRIGGERS                            *project-insight-autocmds*
+
+Most of the plugin only acts when asked. Three features also run on their own.
+Each registers its autocmds in `setup()` and is switched off with its `enable`
+key; a disabled feature registers nothing.
+
+  conflicts    VimEnter                      quickfix unresolved conflicts
+  unimported   BufWritePost                  check component imports
+  devserver    TermOpen, TermRequest,        detect and kill dev servers
+               VimLeavePre
+
+Both `conflicts` and `unimported` are silent when they find nothing, so a
+clean project produces no messages at startup or on write.
+
+                                     *project-insight-devserver-tracking*
+Dev-server tracking~
+
+When a terminal's command matches one of `devserver.patterns` (`npm run dev`,
+`astro dev`, `vite`, …), a prompt (lib.nvim's `ui.kit` confirm dialog) asks
+once whether that server should be killed when Neovim exits. Answering yes
+kills its process tree on VimLeavePre; answering no — or pressing <Esc> —
+leaves it alone. Each terminal is asked about once; the answer holds for that
+terminal's lifetime.
+
+Only terminals started by this Neovim instance are tracked. The kill targets
+that terminal's recorded pid: its process tree via `taskkill /T` on Windows,
+its process group via `kill -TERM -<pid>` elsewhere. A server running in
+another shell or a tmux pane is never touched — the plugin only kills
+processes it can account for, rather than sweeping the machine for everything
+matching a name.
+
+A command typed into an already-open shell is only detected if the program
+sets the terminal title (OSC 0/2), which most dev servers do. Starting the
+server as the terminal's own command (`:terminal npm run dev`) always works.
+
+To skip the prompt and always kill matching servers: >
+  devserver = { prompt = false, kill_on_exit = true }
+<
+==============================================================================
+6. CONFIGURATION                                   *project-insight-config*
 
 Call `setup()` once during Neovim startup: >
 
@@ -386,7 +486,7 @@ Call `setup()` once during Neovim startup: >
 All keys are optional. Unset keys use the defaults shown below.
 
 ------------------------------------------------------------------------------
-5.1 symbols                               *project-insight-config-symbols*
+6.1 symbols                               *project-insight-config-symbols*
 >
   symbols = {
     enable        = true,
@@ -447,7 +547,7 @@ All keys are optional. Unset keys use the defaults shown below.
   Set to `0` to disable TTL-based expiry (mtime check still applies).
 
 ------------------------------------------------------------------------------
-5.2 metrics                               *project-insight-config-metrics*
+6.2 metrics                               *project-insight-config-metrics*
 >
   metrics = {
     enable             = true,
@@ -513,7 +613,7 @@ All of these can be overridden per invocation with the flags documented under
 |:ProjectInsight-metrics|.
 
 ------------------------------------------------------------------------------
-5.3 tree                                     *project-insight-config-tree*
+6.3 tree                                     *project-insight-config-tree*
 >
   tree = {
     enable           = true,
@@ -529,7 +629,7 @@ All of these can be overridden per invocation with the flags documented under
   is `myproject-tree.txt` inside `outdir`.
 
 ------------------------------------------------------------------------------
-5.4 fileinfo                             *project-insight-config-fileinfo*
+6.4 fileinfo                             *project-insight-config-fileinfo*
 >
   fileinfo = {
     enable = true,
@@ -537,7 +637,7 @@ All of these can be overridden per invocation with the flags documented under
   },
 <
 ------------------------------------------------------------------------------
-5.5 keymaps                              *project-insight-config-keymaps*
+6.5 keymaps                              *project-insight-config-keymaps*
 >
   keymaps = {
     symbols_telescope = "<leader>ps",   -- false to disable
@@ -549,7 +649,7 @@ All of these can be overridden per invocation with the flags documented under
   entirely (use the Lua API instead). Default: `true`.
 
 ------------------------------------------------------------------------------
-5.6 compress                             *project-insight-config-compress*
+6.6 compress                             *project-insight-config-compress*
 >
   compress = {
     enable = true,
@@ -577,7 +677,7 @@ All of these can be overridden per invocation with the flags documented under
   The command's second argument overrides this for a single invocation.
 
 ------------------------------------------------------------------------------
-5.7 imports                               *project-insight-config-imports*
+6.7 imports                               *project-insight-config-imports*
 >
   imports = {
     enable      = true,
@@ -630,8 +730,104 @@ All of these can be overridden per invocation with the flags documented under
     keymaps  Buffer-local keys in the report: `jump` (default "gd") and
              `preview` (default "gp"). Set either to `false` to disable it.
 
+------------------------------------------------------------------------------
+6.8 conflicts                           *project-insight-config-conflicts*
+>
+  conflicts = {
+    enable      = true,
+    events      = { "VimEnter" },
+    git_cmd     = "git",
+    diff_filter = "U",
+    open_qf     = true,
+    notify      = true,
+  },
+<
+`enable`
+  `false` disables the feature entirely: no autocmd is registered and
+  `:ProjectInsight conflicts` reports that it is disabled.
+
+`events`
+  Autocmd events that trigger the scan. Set to `{}` to never scan
+  automatically and use the command only.
+
+`git_cmd`
+  The git executable. Only stdout is parsed, so git's warnings on stderr
+  (e.g. "LF will be replaced by CRLF") are never mistaken for file names.
+
+`diff_filter`
+  Value passed to `git diff --diff-filter=`. "U" = unmerged.
+
+`open_qf`
+  `false` fills the quickfix list without opening the window.
+
+`notify`
+  `false` suppresses the notification listing the conflicting files. The
+  quickfix list is still populated.
+
+------------------------------------------------------------------------------
+6.9 unimported                         *project-insight-config-unimported*
+>
+  unimported = {
+    enable    = true,
+    events    = { "BufWritePost" },
+    filetypes = { "astro", "javascriptreact", "typescriptreact",
+                  "vue", "svelte" },
+    ignore    = {},
+  },
+<
+`enable`
+  `false` disables the feature entirely: no autocmd is registered and
+  `:ProjectInsight unimported` reports that it is disabled.
+
+`events`
+  Autocmd events that trigger the check. Set to `{}` for command-only use.
+
+`filetypes`
+  Filetypes the check applies to. Buffers of any other filetype are skipped,
+  including by the autocmd.
+
+`ignore`
+  Component names never reported, for names that are legitimately never
+  imported (globals, framework injections): >
+    ignore = { "Fragment", "Astro" }
+<
+------------------------------------------------------------------------------
+6.10 devserver                          *project-insight-config-devserver*
+>
+  devserver = {
+    enable       = true,
+    prompt       = true,
+    kill_on_exit = true,
+    patterns     = {
+      "astro dev", "npm run dev", "pnpm dev", "yarn dev", "bun dev",
+      "vite", "next dev", "nuxt dev", "ng serve", "rails server",
+    },
+  },
+<
+`enable`
+  `false` disables the feature entirely: no terminal is watched, nothing is
+  killed, and `:ProjectInsight devserver` reports that it is disabled.
+
+`prompt`
+  `true` (default) asks — once per terminal — whether the detected server
+  should be killed on exit, via lib.nvim's `ui.kit` confirm dialog.
+  `false` skips the dialog and applies `kill_on_exit` to every match.
+
+`kill_on_exit`
+  The answer used when `prompt = false`. Ignored when `prompt = true`, where
+  the user's answer decides. `prompt = false, kill_on_exit = false` therefore
+  disables killing while still tracking matches for
+  `:ProjectInsight devserver list`.
+
+`patterns`
+  Plain substrings (not Lua patterns), matched case-insensitively against the
+  terminal's command. Replace the list to track a different set of servers: >
+    patterns = { "npm run dev", "cargo watch" }
+<
+  See |project-insight-devserver-tracking| for what is and is not detected.
+
 ==============================================================================
-6. SYMBOL TYPES                            *project-insight-symbol-types*
+7. SYMBOL TYPES                            *project-insight-symbol-types*
 
 The picker displays a type label for each symbol in square brackets.
 
@@ -650,7 +846,7 @@ Lua-specific Tree-sitter types: >
 <
 
 ==============================================================================
-7. PICKERS                                      *project-insight-pickers*
+8. PICKERS                                      *project-insight-pickers*
 
 `:ProjectInsight symbols` auto-selects a picker in this order:
   1. telescope.nvim  (if installed)
@@ -688,7 +884,7 @@ Scratch buffer~
     gf           follow `path:line` under cursor
 
 ==============================================================================
-8. LUA API                                          *project-insight-api*
+9. LUA API                                          *project-insight-api*
 
 After calling `setup()`, the following functions are available:
 
@@ -761,8 +957,36 @@ After calling `setup()`, the following functions are available:
 
   Toggle the file info float for the current buffer.
 
+                                           *project_insight.run_conflicts()*
+`require("project_insight").run_conflicts()`
+
+  Scan for unresolved merge conflicts and populate the quickfix list.
+  Returns the number of conflicting files (0 outside a git repository).
+
+                                        *project_insight.check_unimported()*
+`require("project_insight").check_unimported([bufnr])`
+
+  Returns a list of component names used in `bufnr` (default: the current
+  buffer) with no matching import or local definition, and notifies about
+  them. The buffer's filetype is not checked — pass any buffer.
+
+  Use `require("project_insight.unimported").check_buf(bufnr)` for the same
+  list without the notification.
+
+                                             *project_insight.devservers()*
+`require("project_insight").devservers()`
+
+  Dev servers tracked in this session, keyed by terminal channel: >
+    {
+      [3] = {
+        pid          = 12345,
+        cmd          = "npm run dev",
+        kill_on_exit = true,
+      },
+    }
+<
 ==============================================================================
-9. HEALTH CHECK                                   *project-insight-health*
+10. HEALTH CHECK                                   *project-insight-health*
 
 >
   :checkhealth project_insight
@@ -774,11 +998,13 @@ Reports:
   Optional pickers    telescope.nvim, fzf-lua.
   Tree-sitter         nvim-treesitter installation status.
   Configuration       Active language list, scope, cache settings.
+  Automatic triggers  conflicts / unimported / devserver status, plus the
+                      tools they need (git, taskkill or kill).
   Compress            Engine availability (tar/find/zip/powershell), outdir writability.
   Cache               Symbol count, last-indexed timestamp, file path.
 
 ==============================================================================
-10. TROUBLESHOOTING                       *project-insight-troubleshooting*
+11. TROUBLESHOOTING                       *project-insight-troubleshooting*
 
 No symbols found~
 
@@ -838,6 +1064,47 @@ Compress fails~
   • Verify the output directory (or its parent) is writable.
   • Paths with spaces: the PowerShell engine uses single-quoted strings
     which handle spaces, but if problems occur use a simpler `outdir`.
+
+Dev server was never detected~
+
+  • Is the command in `devserver.patterns`? Check the exact command with
+    `:echo b:term_title` or `:lua =vim.api.nvim_get_chan_info(vim.b.terminal_job_id).argv`
+    and add a substring of it to the list.
+  • A command typed into an already-running shell is only seen if the program
+    sets the terminal title. Start it as the terminal's command instead:
+    `:terminal npm run dev`.
+  • A server started outside Neovim (another shell, tmux pane) is never
+    detected. This is by design — see |project-insight-devserver-tracking|.
+
+Dev server was not killed on exit~
+
+  • Confirm it was tracked and approved: `:ProjectInsight devserver list`.
+    `kill on exit: false` means the prompt was answered "no" or cancelled.
+  • `:checkhealth project_insight` shows whether `taskkill` (Windows) or
+    `kill` (Unix) is available.
+  • The process must be a child of the terminal Neovim started. A server that
+    daemonises itself away from that process tree outlives the kill.
+
+Dev-server prompt never appears~
+
+  • `devserver.prompt = false` applies `kill_on_exit` silently by design.
+  • The prompt fires once per terminal; it does not re-ask for a terminal
+    already answered.
+  • It needs lib.nvim's `ui.kit`; `:checkhealth project_insight` reports a
+    missing or outdated lib.nvim.
+
+Unimported reports a component that is imported~
+
+  • The check is textual and single-file: it looks for an `import` line or a
+    local declaration binding that exact name. An import generated at build
+    time or injected globally is invisible to it — add such names to
+    `unimported.ignore`.
+
+Conflicts reports files that are not conflicted~
+
+  • Only stdout from `git diff --diff-filter=U` is parsed, so warnings on
+    stderr are not treated as file names. If the list still looks wrong, run
+    `git diff --name-only --diff-filter=U` yourself to compare.
 
 ==============================================================================
 vim:ft=help:tw=78:ts=2:et:

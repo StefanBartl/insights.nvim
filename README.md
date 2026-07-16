@@ -35,6 +35,12 @@ into a single unified command.
 | **cache** | CWD-keyed JSON cache for the symbol index (TTL-based, mtime-aware) |
 | **compress** | Compress a project directory — configurable engine: `tar` (.tar.gz), `zip`, or PowerShell (.zip) |
 | **imports** | Count and list `require()` calls across Lua files — Tree-sitter-accurate (ignores `require` in comments/strings), per-module counts, every occurrence with imported name/field and `path:line`, with prefix/group filters |
+| **conflicts** | Populate the quickfix list with files holding unresolved merge conflicts |
+| **unimported** | Warn on component tags (`<Foo />`) used but never imported — astro / jsx / tsx / vue / svelte |
+| **devserver** | Notice dev servers started in a Neovim terminal and offer to kill them on exit |
+
+Unlike the others, these last three can also run **automatically** — see
+[Automatic triggers](#automatic-triggers).
 
 ---
 
@@ -43,8 +49,9 @@ into a single unified command.
 | Tool | Required | Purpose |
 |------|----------|---------|
 | Neovim | **≥ 0.9** | core |
-| [`lib.nvim`](https://github.com/StefanBartl/lib.nvim) | **yes** | shared notify + cross-platform helpers |
+| [`lib.nvim`](https://github.com/StefanBartl/lib.nvim) | **yes** | shared notify, cross-platform helpers, `ui.kit` dev-server prompt |
 | `rg` (ripgrep) | **yes** | symbol indexing |
+| `git` | optional | conflict scan (`conflicts`) |
 | `telescope.nvim` | optional | telescope picker |
 | `fzf-lua` | optional | fzf picker |
 | `nvim-treesitter` | optional | TS-based Lua scanner + accurate import analysis |
@@ -308,6 +315,80 @@ files in scheduled chunks. The report opens when the scan completes.
 > Currently Lua-only. Support for other languages' imports is tracked in
 > [docs/ROADMAP.md](docs/ROADMAP.md).
 
+#### Conflicts
+
+```vim
+:ProjectInsight conflicts
+```
+
+Asks git for files in the unmerged state (`git diff --diff-filter=U`) and puts
+them in the quickfix list, then `:copen`. Runs automatically on `VimEnter` —
+see [Automatic triggers](#automatic-triggers).
+
+#### Unimported
+
+```vim
+:ProjectInsight unimported
+```
+
+Reports component tags used in the current buffer with no matching import or
+local definition. A tag starting with an uppercase letter (`<Card />`) is a
+component reference; lowercase tags are HTML elements and ignored. A name
+counts as bound if it is imported (`import Card …`, `import { Card } …`) or
+declared locally (`const` / `let` / `var` / `function` / `class`).
+
+This is a fast textual check, not a type-checker: it never reads other files,
+so it cannot know whether the import actually resolves. Names you deliberately
+leave unimported (globals, framework injections) go in `unimported.ignore`.
+
+#### Devserver
+
+```vim
+:ProjectInsight devserver list   " tracked servers in this session
+:ProjectInsight devserver kill   " kill them all now
+```
+
+See [Automatic triggers](#automatic-triggers) — this is mostly automatic.
+
+---
+
+## Automatic triggers
+
+Most of the plugin only acts when you ask it to. These three also run on their
+own, and each is switched off with its `enable` key:
+
+| Feature | Fires on | Does |
+|---------|----------|------|
+| `conflicts` | `VimEnter` | Quickfix-lists unresolved merge conflicts. Silent when the repo is clean or not a git repo. |
+| `unimported` | `BufWritePost` | Warns about used-but-unimported components, for `unimported.filetypes` only. Silent when nothing is missing. |
+| `devserver` | `TermOpen`, `TermRequest`, `VimLeavePre` | Detects dev servers and kills the ones you approved on exit. |
+
+### How the dev-server tracking works
+
+When a terminal command matches one of `devserver.patterns` (`npm run dev`,
+`astro dev`, `vite`, …), a prompt asks once whether that server should be
+killed when Neovim exits. Answer yes and its process tree is killed on
+`VimLeavePre`; answer no (or press `<Esc>`) and it is left alone. You are asked
+once per terminal — the answer sticks for that terminal's lifetime.
+
+**Only terminals this Neovim instance started are tracked.** The kill targets
+that terminal's recorded PID — its process tree via `taskkill /T` on Windows,
+its process group via `kill -TERM -<pid>` elsewhere. A server you started in
+another shell or a tmux pane is never touched, because this plugin only kills
+processes it can account for. That is the deliberate trade-off against a
+`pkill -f "astro dev"`-style sweep, which would also kill servers that have
+nothing to do with this editor session.
+
+A command typed into an already-open shell is only detected if the program sets
+the terminal title (most dev servers do, via OSC 0/2). Starting the server as
+the terminal's command — `:terminal npm run dev` — always works.
+
+To skip the prompt and always kill matching servers:
+
+```lua
+devserver = { prompt = false, kill_on_exit = true }
+```
+
 ---
 
 ## Configuration
@@ -428,6 +509,35 @@ require("project_insight").setup({
         jump    = "gd",       -- reveal definition (uses view); false to disable
         preview = "gp",       -- always reveal in a float; false to disable
       },
+    },
+  },
+
+  -- Quickfix-list unresolved merge conflicts
+  conflicts = {
+    enable      = true,             -- false = no autocmd, no :ProjectInsight conflicts
+    events      = { "VimEnter" },   -- {} = never automatic, command only
+    git_cmd     = "git",
+    diff_filter = "U",              -- git --diff-filter value; U = unmerged
+    open_qf     = true,             -- :copen after populating the list
+    notify      = true,             -- notify with the conflicting file names
+  },
+
+  -- Warn about component tags used but never imported
+  unimported = {
+    enable    = true,
+    events    = { "BufWritePost" },
+    filetypes = { "astro", "javascriptreact", "typescriptreact", "vue", "svelte" },
+    ignore    = {},                 -- component names to never report
+  },
+
+  -- Kill dev servers started in a Neovim terminal on exit
+  devserver = {
+    enable       = true,            -- false = never watch terminals
+    prompt       = true,            -- ask via lib.nvim ui.kit before killing
+    kill_on_exit = true,            -- the answer used when prompt = false
+    patterns     = {                -- plain substrings, case-insensitive
+      "astro dev", "npm run dev", "pnpm dev", "yarn dev", "bun dev",
+      "vite", "next dev", "nuxt dev", "ng serve", "rails server",
     },
   },
 

@@ -20,7 +20,7 @@ function M.setup(opts)
   end
 
   require("project_insight.bindings.keymaps").setup(cfg)
-  require("project_insight.bindings.autocmds").setup()
+  require("project_insight.bindings.autocmds").setup(cfg)
 end
 
 -- Public façade for direct Lua use -----------------------------------------------
@@ -54,6 +54,25 @@ end
 ---Show file info float for current buffer.
 function M.show_fileinfo()
   require("project_insight.fileinfo").show()
+end
+
+---Scan for unresolved merge conflicts and populate the quickfix list.
+---@return integer count
+function M.run_conflicts()
+  return require("project_insight.conflicts").run()
+end
+
+---Component tags used in a buffer without a matching import or definition.
+---@param bufnr integer|nil  defaults to the current buffer
+---@return string[] missing
+function M.check_unimported(bufnr)
+  return require("project_insight.unimported").run(bufnr)
+end
+
+---Dev servers tracked in this session, keyed by terminal channel.
+---@return table<integer, { pid: integer, cmd: string, kill_on_exit: boolean }>
+function M.devservers()
+  return require("project_insight.devserver").tracked()
 end
 
 return M

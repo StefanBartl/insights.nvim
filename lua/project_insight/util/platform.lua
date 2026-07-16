@@ -12,19 +12,15 @@ function M.joinpath(parts)
   return table.concat(parts, sep)
 end
 
----Run a shell command asynchronously (vim.system, Neovim 0.10+).
+---Run a shell command asynchronously.
 ---Callback receives (success: boolean, stdout: string, stderr: string).
 ---@param cmd string
 ---@param cb fun(success: boolean, stdout: string, stderr: string)
 function M.run_shell(cmd, cb)
-  local args = M.is_windows()
-    and { "powershell", "-NonInteractive", "-Command", cmd }
-    or  { "sh", "-c", cmd }
-  vim.system(args, { text = true }, function(result)
-    local ok = result.code == 0
-    vim.schedule(function()
-      cb(ok, result.stdout or "", result.stderr or "")
-    end)
+  -- This module's own shell-selection (powershell on Windows, sh -c
+  -- elsewhere) duplicated lib.nvim.cross.run.shell()/run() exactly.
+  require("lib.nvim.cross.run").run(cmd, function(ok, res)
+    cb(ok, res.stdout or "", res.stderr or "")
   end)
 end
 
@@ -32,8 +28,7 @@ end
 ---@param text string
 ---@return boolean
 function M.copy_to_clipboard(text)
-  if pcall(vim.fn.setreg, "+", text) then return true end
-  return pcall(vim.fn.setreg, "*", text)
+  return require("lib.nvim.cross.copy_to_clipboard")(text)
 end
 
 return M

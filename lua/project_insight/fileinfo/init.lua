@@ -7,6 +7,7 @@ local api       = vim.api
 local str_fmt   = string.format
 local os_date   = os.date
 local bitlib    = require("bit")
+local make_scratch = require("lib.nvim.window.make_scratch")
 
 local active_win  = nil
 local active_path = nil
@@ -51,34 +52,17 @@ local function open_hover(path, lines)
   end
   close_active()
 
-  local buf = api.nvim_create_buf(false, true)
-  api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-  api.nvim_set_option_value("modifiable", false, { buf = buf })
-  api.nvim_set_option_value("bufhidden",  "wipe", { buf = buf })
-
-  local close_fn = function()
-    if active_win and api.nvim_win_is_valid(active_win) then
-      api.nvim_win_close(active_win, true)
-      active_win, active_path = nil, nil
-    end
-  end
   local close_keys = (require("project_insight.config").get().ui or {}).close_keys or { "q", "<Esc>" }
-  for _, key in ipairs(close_keys) do
-    vim.keymap.set("n", key, close_fn,
-      { buffer = buf, nowait = true, desc = "project-insight: close file info float" })
-  end
 
-  local width = 0
-  for _, l in ipairs(lines) do width = math.max(width, #l) end
-
-  local win = api.nvim_open_win(buf, true, {
-    relative = "editor",
-    style    = "minimal",
-    border   = "rounded",
-    width    = width + 2,
-    height   = #lines,
-    row      = 2,
-    col      = math.floor((vim.o.columns - width) / 2),
+  -- width/height are left to make_scratch's defaults: content_width(lines)+2
+  -- and #lines, matching this function's own former width+2/#lines exactly.
+  -- row=2 (near the top, not vertically centered) is passed explicitly since
+  -- that's this float's own deliberate positioning, not make_scratch's
+  -- default (which centers vertically).
+  local win = make_scratch({
+    lines = lines,
+    row = 2,
+    nice_quit = { keys = close_keys },
   })
 
   active_win  = win

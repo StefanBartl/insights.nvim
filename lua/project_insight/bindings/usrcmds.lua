@@ -21,7 +21,8 @@
 --- docs: a route with N declared optional slots of the same custom type
 --- reproduces "same completion candidates at every position", which is what
 --- these three subcommands need (unlike a fixed positional grammar).
-local composer = require("lib.nvim.usercmd.composer")
+local composer   = require("lib.nvim.usercmd.composer")
+local expand_path = require("lib.nvim.cross.fs.expand_path")
 
 local M = {}
 
@@ -186,7 +187,7 @@ local function parse_metrics_args(args)
     elseif a == "--current"               then opts.single_file = vim.fn.expand("%:p")
     elseif a:match("^--topn=")            then opts.top_n = tonumber(a:sub(8))
     elseif a:match("^--colwidth=")        then opts.col_width = tonumber(a:sub(12))
-    elseif a:match("^--file=")            then opts.single_file = a:sub(8)
+    elseif a:match("^--file=")            then opts.single_file = expand_path(a:sub(8))
     elseif not a:match("^%-")             then opts.root = a
     end
   end

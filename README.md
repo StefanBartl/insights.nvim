@@ -1,16 +1,16 @@
-# project-insight.nvim
+# insights.nvim
 
 ```
-  ___         _        _     ___          _      _   _
- | _ \_ _ ___(_)___ __| |_  |_ _|_ _  __(_)__ _| |_| |_
- |  _/ '_/ _ \ / -_) _|  _|  | || ' \(_-< / _` | ' \  _|
- |_| |_| \___/_\___\__|\__| |___|_||_/__/_\__, |_||_\__|
-                                           |___/
+ _         _      _   _
+(_)_ _  __(_)__ _| |_| |_ ___
+| | ' \(_-< / _` | ' \  _(_-<
+|_|_||_/__/_\__, |_||_\__/__/
+            |___/
 ```
 
 > Pairs well with [buffer-ctx.nvim](https://github.com/StefanBartl/buffer-ctx.nvim) —
 > insert or copy the current buffer's path, module name, or other context that
-> complements the module-path resolution used by `:ProjectInsight imports`.
+> complements the module-path resolution used by `:Insights imports`.
 
 ![version](https://img.shields.io/badge/version-0.1.0-blue.svg)
 ![status](https://img.shields.io/badge/status-beta-orange.svg)
@@ -33,23 +33,23 @@ requirements and other package managers.
 ```lua
 -- lazy.nvim
 {
-  "StefanBartl/project-insight.nvim",
+  "StefanBartl/insights.nvim",
   dependencies = { "StefanBartl/lib.nvim" },
-  cmd = "ProjectInsight",
+  cmd = "Insights",
   keys = {
     { "<leader>ps", desc = "Project symbols (telescope)" },
     { "<leader>pS", desc = "Project symbols (fzf)" },
   },
   config = function()
-    require("project_insight").setup()
+    require("insights").setup()
   end,
 }
 ```
 
 ```vim
-:ProjectInsight symbols     " open the symbol picker for the current project
-:ProjectInsight metrics     " Lua code metrics report
-:ProjectInsight tree        " write the project file tree to a file
+:Insights symbols     " open the symbol picker for the current project
+:Insights metrics     " Lua code metrics report
+:Insights tree        " write the project file tree to a file
 ```
 
 ---
@@ -58,7 +58,7 @@ requirements and other package managers.
 
 - [Features](docs/features.md) — overview of every module and what it does.
 - [Installation](docs/installation.md) — requirements, package-manager setup, health check.
-- [Commands](docs/commands.md) — full `:ProjectInsight` subcommand reference, flags, and symbol types.
+- [Commands](docs/commands.md) — full `:Insights` subcommand reference, flags, and symbol types.
 - [Automatic triggers](docs/automatic-triggers.md) — the `conflicts`, `unimported`, and `devserver` autocmds, and how dev-server tracking works.
 - [Configuration](docs/configuration.md) — full `setup()` reference with defaults.
 - [Architecture](docs/architecture.md) — source tree layout and module responsibilities.

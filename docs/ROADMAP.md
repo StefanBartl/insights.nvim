@@ -1,11 +1,11 @@
 # Roadmap
 
-Planned and proposed work for project-insight.nvim. Items are not ordered by
+Planned and proposed work for insights.nvim. Items are not ordered by
 priority.
 
 ## Imports / dependency analysis
 
-The `:ProjectInsight imports` command scans **Lua** `require(...)` calls. It is
+The `:Insights imports` command scans **Lua** `require(...)` calls. It is
 Tree-sitter-accurate by default (only genuine calls in the AST are counted),
 with a ripgrep line scan as fallback. Extend it to other languages, each with
 its own import syntax and "module path" notion:

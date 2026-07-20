@@ -3,7 +3,7 @@
 Full reference with defaults:
 
 ```lua
-require("project_insight").setup({
+require("insights").setup({
 
   -- Symbol index (ripgrep + optional Tree-sitter)
   symbols = {
@@ -32,7 +32,7 @@ require("project_insight").setup({
 
     cache = {
       enabled     = true,
-      dir         = vim.fn.stdpath("cache") .. "/project-insight/symbols",
+      dir         = vim.fn.stdpath("cache") .. "/insights/symbols",
       ttl_seconds = 3600,   -- 0 = never expire
     },
   },
@@ -40,7 +40,7 @@ require("project_insight").setup({
   -- Lua code metrics + documentation-file analysis
   metrics = {
     enable             = true,
-    output_file        = vim.fn.stdpath("state") .. "/project-insight/metrics.md",
+    output_file        = vim.fn.stdpath("state") .. "/insights/metrics.md",
 
     analyze_lua        = true,   -- analyze Lua source files
     analyze_misc       = true,   -- analyze Markdown / TXT / JSON files
@@ -64,7 +64,7 @@ require("project_insight").setup({
   tree = {
     enable           = true,
     exclude_patterns = { "*/.git/*", "*/node_modules/*", "*/.cache/*" },
-    outdir           = vim.fn.stdpath("state") .. "/project-insight/tree",
+    outdir           = vim.fn.stdpath("state") .. "/insights/tree",
     outfile_fmt      = "%s-tree.txt",   -- %s = project name (cwd tail)
   },
 
@@ -86,23 +86,23 @@ require("project_insight").setup({
     follow_key = "gf",              -- follow path:line in a scratch buffer; false to disable
   },
 
-  -- Project compression (:ProjectInsight compress)
+  -- Project compression (:Insights compress)
   compress = {
     enable = true,
-    ---@type ProjectInsight.CompressEngine  "auto"|"tar"|"zip"|"powershell"
+    ---@type Insights.CompressEngine  "auto"|"tar"|"zip"|"powershell"
     engine = "auto",   -- auto → tar on Unix, powershell on Windows
     outdir = "",       -- "" = compressed/ next to the source directory
                        -- non-empty = <outdir>/<name>-compressed/
   },
 
-  -- require()/import analysis (:ProjectInsight imports)
+  -- require()/import analysis (:Insights imports)
   imports = {
     enable      = true,
     engine      = "auto",   -- "auto" → Tree-sitter if Lua parser present, else
                             -- ripgrep; "treesitter" / "ripgrep" force a backend
-    output_file = vim.fn.stdpath("state") .. "/project-insight/imports.md",
+    output_file = vim.fn.stdpath("state") .. "/insights/imports.md",
     -- Named groups expand to module prefixes when used as a filter,
-    -- e.g. :ProjectInsight imports lib → matches lib, lib.nvim, lib.usrcmds
+    -- e.g. :Insights imports lib → matches lib, lib.nvim, lib.usrcmds
     groups = {
       lib = { "lib", "lib.nvim", "lib.usrcmds" },
     },
@@ -121,7 +121,7 @@ require("project_insight").setup({
 
   -- Quickfix-list unresolved merge conflicts
   conflicts = {
-    enable      = true,             -- false = no autocmd, no :ProjectInsight conflicts
+    enable      = true,             -- false = no autocmd, no :Insights conflicts
     events      = { "VimEnter" },   -- {} = never automatic, command only
     git_cmd     = "git",
     diff_filter = "U",              -- git --diff-filter value; U = unmerged

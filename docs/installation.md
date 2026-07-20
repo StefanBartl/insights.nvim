@@ -14,31 +14,31 @@
 
 ## Installation
 
-project-insight.nvim is lazy by design: `plugin/project_insight.lua` only sets
-a load guard, and every command runs through the single `:ProjectInsight`
-entry point. Load it on `cmd = "ProjectInsight"` — there is no benefit to
+insights.nvim is lazy by design: `plugin/insights.lua` only sets
+a load guard, and every command runs through the single `:Insights`
+entry point. Load it on `cmd = "Insights"` — there is no benefit to
 loading it eagerly.
 
 > **If you use the automatic triggers**, load the plugin at startup
 > (`lazy = false`) instead. The `conflicts`, `unimported`, and `devserver`
 > autocmds are registered by `setup()`, so lazy-loading on `cmd` means they
-> never fire — nothing would register until you ran `:ProjectInsight` by hand.
-> Keep `cmd = "ProjectInsight"` only if all three are `enable = false`.
+> never fire — nothing would register until you ran `:Insights` by hand.
+> Keep `cmd = "Insights"` only if all three are `enable = false`.
 > See [Automatic triggers](automatic-triggers.md).
 
 ### lazy.nvim
 
 ```lua
 {
-  "StefanBartl/project-insight.nvim",
+  "StefanBartl/insights.nvim",
   dependencies = { "StefanBartl/lib.nvim" },
-  cmd = "ProjectInsight",
+  cmd = "Insights",
   keys = {
     { "<leader>ps", desc = "Project symbols (telescope)" },
     { "<leader>pS", desc = "Project symbols (fzf)" },
   },
   config = function()
-    require("project_insight").setup()
+    require("insights").setup()
   end,
 }
 ```
@@ -47,11 +47,11 @@ loading it eagerly.
 
 ```lua
 use {
-  "StefanBartl/project-insight.nvim",
+  "StefanBartl/insights.nvim",
   requires = { "StefanBartl/lib.nvim" },
-  cmd = "ProjectInsight",
+  cmd = "Insights",
   config = function()
-    require("project_insight").setup()
+    require("insights").setup()
   end,
 }
 ```
@@ -60,12 +60,12 @@ use {
 
 ```vim
 Plug 'StefanBartl/lib.nvim'
-Plug 'StefanBartl/project-insight.nvim'
+Plug 'StefanBartl/insights.nvim'
 ```
 
 ```lua
 " after plug#end()
-require("project_insight").setup()
+require("insights").setup()
 ```
 
 vim-plug has no built-in lazy-loading by command; the `setup()` call itself
@@ -74,7 +74,7 @@ is cheap (no external process is spawned until a command runs).
 ## Health check
 
 ```vim
-:checkhealth project_insight
+:checkhealth insights
 ```
 
 Reports: Neovim version, `rg` availability, picker plugins, Tree-sitter,

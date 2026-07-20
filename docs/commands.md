@@ -3,11 +3,11 @@
 ## Unified command
 
 ```
-:ProjectInsight <subcommand> [args]
+:Insights <subcommand> [args]
 ```
 
 Tab-completion works at every level. Built via `lib.nvim.usercmd.composer`:
-the route tree in `lua/project_insight/bindings/usrcmds.lua` drives dispatch
+the route tree in `lua/insights/bindings/usrcmds.lua` drives dispatch
 and `<Tab>` completion from one source, forwarding to the same handler
 functions as before (byte-for-byte unchanged dispatch/parsing). Two
 user-visible changes from this: an unknown subcommand now reports composer's
@@ -19,21 +19,21 @@ names at every position).
 ### Symbol index
 
 ```vim
-:ProjectInsight symbols                       " cwd scope, best available picker
-:ProjectInsight symbols cwd                   " explicit cwd scope
-:ProjectInsight symbols buffer                " current buffer only
-:ProjectInsight symbols telescope             " force telescope
-:ProjectInsight symbols fzf                   " force fzf-lua
-:ProjectInsight symbols scratch               " scratch buffer (no picker needed)
-:ProjectInsight symbols cwd telescope         " scope + picker
-:ProjectInsight symbols rebuild               " force cache rebuild, then open picker
+:Insights symbols                       " cwd scope, best available picker
+:Insights symbols cwd                   " explicit cwd scope
+:Insights symbols buffer                " current buffer only
+:Insights symbols telescope             " force telescope
+:Insights symbols fzf                   " force fzf-lua
+:Insights symbols scratch               " scratch buffer (no picker needed)
+:Insights symbols cwd telescope         " scope + picker
+:Insights symbols rebuild               " force cache rebuild, then open picker
 
 " Lua-specific Tree-sitter scanners (tables and string literals)
-:ProjectInsight symbols buffer tables         " Lua table definitions in current buffer
-:ProjectInsight symbols cwd tables            " Lua table definitions across cwd
-:ProjectInsight symbols buffer strings        " Lua string literals in current buffer
-:ProjectInsight symbols cwd strings           " Lua string literals across cwd
-:ProjectInsight symbols buffer functions      " Lua functions (explicit; same as default for Lua)
+:Insights symbols buffer tables         " Lua table definitions in current buffer
+:Insights symbols cwd tables            " Lua table definitions across cwd
+:Insights symbols buffer strings        " Lua string literals in current buffer
+:Insights symbols cwd strings           " Lua string literals across cwd
+:Insights symbols buffer functions      " Lua functions (explicit; same as default for Lua)
 ```
 
 The `[type]` argument selects the symbol kind:
@@ -59,20 +59,20 @@ In the picker:
 ### Code metrics
 
 ```vim
-:ProjectInsight metrics                        " full report for cwd
-:ProjectInsight metrics /path/to/dir           " analyze a specific directory
-:ProjectInsight metrics --ratios --deviations  " emphasize the ratio analysis
-:ProjectInsight metrics --lua-only --no-top     " Lua only, skip top-N lists
-:ProjectInsight metrics --misc-only --misc-detailed  " only docs (md/txt/json)
-:ProjectInsight metrics --numbers-only /path   " raw counts, no percentages
-:ProjectInsight metrics --current              " analyze the current buffer only
+:Insights metrics                        " full report for cwd
+:Insights metrics /path/to/dir           " analyze a specific directory
+:Insights metrics --ratios --deviations  " emphasize the ratio analysis
+:Insights metrics --lua-only --no-top     " Lua only, skip top-N lists
+:Insights metrics --misc-only --misc-detailed  " only docs (md/txt/json)
+:Insights metrics --numbers-only /path   " raw counts, no percentages
+:Insights metrics --current              " analyze the current buffer only
 ```
 
 Without an argument the current working directory is analyzed. Pass a directory
 to analyze it instead (tab-completion suggests directories and flags) — useful
 when the editor's cwd differs from the project you want to measure. The report
 is also written to `metrics.output_file` (default:
-`{state}/project-insight/metrics.md`).
+`{state}/insights/metrics.md`).
 
 The report contains:
 
@@ -99,31 +99,31 @@ Flags: `--ratios`/`--no-ratios`, `--deviations`, `--lua-only`, `--misc-only`,
 ### File tree
 
 ```vim
-:ProjectInsight tree         " write project tree to configured output file
-:ProjectInsight count        " count project files
-:ProjectInsight clipboard    " copy tree file content to system clipboard
+:Insights tree         " write project tree to configured output file
+:Insights count        " count project files
+:Insights clipboard    " copy tree file content to system clipboard
 ```
 
 ### Buffer file info
 
 ```vim
-:ProjectInsight fileinfo     " toggle fs.stat float for current buffer
+:Insights fileinfo     " toggle fs.stat float for current buffer
 ```
 
 ### Symbol cache
 
 ```vim
-:ProjectInsight cache build  " rebuild symbol cache for current cwd
-:ProjectInsight cache info   " show cache statistics
-:ProjectInsight cache clear  " delete cache for current cwd
+:Insights cache build  " rebuild symbol cache for current cwd
+:Insights cache info   " show cache statistics
+:Insights cache clear  " delete cache for current cwd
 ```
 
 ### Compress
 
 ```vim
-:ProjectInsight compress                " compress cwd with configured engine
-:ProjectInsight compress /path/to/dir   " compress a specific directory
-:ProjectInsight compress . ~/backups    " compress cwd, write to ~/backups/
+:Insights compress                " compress cwd with configured engine
+:Insights compress /path/to/dir   " compress a specific directory
+:Insights compress . ~/backups    " compress cwd, write to ~/backups/
 ```
 
 Creates a `compressed/` sub-directory inside the target path (default) or
@@ -140,28 +140,28 @@ there. `.git/` is excluded automatically.
 ### Imports
 
 ```vim
-:ProjectInsight imports                  " all require() calls in cwd
-:ProjectInsight imports lib              " only group "lib" (config.imports.groups)
-:ProjectInsight imports project_insight  " only modules under prefix project_insight
-:ProjectInsight imports lib foo.bar      " multiple filters (OR-combined)
+:Insights imports                  " all require() calls in cwd
+:Insights imports lib              " only group "lib" (config.imports.groups)
+:Insights imports insights  " only modules under prefix insights
+:Insights imports lib foo.bar      " multiple filters (OR-combined)
 ```
 
 Scans every Lua file in the cwd for `require(...)` calls and opens a scratch
 report (also written to `imports.output_file`). The report has two sections:
 
 ```
-=== Imports — project-insight.nvim ===
+=== Imports — insights.nvim ===
 total require() calls : 74   unique modules : 29   backend : treesitter
 
 --- Count ---
-   13  project_insight.util.notify
-   10  project_insight.config
+   13  insights.util.notify
+   10  insights.config
     1  telescope.actions               (extern)
    ...
 
 --- Occurrences ---
-lua/project_insight/metrics/init.lua:5   project_insight.util.notify   notify (.create)
-lua/project_insight/metrics/init.lua:7   project_insight.config        config
+lua/insights/metrics/init.lua:5   insights.util.notify   notify (.create)
+lua/insights/metrics/init.lua:7   insights.config        config
 ...
 ```
 
@@ -181,7 +181,7 @@ reveal the definition of the accessed field:
 | `gp` | always reveal the definition in a floating preview |
 
 On an **Occurrence** line (`module  name (.field)`) the jump lands on the
-definition of that field — e.g. on `… project_insight.util.notify  notify (.create)`,
+definition of that field — e.g. on `… insights.util.notify  notify (.create)`,
 `gd` opens `notify.lua` at `function M.create(…)`. On a **Count** line it opens
 the module file itself. Field location is Tree-sitter-accurate (it understands
 `function M.f()`, `M.f = function`, `local f = …`, and table fields), with a
@@ -212,7 +212,7 @@ files in scheduled chunks. The report opens when the scan completes.
 ### Conflicts
 
 ```vim
-:ProjectInsight conflicts
+:Insights conflicts
 ```
 
 Asks git for files in the unmerged state (`git diff --diff-filter=U`) and puts
@@ -222,7 +222,7 @@ see [Automatic triggers](automatic-triggers.md).
 ### Unimported
 
 ```vim
-:ProjectInsight unimported
+:Insights unimported
 ```
 
 Reports component tags used in the current buffer with no matching import or
@@ -238,8 +238,8 @@ leave unimported (globals, framework injections) go in `unimported.ignore`.
 ### Devserver
 
 ```vim
-:ProjectInsight devserver list   " tracked servers in this session
-:ProjectInsight devserver kill   " kill them all now
+:Insights devserver list   " tracked servers in this session
+:Insights devserver kill   " kill them all now
 ```
 
 See [Automatic triggers](automatic-triggers.md) — this is mostly automatic.
@@ -257,5 +257,5 @@ The symbol index uses the following type labels:
 | `anonymous` | `const foo = () =>` / `foo = function()` |
 | `exported` | `export function foo()` |
 | `unknown` | pattern matched but type not inferred |
-| `table` | Lua table constructor (`:ProjectInsight symbols … tables`) |
-| `string` | Lua string literal (`:ProjectInsight symbols … strings`) |
+| `table` | Lua table constructor (`:Insights symbols … tables`) |
+| `string` | Lua string literal (`:Insights symbols … strings`) |

@@ -1,6 +1,6 @@
 # Bindings Reference
 
-All keymaps, user commands, and autocmds registered by project-insight.nvim.
+All keymaps, user commands, and autocmds registered by insights.nvim.
 
 ---
 
@@ -20,7 +20,7 @@ integration needed.
 
 ### Buffer-local — scratch report buffer
 
-Registered on every `project-insight://…` scratch buffer (metrics, symbols,
+Registered on every `insights://…` scratch buffer (metrics, symbols,
 imports reports, …). Configurable under `ui.close_keys` (list) and
 `ui.follow_key` (set to `false` to disable following).
 
@@ -31,7 +31,7 @@ imports reports, …). Configurable under `ui.close_keys` (list) and
 
 ### Buffer-local — imports report
 
-Additional keymaps on the `:ProjectInsight imports` report buffer only.
+Additional keymaps on the `:Insights imports` report buffer only.
 Configurable under `imports.definition.keymaps`; set a key to `false` to
 disable it.
 
@@ -56,7 +56,7 @@ A single dispatcher command with tab-completion at every level, built via
 `lib.nvim.usercmd.composer`:
 
 ```vim
-:ProjectInsight <subcommand> [args]
+:Insights <subcommand> [args]
 ```
 
 | Subcommand | Args | Description |

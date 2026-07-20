@@ -1,9 +1,8 @@
 ---@module 'project_insight.bindings.usrcmds'
----@brief Unified :ProjectInsight command with tab-completion.
+---@brief Unified :ProjectInsight command, built via lib.nvim.usercmd.composer.
 ---
----   :ProjectInsight symbols [cwd|buffer] [telescope|fzf|scratch]
----   :ProjectInsight symbols rebuild
----   :ProjectInsight metrics
+---   :ProjectInsight symbols [cwd|buffer] [telescope|fzf|scratch] [functions|tables|strings] [rebuild]
+---   :ProjectInsight metrics [flags...] [dir]
 ---   :ProjectInsight tree
 ---   :ProjectInsight count
 ---   :ProjectInsight clipboard
@@ -13,15 +12,22 @@
 ---   :ProjectInsight imports [filter...]
 ---   :ProjectInsight conflicts
 ---   :ProjectInsight unimported
----   :ProjectInsight devserver list|kill
+---   :ProjectInsight devserver [list|kill]
+---
+--- Every composer route only supplies typed-arg schema for tab-completion;
+--- dispatch is always delegated to the handle_* functions below (unchanged),
+--- so behavior — including symbols/metrics/imports' order-independent token
+--- parsing — is unaffected by the migration. See composer.lua's Route.args
+--- docs: a route with N declared optional slots of the same custom type
+--- reproduces "same completion candidates at every position", which is what
+--- these three subcommands need (unlike a fixed positional grammar).
+local composer = require("lib.nvim.usercmd.composer")
+
 local M = {}
 
-local SUBCOMMANDS   = { "symbols", "metrics", "tree", "count", "clipboard", "fileinfo", "cache", "compress", "imports", "conflicts", "unimported", "devserver" }
-local DEVSERVER_SUBS = { "list", "kill" }
 local SYMBOL_SCOPES = { "cwd", "buffer" }
 local SYMBOL_UIS    = { "telescope", "fzf", "scratch", "rebuild" }
 local SYMBOL_TYPES  = { "functions", "tables", "strings" }
-local CACHE_SUBS    = { "build", "info", "clear" }
 
 local notify = require("project_insight.util.notify").create("[project_insight]")
 
@@ -45,25 +51,49 @@ local function open_symbol_picker(entries, ui, scope)
   end
 end
 
-local METRICS_FLAGS = {
-  "--reverse", "--no-reverse", "--percent-only", "--numbers-only",
-  "--ratios", "--no-ratios", "--deviations", "--no-deviations",
-  "--lua-only", "--misc-only", "--no-misc", "--misc-detailed",
-  "--no-top", "--top-files-lines-only", "--top-files-words-only",
-  "--current", "--topn=", "--colwidth=", "--file=",
+local METRICS_BOOL_FLAGS = {
+  "reverse", "no-reverse", "percent-only", "numbers-only",
+  "ratios", "no-ratios", "deviations", "no-deviations",
+  "lua-only", "misc-only", "no-misc", "misc-detailed",
+  "no-top", "top-files-lines-only", "top-files-words-only", "current",
 }
+local METRICS_VALUE_FLAGS = { "topn", "colwidth", "file" }
 
----Completion candidates for `:ProjectInsight metrics` (flags + directories).
----@param arglead string
+---FlagSpec list for the `metrics` route — declared purely so composer's own
+---`--<Tab>` completion fires (composer intercepts any "--"-prefixed arg_lead
+---unconditionally, ahead of a route's own `args` completers — a plain
+---repeated-positional-arg route, like symbols/imports below, would silently
+---never get a chance to complete these). Dispatch still goes through the
+---unchanged parse_metrics_args below: reconstruct_metrics_tokens() re-derives
+---the original "--flag"/"--flag=value" string tokens from ctx.flags/ctx.pos
+---so that parser's semantics (e.g. --lua-only setting *two* opts fields)
+---never has to be re-expressed here.
+---@return table[]
+local function metrics_flag_specs()
+  local specs = {}
+  for _, name in ipairs(METRICS_BOOL_FLAGS) do
+    specs[#specs + 1] = { name = name, bool = true }
+  end
+  for _, name in ipairs(METRICS_VALUE_FLAGS) do
+    specs[#specs + 1] = { name = name, type = "STRING" }
+  end
+  return specs
+end
+
+---Re-derive the original flat token list from a metrics route's ctx, so
+---parse_metrics_args (below, unchanged) can parse it exactly as before.
+---@param ctx table
 ---@return string[]
-local function metrics_complete(arglead)
+local function reconstruct_metrics_tokens(ctx)
   local out = {}
-  for _, f in ipairs(METRICS_FLAGS) do
-    if f:sub(1, #arglead) == arglead then out[#out + 1] = f end
+  for _, name in ipairs(METRICS_BOOL_FLAGS) do
+    if ctx.flags[name] then out[#out + 1] = "--" .. name end
   end
-  if not arglead:match("^%-") then
-    vim.list_extend(out, vim.fn.getcompletion(arglead, "dir"))
+  for _, name in ipairs(METRICS_VALUE_FLAGS) do
+    if ctx.flags[name] ~= nil then out[#out + 1] = ("--%s=%s"):format(name, ctx.flags[name]) end
   end
+  for _, v in ipairs(ctx.pos) do out[#out + 1] = v end
+  for _, v in ipairs(ctx.rest) do out[#out + 1] = v end
   return out
 end
 
@@ -305,88 +335,124 @@ local function handle_cache(args)
   end
 end
 
+-- ── composer wiring ──────────────────────────────────────────────────────────
+
+---Prefix-filter, matching composer's own convention (its built-in types all
+---filter this way — the old hand-rolled completers above did NOT filter
+---symbols/cache/devserver candidates by arglead at all, an inconsistency
+---fixed here, not carried forward).
+---@param cands string[]
+---@param lead string
+---@return string[]
+local function prefix(cands, lead)
+  if lead == "" then return cands end
+  local out = {}
+  for _, c in ipairs(cands) do
+    if c:sub(1, #lead) == lead then out[#out + 1] = c end
+  end
+  return out
+end
+
+-- symbols' 4 tokens (scope/type/ui/"rebuild") are order-independent — see the
+-- loop in handle_symbols — so every position offers the same union set.
+local SYMBOL_TOKENS = {}
+vim.list_extend(SYMBOL_TOKENS, SYMBOL_SCOPES)
+vim.list_extend(SYMBOL_TOKENS, SYMBOL_TYPES)
+vim.list_extend(SYMBOL_TOKENS, SYMBOL_UIS)
+
+composer.register_type("PI_SYMBOLS_TOKEN", {
+  validate = function(raw) return true, raw, nil end,
+  complete = function(arg_lead) return prefix(SYMBOL_TOKENS, arg_lead) end,
+})
+
+composer.register_type("PI_IMPORT_GROUP", {
+  validate = function(raw) return true, raw, nil end,
+  complete = function(arg_lead) return import_groups(arg_lead) end,
+})
+
+-- compress's path/outdir are directories that need NOT already exist (outdir
+-- especially — it's created on demand), so this stays soft like the original
+-- (built-in DIR would hard-reject a not-yet-created outdir).
+composer.register_type("PI_DIR_SOFT", {
+  validate = function(raw) return true, raw, nil end,
+  complete = function(arg_lead) return vim.fn.getcompletion(arg_lead, "dir") end,
+})
+
+---N optional positional slots of the same type — reproduces "same completion
+---candidates at every position" for an order-independent/variadic grammar.
+---@param type_name string
+---@param count integer
+---@return table[]
+local function repeated_args(type_name, count)
+  local out = {}
+  for i = 1, count do
+    out[i] = { name = "a" .. i, type = type_name, optional = true }
+  end
+  return out
+end
+
+---Every bound positional plus whatever overflowed the declared slots, in order.
+---@param ctx table
+---@return string[]
+local function merged_tokens(ctx)
+  local out = {}
+  for _, v in ipairs(ctx.pos) do out[#out + 1] = v end
+  for _, v in ipairs(ctx.rest) do out[#out + 1] = v end
+  return out
+end
+
+local function no_arg_route(path, desc, fn)
+  return { path = path, desc = desc, run = function(_) fn() end }
+end
+
 ---Register :ProjectInsight command.
 function M.setup()
-  vim.api.nvim_create_user_command("ProjectInsight", function(o)
-    local raw  = vim.split(o.args or "", "%s+", { trimempty = true })
-    local sub  = table.remove(raw, 1) or ""
+  local routes = {
+    {
+      path = { "symbols" },
+      args = repeated_args("PI_SYMBOLS_TOKEN", 4),
+      desc = "Symbol index (scope/type/ui in any order)",
+      run  = function(ctx) handle_symbols(merged_tokens(ctx)) end,
+    },
+    {
+      path = { "metrics" },
+      args = { { name = "root", type = "PI_DIR_SOFT", optional = true } },
+      flags = metrics_flag_specs(),
+      desc = "Lua code metrics (flags + optional directory)",
+      run  = function(ctx) handle_metrics(reconstruct_metrics_tokens(ctx)) end,
+    },
+    no_arg_route({ "tree" }, "Write project file tree", handle_tree),
+    no_arg_route({ "count" }, "Count project files", handle_count),
+    no_arg_route({ "clipboard" }, "Copy tree to clipboard", handle_clipboard),
+    no_arg_route({ "fileinfo" }, "Toggle fs.stat float for current buffer", handle_fileinfo),
+    no_arg_route({ "cache", "build" }, "Rebuild symbol cache", function() handle_cache({ "build" }) end),
+    no_arg_route({ "cache", "info" }, "Show symbol cache stats", function() handle_cache({ "info" }) end),
+    no_arg_route({ "cache", "clear" }, "Clear symbol cache", function() handle_cache({ "clear" }) end),
+    {
+      path = { "compress" },
+      args = {
+        { name = "path", type = "PI_DIR_SOFT", optional = true },
+        { name = "outdir", type = "PI_DIR_SOFT", optional = true },
+      },
+      desc = "Archive a directory (default: cwd)",
+      run  = function(ctx) handle_compress(ctx.pos) end,
+    },
+    {
+      path = { "imports" },
+      args = repeated_args("PI_IMPORT_GROUP", 6),
+      desc = "require() usage report, optionally filtered by group",
+      run  = function(ctx) handle_imports(merged_tokens(ctx)) end,
+    },
+    no_arg_route({ "conflicts" }, "Quickfix unresolved git conflicts", handle_conflicts),
+    no_arg_route({ "unimported" }, "Check used-but-unimported components", handle_unimported),
+    no_arg_route({ "devserver" }, "List tracked dev servers", function() handle_devserver({}) end),
+    no_arg_route({ "devserver", "list" }, "List tracked dev servers", function() handle_devserver({ "list" }) end),
+    no_arg_route({ "devserver", "kill" }, "Kill tracked dev servers", function() handle_devserver({ "kill" }) end),
+  }
 
-    if sub == "symbols"   then handle_symbols(raw)
-    elseif sub == "metrics"   then handle_metrics(raw)
-    elseif sub == "tree"      then handle_tree()
-    elseif sub == "count"     then handle_count()
-    elseif sub == "clipboard" then handle_clipboard()
-    elseif sub == "fileinfo"  then handle_fileinfo()
-    elseif sub == "cache"     then handle_cache(raw)
-    elseif sub == "compress"  then handle_compress(raw)
-    elseif sub == "imports"   then handle_imports(raw)
-    elseif sub == "conflicts"  then handle_conflicts()
-    elseif sub == "unimported" then handle_unimported()
-    elseif sub == "devserver"  then handle_devserver(raw)
-    else
-      vim.notify(
-        "[project-insight] unknown subcommand '" .. sub .. "'\n"
-        .. "Use: symbols | metrics | tree | count | clipboard | fileinfo | cache | compress | imports\n"
-        .. "   | conflicts | unimported | devserver",
-        vim.log.levels.ERROR)
-    end
-  end, {
-    nargs = "*",
-    desc  = "Project-Insight: project analysis (symbols, metrics, tree, fileinfo, cache)",
-    complete = function(arglead, cmdline, _)
-      local parts = vim.split(cmdline, "%s+", { trimempty = true })
-      local n     = #parts
-      local editing_last = cmdline:sub(-1) ~= " "
-      local pos   = editing_last and n or n + 1
-
-      if pos == 2 then
-        local out = {}
-        for _, s in ipairs(SUBCOMMANDS) do
-          if s:sub(1, #arglead) == arglead then out[#out + 1] = s end
-        end
-        return out
-      end
-
-      local sub_typed = parts[2] or ""
-      if pos == 3 then
-        if sub_typed == "symbols" then
-          local opts = {}
-          for _, v in ipairs(SYMBOL_SCOPES) do opts[#opts + 1] = v end
-          for _, v in ipairs(SYMBOL_TYPES)  do opts[#opts + 1] = v end
-          for _, v in ipairs(SYMBOL_UIS)    do opts[#opts + 1] = v end
-          return opts
-        end
-        if sub_typed == "cache"     then return CACHE_SUBS end
-        if sub_typed == "devserver" then return DEVSERVER_SUBS end
-        if sub_typed == "compress" then
-          return vim.fn.getcompletion(arglead, "dir")
-        end
-        if sub_typed == "metrics"  then return metrics_complete(arglead) end
-        if sub_typed == "imports"  then return import_groups(arglead) end
-      end
-
-      if pos >= 3 and sub_typed == "metrics" then
-        return metrics_complete(arglead)
-      end
-
-      if pos == 4 and sub_typed == "compress" then
-        return vim.fn.getcompletion(arglead, "dir")
-      end
-
-      if pos >= 4 and sub_typed == "imports" then
-        return import_groups(arglead)
-      end
-
-      if pos >= 4 and sub_typed == "symbols" then
-        local opts = {}
-        for _, v in ipairs(SYMBOL_SCOPES) do opts[#opts + 1] = v end
-        for _, v in ipairs(SYMBOL_TYPES)  do opts[#opts + 1] = v end
-        for _, v in ipairs(SYMBOL_UIS)    do opts[#opts + 1] = v end
-        return opts
-      end
-
-      return {}
-    end,
+  composer.verb("ProjectInsight", {
+    desc = "Project-Insight: project analysis (symbols, metrics, tree, fileinfo, cache)",
+    routes = routes,
   })
 end
 

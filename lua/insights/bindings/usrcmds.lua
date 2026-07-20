@@ -363,12 +363,12 @@ vim.list_extend(SYMBOL_TOKENS, SYMBOL_SCOPES)
 vim.list_extend(SYMBOL_TOKENS, SYMBOL_TYPES)
 vim.list_extend(SYMBOL_TOKENS, SYMBOL_UIS)
 
-composer.register_type("PI_SYMBOLS_TOKEN", {
+composer.register_type("INSIGHTS_SYMBOLS_TOKEN", {
   validate = function(raw) return true, raw, nil end,
   complete = function(arg_lead) return prefix(SYMBOL_TOKENS, arg_lead) end,
 })
 
-composer.register_type("PI_IMPORT_GROUP", {
+composer.register_type("INSIGHTS_IMPORT_GROUP", {
   validate = function(raw) return true, raw, nil end,
   complete = function(arg_lead) return import_groups(arg_lead) end,
 })
@@ -376,7 +376,7 @@ composer.register_type("PI_IMPORT_GROUP", {
 -- compress's path/outdir are directories that need NOT already exist (outdir
 -- especially — it's created on demand), so this stays soft like the original
 -- (built-in DIR would hard-reject a not-yet-created outdir).
-composer.register_type("PI_DIR_SOFT", {
+composer.register_type("INSIGHTS_DIR_SOFT", {
   validate = function(raw) return true, raw, nil end,
   complete = function(arg_lead) return vim.fn.getcompletion(arg_lead, "dir") end,
 })
@@ -413,13 +413,13 @@ function M.setup()
   local routes = {
     {
       path = { "symbols" },
-      args = repeated_args("PI_SYMBOLS_TOKEN", 4),
+      args = repeated_args("INSIGHTS_SYMBOLS_TOKEN", 4),
       desc = "Symbol index (scope/type/ui in any order)",
       run  = function(ctx) handle_symbols(merged_tokens(ctx)) end,
     },
     {
       path = { "metrics" },
-      args = { { name = "root", type = "PI_DIR_SOFT", optional = true } },
+      args = { { name = "root", type = "INSIGHTS_DIR_SOFT", optional = true } },
       flags = metrics_flag_specs(),
       desc = "Lua code metrics (flags + optional directory)",
       run  = function(ctx) handle_metrics(reconstruct_metrics_tokens(ctx)) end,
@@ -434,15 +434,15 @@ function M.setup()
     {
       path = { "compress" },
       args = {
-        { name = "path", type = "PI_DIR_SOFT", optional = true },
-        { name = "outdir", type = "PI_DIR_SOFT", optional = true },
+        { name = "path", type = "INSIGHTS_DIR_SOFT", optional = true },
+        { name = "outdir", type = "INSIGHTS_DIR_SOFT", optional = true },
       },
       desc = "Archive a directory (default: cwd)",
       run  = function(ctx) handle_compress(ctx.pos) end,
     },
     {
       path = { "imports" },
-      args = repeated_args("PI_IMPORT_GROUP", 6),
+      args = repeated_args("INSIGHTS_IMPORT_GROUP", 6),
       desc = "require() usage report, optionally filtered by group",
       run  = function(ctx) handle_imports(merged_tokens(ctx)) end,
     },

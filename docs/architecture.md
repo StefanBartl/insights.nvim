@@ -1,15 +1,15 @@
 # Architecture
 
 ```
-lua/project_insight/
+lua/insights/
   init.lua              setup() + public Lua façade
   config/
     init.lua            merges user opts over DEFAULTS
     DEFAULTS.lua         plugin-side default configuration
   bindings/
-    usrcmds.lua         :ProjectInsight dispatcher + tab-completion
+    usrcmds.lua         :Insights dispatcher + tab-completion
     keymaps.lua         optional global keymaps (which-key discoverable)
-    autocmds.lua        no-op — project-insight registers no autocmds
+    autocmds.lua        no-op — insights registers no autocmds
   util/
     notify.lua          re-exports lib.nvim's notify factory
     platform.lua        is_windows() (via lib.nvim), run_shell(), copy_to_clipboard()
@@ -41,6 +41,6 @@ lua/project_insight/
     ts_requires.lua     Tree-sitter require() scanner (AST-accurate)
     resolve.lua         module path → file resolution (no require side-effects)
     definition.lua      locate + jump/preview the definition behind an import
-  health.lua            :checkhealth project_insight
-plugin/project_insight.lua   guard + lazy-load trigger
+  health.lua            :checkhealth insights
+plugin/insights.lua   guard + lazy-load trigger
 ```

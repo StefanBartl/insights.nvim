@@ -52,7 +52,8 @@ Configurable under `ui.close_keys` (list), shared with the scratch buffer.
 
 ## User commands
 
-A single dispatcher command with tab-completion at every level:
+A single dispatcher command with tab-completion at every level, built via
+`lib.nvim.usercmd.composer`:
 
 ```vim
 :ProjectInsight <subcommand> [args]
@@ -61,7 +62,7 @@ A single dispatcher command with tab-completion at every level:
 | Subcommand | Args | Description |
 |---|---|---|
 | `symbols` | `[cwd\|buffer] [functions\|tables\|strings] [telescope\|fzf\|scratch\|rebuild]` | Symbol index / picker |
-| `metrics` | — | Lua code metrics report |
+| `metrics` | `[--flags...] [dir]` | Lua code metrics report |
 | `tree` | — | Write project file tree to configured output file |
 | `count` | — | Count project files |
 | `clipboard` | — | Copy tree file content to system clipboard |
@@ -69,6 +70,9 @@ A single dispatcher command with tab-completion at every level:
 | `cache` | `build\|info\|clear` | Manage the symbol index cache |
 | `compress` | `[path] [outdir]` | Compress a project directory |
 | `imports` | `[filter...]` | `require()` analysis report |
+| `conflicts` | — | Quickfix unresolved git conflicts |
+| `unimported` | — | Check used-but-unimported components in current buffer |
+| `devserver` | `[list\|kill]` | List or kill tracked dev servers (default: `list`) |
 
 Set `commands = false` in `setup()` to register no user commands at all.
 
@@ -76,5 +80,13 @@ Set `commands = false` in `setup()` to register no user commands at all.
 
 ## Autocmds
 
-None. project-insight.nvim does not register any autocmds — all actions are
-triggered explicitly via user commands or keymaps.
+Registered by `bindings/autocmds.lua`, each gated by its own `enable` key
+(all off by default) — see [automatic-triggers.md](automatic-triggers.md)
+for the full config knobs (`events` overrides, patterns, prompts).
+
+| Event | Config gate | Action |
+|---|---|---|
+| `VimEnter` (default; `conflicts.events`) | `conflicts.enable` | Quickfix unresolved git conflicts |
+| `BufWritePost` (default; `unimported.events`) | `unimported.enable` | Check used-but-unimported components in the written buffer |
+| `TermOpen`, `TermRequest` | `devserver.enable` | Detect a dev server started in a terminal |
+| `VimLeavePre` | `devserver.enable` | Kill tracked dev servers on exit |

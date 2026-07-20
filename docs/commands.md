@@ -6,7 +6,15 @@
 :ProjectInsight <subcommand> [args]
 ```
 
-Tab-completion works at every level.
+Tab-completion works at every level. Built via `lib.nvim.usercmd.composer`:
+the route tree in `lua/project_insight/bindings/usrcmds.lua` drives dispatch
+and `<Tab>` completion from one source, forwarding to the same handler
+functions as before (byte-for-byte unchanged dispatch/parsing). Two
+user-visible changes from this: an unknown subcommand now reports composer's
+own "unknown subcommand" usage block (every registered command, one per
+line) instead of the old one-line hint; and `metrics`' flags only complete
+once you've typed the leading `--` (previously offered alongside directory
+names at every position).
 
 ### Symbol index
 

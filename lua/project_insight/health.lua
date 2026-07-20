@@ -22,6 +22,11 @@ local function check_lib()
   else
     err_s("lib.nvim.ui.kit not found — required for the dev-server prompt; update StefanBartl/lib.nvim")
   end
+  if pcall(require, "lib.nvim.usercmd.composer") then
+    ok_s("lib.nvim.usercmd.composer available (:ProjectInsight command layer)")
+  else
+    err_s(":ProjectInsight will fail to register — lib.nvim.usercmd.composer not found; update StefanBartl/lib.nvim")
+  end
 end
 
 local function check_autocmds()

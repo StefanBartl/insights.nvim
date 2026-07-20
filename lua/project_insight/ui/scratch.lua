@@ -3,6 +3,9 @@
 local M = {}
 
 local api = vim.api
+local map = require("lib.nvim.map")
+local window = require("lib.nvim.window")
+local notify = require("project_insight.util.notify").create("[project_insight.ui.scratch]")
 
 ---Can `win` host the scratch buffer? True for a normal editing window
 ---(buftype "") or a window already showing one of our scratch buffers — but
@@ -50,7 +53,7 @@ end
 ---@return integer|nil bufnr
 function M.open(lines, title, opts)
   if not lines or #lines == 0 then
-    vim.notify("[project-insight] nothing to display", vim.log.levels.WARN)
+    notify.warn("nothing to display")
     return
   end
 
@@ -74,12 +77,9 @@ function M.open(lines, title, opts)
 
   local ui_cfg = require("project_insight.config").get().ui or {}
   local km = { noremap = true, silent = true, buffer = buf }
-  for _, key in ipairs(ui_cfg.close_keys or { "q", "<Esc>" }) do
-    vim.keymap.set("n", key, "<cmd>bd!<cr>",
-      vim.tbl_extend("force", km, { desc = "project-insight: close scratch buffer" }))
-  end
+  window.nice_quit(win, { keys = ui_cfg.close_keys or { "q", "<Esc>" } })
   if ui_cfg.follow_key and ui_cfg.follow_key ~= false then
-    vim.keymap.set("n", ui_cfg.follow_key, function()
+    map("n", ui_cfg.follow_key, function()
       local line = api.nvim_get_current_line()
       -- Try to open path:line from current line
       local file, lnum = line:match("^([^:]+):(%d+)")
@@ -89,14 +89,13 @@ function M.open(lines, title, opts)
           api.nvim_win_set_cursor(0, { tonumber(lnum), 0 })
         end
       end
-    end, vim.tbl_extend("force", km, { desc = "project-insight: follow path:line" }))
+    end, km, "project-insight: follow path:line")
   end
 
   -- Caller-supplied buffer-local keymaps (e.g. imports' "go to definition").
   if opts and opts.keymaps then
     for _, m in ipairs(opts.keymaps) do
-      vim.keymap.set(m[1], m[2], m[3],
-        { noremap = true, silent = true, buffer = buf, desc = m.desc })
+      map(m[1], m[2], m[3], { noremap = true, silent = true, buffer = buf }, m.desc)
     end
   end
 

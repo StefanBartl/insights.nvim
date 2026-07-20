@@ -9,7 +9,7 @@
 --- Each is gated by its `enable` key and registers nothing when disabled.
 local M = {}
 
-local api = vim.api
+local autocmd = require("lib.nvim.autocmd")
 
 ---Claim (and clear) a group. Clearing on every setup() makes re-running it
 ---idempotent, and makes `enable = false` tear down a previously enabled
@@ -17,7 +17,7 @@ local api = vim.api
 ---@param name string
 ---@return integer
 local function augroup(name)
-  return api.nvim_create_augroup("ProjectInsight_" .. name, { clear = true })
+  return autocmd.group("ProjectInsight_" .. name, true)
 end
 
 ---Accept a string or a list of events; fall back to `default`.
@@ -40,11 +40,10 @@ local function setup_conflicts(cfg)
   if not (cfg and cfg.enable) then
     return
   end
-  api.nvim_create_autocmd(norm_events(cfg.events, { "VimEnter" }), {
+  autocmd.create(norm_events(cfg.events, { "VimEnter" }), function()
+    require("project_insight.conflicts").run({ silent = true })
+  end, {
     group = grp,
-    callback = function()
-      require("project_insight.conflicts").run({ silent = true })
-    end,
     desc = "Project-Insight: quickfix unresolved git conflicts",
   })
 end
@@ -55,14 +54,13 @@ local function setup_unimported(cfg)
   if not (cfg and cfg.enable) then
     return
   end
-  api.nvim_create_autocmd(norm_events(cfg.events, { "BufWritePost" }), {
+  autocmd.create(norm_events(cfg.events, { "BufWritePost" }), function(ev)
+    local unimported = require("project_insight.unimported")
+    if unimported.handles_filetype(vim.bo[ev.buf].filetype) then
+      unimported.run(ev.buf, { silent = true })
+    end
+  end, {
     group = grp,
-    callback = function(ev)
-      local unimported = require("project_insight.unimported")
-      if unimported.handles_filetype(vim.bo[ev.buf].filetype) then
-        unimported.run(ev.buf, { silent = true })
-      end
-    end,
     desc = "Project-Insight: check for used-but-unimported components",
   })
 end
@@ -76,35 +74,32 @@ local function setup_devserver(cfg)
   local devserver = require("project_insight.devserver")
 
   -- The command a terminal was opened with (`:terminal npm run dev`).
-  api.nvim_create_autocmd("TermOpen", {
+  autocmd.create("TermOpen", function(ev)
+    local chan = vim.b[ev.buf].terminal_job_id
+    if chan then
+      devserver.consider(chan, devserver.chan_cmd(chan, ev.buf))
+    end
+  end, {
     group = grp,
-    callback = function(ev)
-      local chan = vim.b[ev.buf].terminal_job_id
-      if chan then
-        devserver.consider(chan, devserver.chan_cmd(chan, ev.buf))
-      end
-    end,
     desc = "Project-Insight: detect dev server in a new terminal",
   })
 
   -- A command typed into an already-open shell only shows up when the program
   -- sets the terminal title (OSC 0/2), which lands here on Neovim 0.10+.
-  api.nvim_create_autocmd("TermRequest", {
+  autocmd.create("TermRequest", function(ev)
+    local chan = vim.b[ev.buf].terminal_job_id
+    if chan then
+      devserver.consider(chan, devserver.chan_cmd(chan, ev.buf))
+    end
+  end, {
     group = grp,
-    callback = function(ev)
-      local chan = vim.b[ev.buf].terminal_job_id
-      if chan then
-        devserver.consider(chan, devserver.chan_cmd(chan, ev.buf))
-      end
-    end,
     desc = "Project-Insight: detect dev server from terminal title",
   })
 
-  api.nvim_create_autocmd("VimLeavePre", {
+  autocmd.create("VimLeavePre", function()
+    devserver.kill_all()
+  end, {
     group = grp,
-    callback = function()
-      devserver.kill_all()
-    end,
     desc = "Project-Insight: kill tracked dev servers on exit",
   })
 end

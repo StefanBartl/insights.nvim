@@ -201,19 +201,19 @@ end
 
 local function handle_tree()
   require("project_insight.tree").write_tree(function(ok, msg)
-    vim.notify(msg, ok and vim.log.levels.INFO or vim.log.levels.ERROR)
+    if ok then notify.info(msg) else notify.error(msg) end
   end)
 end
 
 local function handle_count()
   require("project_insight.tree").count_files(function(ok, msg)
-    vim.notify(msg, ok and vim.log.levels.INFO or vim.log.levels.ERROR)
+    if ok then notify.info(msg) else notify.error(msg) end
   end)
 end
 
 local function handle_clipboard()
   require("project_insight.tree").copy_to_clipboard(function(ok, msg)
-    vim.notify(msg, ok and vim.log.levels.INFO or vim.log.levels.ERROR)
+    if ok then notify.info(msg) else notify.error(msg) end
   end)
 end
 
@@ -320,13 +320,15 @@ local function handle_cache(args)
   elseif sub == "info" then
     local st = cache_mod.stats(cfg.dir, "symbols")
     if st then
-      print("=== Project-Insight Cache ===")
-      print(string.format("  Symbols  : %d", st.entry_count))
-      print(string.format("  Indexed  : %s", os.date("%Y-%m-%d %H:%M:%S", st.indexed_at or 0)))
-      print(string.format("  CWD      : %s", st.cwd or "?"))
-      print(string.format("  Size     : %d bytes", st.size_bytes or 0))
-      print(string.format("  Path     : %s", st.path or "?"))
-      print("=============================")
+      notify.info(table.concat({
+        "=== Project-Insight Cache ===",
+        string.format("  Symbols  : %d", st.entry_count),
+        string.format("  Indexed  : %s", os.date("%Y-%m-%d %H:%M:%S", st.indexed_at or 0)),
+        string.format("  CWD      : %s", st.cwd or "?"),
+        string.format("  Size     : %d bytes", st.size_bytes or 0),
+        string.format("  Path     : %s", st.path or "?"),
+        "=============================",
+      }, "\n"))
     else
       notify.info("no cache for current CWD — run :ProjectInsight cache build")
     end

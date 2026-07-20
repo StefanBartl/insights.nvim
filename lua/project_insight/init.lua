@@ -9,6 +9,8 @@
 ---   - fileinfo        (buffer fs-stat float)
 local M = {}
 
+local notify = require("project_insight.util.notify").create("[project_insight]")
+
 ---@param opts ProjectInsightConfig|nil
 function M.setup(opts)
   require("project_insight.config").setup(opts or {})
@@ -47,7 +49,7 @@ end
 ---@param callback fun(success:boolean, msg:string, path:string|nil)|nil
 function M.write_tree(callback)
   require("project_insight.tree").write_tree(callback or function(ok, msg)
-    vim.notify(msg, ok and vim.log.levels.INFO or vim.log.levels.ERROR)
+    if ok then notify.info(msg) else notify.error(msg) end
   end)
 end
 

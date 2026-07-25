@@ -94,10 +94,19 @@
 ---@field border string
 ---@field keymaps Insights.Imports.DefinitionKeymaps
 
+---@class Insights.Imports.Languages
+---@field lua boolean
+---@field python boolean
+---@field javascript boolean
+---@field go boolean
+---@field rust boolean
+---@field c boolean
+
 ---@class Insights.ImportsConfig
 ---@field enable boolean
 ---@field engine Insights.ImportsEngine
 ---@field output_file string
+---@field languages Insights.Imports.Languages
 ---@field groups table<string, string[]>
 ---@field classify_external boolean
 ---@field definition Insights.Imports.Definition

@@ -63,4 +63,4 @@ requirements and other package managers.
 - [Configuration](docs/configuration.md) — full `setup()` reference with defaults.
 - [Architecture](docs/architecture.md) — source tree layout and module responsibilities.
 - [Bindings reference](docs/BINDINGS.md) — every keymap, user command, and autocmd registered by the plugin.
-- [Roadmap](docs/ROADMAP.md) — planned and proposed work, including multi-language import analysis.
+- [Roadmap](docs/ROADMAP.md) — planned and proposed work.

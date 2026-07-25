@@ -100,8 +100,21 @@ local defaults = {
     -- "auto"       use Tree-sitter when the Lua parser is available, else rg
     -- "treesitter" force AST scan (falls back to rg if parser missing)
     -- "ripgrep"    force the line/regex scan
+    -- NOTE: engine only selects the Lua backend — the other languages below
+    -- always use a regex/text scan (no Tree-sitter query implemented for them).
     engine      = "auto",
     output_file = vim.fn.stdpath("state") .. "/insights/imports.md",
+    -- Which languages :Insights imports scans; false = skip. A bare language
+    -- id/alias (e.g. "python", "py", "js") used as a filter argument scopes
+    -- the report to just that language for that run.
+    languages = {
+      lua        = true,
+      python     = true,
+      javascript = true,
+      go         = true,
+      rust       = true,
+      c          = true,
+    },
     -- Named groups expand to a list of module prefixes when used as a filter,
     -- e.g. :Insights imports lib  →  matches lib, lib.nvim, lib.usrcmds.
     groups = {

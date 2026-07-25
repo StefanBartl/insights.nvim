@@ -8,7 +8,7 @@
 | **fileinfo** | Floating window with `fs.stat` metadata for the current buffer |
 | **cache** | CWD-keyed JSON cache for the symbol index (TTL-based, mtime-aware) |
 | **compress** | Compress a project directory — configurable engine: `tar` (.tar.gz), `zip`, or PowerShell (.zip) |
-| **imports** | Count and list `require()` calls across Lua files — Tree-sitter-accurate (ignores `require` in comments/strings), per-module counts, every occurrence with imported name/field and `path:line`, with prefix/group filters |
+| **imports** | Count and list import/require statements across Lua, Python, JS/TS, Go, Rust, and C/C++ — Tree-sitter-accurate for Lua (regex/text scan for the rest), per-module counts, every occurrence with imported name/field and `path:line`, with prefix/group/language filters, a reverse ("who imports X") view, an unused-import heuristic, and an optional telescope/fzf picker |
 | **conflicts** | Populate the quickfix list with files holding unresolved merge conflicts |
 | **unimported** | Warn on component tags (`<Foo />`) used but never imported — astro / jsx / tsx / vue / svelte |
 | **devserver** | Notice dev servers started in a Neovim terminal and offer to kill them on exit |

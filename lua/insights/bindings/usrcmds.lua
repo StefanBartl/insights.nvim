@@ -9,7 +9,9 @@
 ---   :Insights fileinfo
 ---   :Insights cache build|info|clear
 ---   :Insights compress [path] [outdir]
----   :Insights imports [filter...]
+---   :Insights imports [filter/lang...] [telescope|fzf]
+---   :Insights imports reverse <module>
+---   :Insights imports unused [filter/lang...]
 ---   :Insights conflicts
 ---   :Insights unimported
 ---   :Insights devserver [list|kill]
@@ -98,15 +100,22 @@ local function reconstruct_metrics_tokens(ctx)
   return out
 end
 
----Completion candidates for `:Insights imports` (configured group names).
+local IMPORT_LANG_IDS = { "lua", "python", "javascript", "go", "rust", "c" }
+local IMPORT_UIS      = { "telescope", "fzf", "scratch" }
+
+---Completion candidates for `:Insights imports` (group names, language ids,
+---and the picker-UI tokens — all order-independent, like SYMBOL_TOKENS).
 ---@param arglead string
 ---@return string[]
-local function import_groups(arglead)
+local function import_tokens(arglead)
   local cfg = require("insights.config").get()
   local out = {}
   for name, _ in pairs((cfg.imports and cfg.imports.groups) or {}) do
-    if name:sub(1, #arglead) == arglead then out[#out + 1] = name end
+    out[#out + 1] = name
   end
+  vim.list_extend(out, IMPORT_LANG_IDS)
+  vim.list_extend(out, IMPORT_UIS)
+  out = vim.tbl_filter(function(c) return c:sub(1, #arglead) == arglead end, out)
   table.sort(out)
   return out
 end
@@ -244,13 +253,47 @@ local function handle_compress(args)
   end)
 end
 
+---Split repeated imports tokens into filters + an optional picker-UI choice.
+---@param args string[]
+---@return string[] filters, string|nil ui
+local function split_import_args(args)
+  local filters, ui = {}, nil
+  for _, a in ipairs(args) do
+    if a == "telescope" or a == "fzf" or a == "scratch" then
+      ui = (a ~= "scratch") and a or nil
+    else
+      filters[#filters + 1] = a
+    end
+  end
+  return filters, ui
+end
+
 local function handle_imports(args)
   local cfg = require("insights.config").get()
   if not (cfg.imports and cfg.imports.enable) then
     notify.warn("imports feature is disabled (set imports.enable = true in setup)")
     return
   end
-  require("insights.imports").run(args)
+  local filters, ui = split_import_args(args)
+  require("insights.imports").run(filters, ui)
+end
+
+local function handle_imports_reverse(args)
+  local cfg = require("insights.config").get()
+  if not (cfg.imports and cfg.imports.enable) then
+    notify.warn("imports feature is disabled (set imports.enable = true in setup)")
+    return
+  end
+  require("insights.imports").run_reverse(args[1])
+end
+
+local function handle_imports_unused(args)
+  local cfg = require("insights.config").get()
+  if not (cfg.imports and cfg.imports.enable) then
+    notify.warn("imports feature is disabled (set imports.enable = true in setup)")
+    return
+  end
+  require("insights.imports").run_unused(args)
 end
 
 local function handle_conflicts()
@@ -370,7 +413,7 @@ composer.register_type("INSIGHTS_SYMBOLS_TOKEN", {
 
 composer.register_type("INSIGHTS_IMPORT_GROUP", {
   validate = function(raw) return true, raw, nil end,
-  complete = function(arg_lead) return import_groups(arg_lead) end,
+  complete = function(arg_lead) return import_tokens(arg_lead) end,
 })
 
 -- compress's path/outdir are directories that need NOT already exist (outdir
@@ -443,8 +486,20 @@ function M.setup()
     {
       path = { "imports" },
       args = repeated_args("INSIGHTS_IMPORT_GROUP", 6),
-      desc = "require() usage report, optionally filtered by group",
+      desc = "import/require usage report (filters + optional picker UI)",
       run  = function(ctx) handle_imports(merged_tokens(ctx)) end,
+    },
+    {
+      path = { "imports", "reverse" },
+      args = { { name = "module", type = "STRING" } },
+      desc = "List every file that imports <module>",
+      run  = function(ctx) handle_imports_reverse(merged_tokens(ctx)) end,
+    },
+    {
+      path = { "imports", "unused" },
+      args = repeated_args("INSIGHTS_IMPORT_GROUP", 6),
+      desc = "Bound import names never referenced again in their file",
+      run  = function(ctx) handle_imports_unused(merged_tokens(ctx)) end,
     },
     no_arg_route({ "conflicts" }, "Quickfix unresolved git conflicts", handle_conflicts),
     no_arg_route({ "unimported" }, "Check used-but-unimported components", handle_unimported),

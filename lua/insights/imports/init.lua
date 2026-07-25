@@ -1,241 +1,151 @@
 ---@module 'insights.imports'
----@brief require() / import analysis for Lua projects.
+---@brief require()/import analysis across Lua, Python, JavaScript/TypeScript,
+---       Go, Rust and C/C++.
 ---
---- Scans all Lua files in the cwd for `require(...)` calls, counts how often
---- each module is imported, and lists every occurrence with the imported
---- name / accessed field and a path:line reference.
+--- Scans source files in the cwd for import/require statements, counts how
+--- often each module is imported, and lists every occurrence with the
+--- imported name/field and a path:line reference.
 ---
----   :Insights imports                  -- all modules
+---   :Insights imports                  -- all modules, all languages
+---   :Insights imports python           -- only Python imports
 ---   :Insights imports lib              -- group "lib" (config.imports.groups)
----   :Insights imports insights  -- prefix filter
+---   :Insights imports insights         -- prefix filter
 ---   :Insights imports lib foo.bar      -- multiple filters (OR)
+---   :Insights imports reverse <module> -- every file that imports <module>
+---   :Insights imports unused           -- bound names never referenced again
 local M = {}
 
-local notify = require("insights.util.notify").create("[insights.imports]")
-local config = require("insights.config")
-local rg     = require("insights.scan.rg")
+local notify   = require("insights.util.notify").create("[insights.imports]")
+local config   = require("insights.config")
+local rg       = require("insights.scan.rg")
+local langs    = require("insights.imports.langs")
 
 ---@class ImportEntry
 ---@field module   string   the required module path, e.g. "insights.config"
----@field name     string|nil   local variable the require is assigned to
----@field field    string|nil   field accessed on the result, e.g. "create" in require("x").create
+---@field name     string|nil   local variable / bound name the import assigns
+---@field field    string|nil   accessed member / original symbol name (see per-language scanner)
 ---@field filename string   path relative to cwd
 ---@field lnum     integer  1-based line number
----@field external boolean   true if no matching .lua file exists in the project
+---@field lang     string   language id ("lua"|"python"|"javascript"|"go"|"rust"|"c")
+---@field external boolean  true if no matching local source file exists in the project
 
 ---@class ImportData
----@field entries   ImportEntry[]
----@field counts    table<string, integer>   module -> occurrence count
----@field externals table<string, boolean>   module -> is external
----@field method    string   "treesitter" | "ripgrep" — backend used to collect
+---@field entries     ImportEntry[]
+---@field counts      table<string, integer>   "lang\1module" -> occurrence count
+---@field externals   table<string, boolean>   "lang\1module" -> is external
+---@field lang_totals table<string, integer>   lang -> total call count
+---@field methods     table<string, string>    lang -> backend used ("treesitter"|"regex")
 
----@alias RawImport { module: string, name: string|nil, field: string|nil, filename: string, lnum: integer }
-
---- A valid module path: identifier chars plus dot/dash/slash separators.
---- Filters out punctuation garbage matched from comments / string-building code.
----@param mod string
----@return boolean
-local function is_module_path(mod)
-  return mod:match("^[%w_][%w_%.%-/]*$") ~= nil
-end
-
---- Parse a single source line for every require occurrence.
---- Returns a list because a line may contain more than one call.
----@param line string
----@return { module: string, field: string|nil }[]
-local function parse_requires(line)
-  local out = {}
-  -- Matches the call with or without parentheses/quotes, plus an optional
-  -- trailing field access. Capture 1 = module path, capture 2 = field.
-  for mod in line:gmatch("require%s*%(?%s*[\"']([^\"']+)[\"']") do
-    if is_module_path(mod) then
-      out[#out + 1] = { module = mod }
-    end
-  end
-  -- Resolve a trailing field for each require independently by re-scanning with
-  -- a pattern that also captures the field; align by order of appearance.
-  local i = 0
-  for mod, field in line:gmatch("require%s*%(?%s*[\"']([^\"']+)[\"']%)?%s*%.([%w_]+)") do
-    i = i + 1
-    -- find the matching entry by module value (first without field set)
-    for _, e in ipairs(out) do
-      if e.module == mod and not e.field then
-        e.field = field
-        break
-      end
-    end
-  end
-  return out
-end
-
---- Extract the local variable name a require is assigned to, if any.
----@param line string
----@return string|nil
-local function parse_lhs_name(line)
-  return line:match("^%s*local%s+([%w_]+)%s*=%s*require")
-    or line:match("^%s*([%w_][%w_%.]*)%s*=%s*require")
-end
-
---- Resolve whether a module path corresponds to a .lua file inside cwd.
----@param module string
----@param cwd string
----@return boolean external
-local function is_external(module, cwd)
-  local rel = module:gsub("%.", "/")
-  local candidates = {
-    cwd .. "/lua/" .. rel .. ".lua",
-    cwd .. "/lua/" .. rel .. "/init.lua",
-    cwd .. "/" .. rel .. ".lua",
-    cwd .. "/" .. rel .. "/init.lua",
-  }
-  for _, p in ipairs(candidates) do
-    if vim.fn.filereadable(p) == 1 then return false end
-  end
-  return true
-end
+---@alias RawImport { module: string, name: string|nil, field: string|nil, filename: string, lnum: integer, lang: string, external: boolean|nil }
 
 local IGNORE = { "/%.git/", "/node_modules/", "/%.cache/", "/build/", "/dist/", "/target/" }
 
---- Build the ripgrep command for a cwd scan.
----@param cwd string
----@return string[]
-local function rg_cmd(cwd)
-  local cfg = config.get()
-  return rg.build_cmd("require", { "lua" }, {
-    cwd              = cwd,
-    exclude_patterns = (cfg.symbols and cfg.symbols.indexing
-                        and cfg.symbols.indexing.exclude_patterns) or {},
-  })
+--- Composite key so identically-named modules in different languages
+--- (e.g. Python's "os" vs. Go's "os") never collide in counts/externals.
+---@param lang string
+---@param module string
+---@return string
+local function ckey(lang, module)
+  return lang .. "\1" .. module
 end
 
---- Convert rg --vimgrep lines (path:line:col:text) into raw imports.
----@param lines string[]
----@return RawImport[]
-local function rg_lines_to_raw(lines)
-  local raw = {}
-  for _, line in ipairs(lines) do
-    local path, lnum, text = line:match("^(.-):(%d+):%d+:(.*)$")
-    if path and text then
-      local rel  = vim.fn.fnamemodify(path, ":."):gsub("\\", "/")
-      local name = parse_lhs_name(text)
-      for _, r in ipairs(parse_requires(text)) do
-        raw[#raw + 1] = {
-          module   = r.module,
-          name     = name,
-          field    = r.field,
-          filename = rel,
-          lnum     = tonumber(lnum),
-        }
-      end
-    end
-  end
-  return raw
-end
-
---- Scan one Lua file with Tree-sitter and append its requires to `raw`.
----@param ts_req table
 ---@param path string
----@param raw RawImport[]
-local function ts_scan_file(ts_req, path, raw)
-  local ok, src = pcall(vim.fn.readfile, path)
-  if not ok or not src then return end
-  local rel = vim.fn.fnamemodify(path, ":."):gsub("\\", "/")
-  for _, e in ipairs(ts_req.scan_source(table.concat(src, "\n"))) do
-    raw[#raw + 1] = {
-      module   = e.module,
-      name     = e.name,
-      field    = e.field,
-      filename = rel,
-      lnum     = e.lnum,
-    }
+---@return boolean
+local function skip_path(path)
+  local norm = path:gsub("\\", "/")
+  for _, pat in ipairs(IGNORE) do
+    if norm:match(pat) then return true end
   end
+  return false
 end
 
---- List the Lua files in `cwd` that should be scanned (excludes IGNORE dirs).
+--- Extension glob (IGNORE-filtered), used when ripgrep is unavailable.
 ---@param cwd string
+---@param ext string
 ---@return string[]
-local function lua_files(cwd)
-  local files = vim.fn.globpath(cwd, "**/*.lua", false, true)
-  local todo  = {}
+local function glob_files(cwd, ext)
+  local files = vim.fn.globpath(cwd, "**/*." .. ext, false, true)
+  local todo = {}
   for _, path in ipairs(files) do
-    local skip = false
-    for _, pat in ipairs(IGNORE) do
-      if path:gsub("\\", "/"):match(pat) then skip = true; break end
-    end
-    if not skip then todo[#todo + 1] = path end
+    if not skip_path(path) then todo[#todo + 1] = path end
   end
   return todo
 end
 
---- Collect raw requires via ripgrep (synchronous).
+--- Candidate files for one language: a `rg --files-with-matches` prefilter
+--- when ripgrep is available (fast even on large repos — only lists file
+--- names, doesn't read them), else a plain extension glob.
 ---@param cwd string
----@return RawImport[]
-local function collect_via_rg(cwd)
-  return rg_lines_to_raw(rg.run(rg_cmd(cwd), "imports"))
-end
-
---- Collect raw requires via Tree-sitter (synchronous).
----@param cwd string
----@return RawImport[]
-local function collect_via_ts(cwd)
-  local ts_req = require("insights.imports.ts_requires")
-  local raw    = {}
-  for _, path in ipairs(lua_files(cwd)) do
-    ts_scan_file(ts_req, path, raw)
-  end
-  return raw
-end
-
---- Collect raw requires via ripgrep, asynchronously (vim.system, Neovim 0.10+).
---- Falls back to the synchronous path when vim.system is unavailable.
----@param cwd string
----@param cb fun(raw: RawImport[])
-local function collect_via_rg_async(cwd, cb)
-  if not vim.system then
-    return cb(collect_via_rg(cwd))
-  end
-  if vim.fn.executable("rg") ~= 1 then
-    notify.error("ripgrep (rg) not found in PATH")
-    return cb({})
-  end
-  vim.system(rg_cmd(cwd), { text = true }, function(res)
-    -- rg exit 1 = no matches (not an error); anything else with no stdout → empty
-    local lines = (res.code <= 1 and res.stdout)
-      and vim.split(res.stdout, "\n", { trimempty = true })
-      or  {}
-    vim.schedule(function() cb(rg_lines_to_raw(lines)) end)
-  end)
-end
-
---- Collect raw requires via Tree-sitter, non-blocking. Parsing runs on the main
---- thread (Tree-sitter cannot be offloaded), but files are processed in
---- scheduled chunks so the editor stays responsive on large projects.
----@param cwd string
----@param cb fun(raw: RawImport[])
-local function collect_via_ts_async(cwd, cb)
-  local ts_req = require("insights.imports.ts_requires")
-  local todo   = lua_files(cwd)
-  local raw    = {}
-  local CHUNK  = 40
-  local i      = 1
-
-  local function step()
-    local stop = math.min(i + CHUNK - 1, #todo)
-    for k = i, stop do
-      ts_scan_file(ts_req, todo[k], raw)
+---@param lang_mod table
+---@return string[]
+local function candidate_files(cwd, lang_mod)
+  if vim.fn.executable("rg") == 1 and lang_mod.rg_prefilter then
+    local cfg = config.get()
+    local cmd = { "rg", "--files-with-matches", "--no-heading", "--pcre2" }
+    for _, ext in ipairs(lang_mod.extensions) do
+      cmd[#cmd + 1] = "--glob"
+      cmd[#cmd + 1] = "*." .. ext
     end
-    i = stop + 1
-    if i > #todo then cb(raw) else vim.schedule(step) end
+    for _, excl in ipairs((cfg.symbols and cfg.symbols.indexing
+                           and cfg.symbols.indexing.exclude_patterns) or {}) do
+      cmd[#cmd + 1] = "--glob"
+      cmd[#cmd + 1] = "!" .. excl
+    end
+    cmd[#cmd + 1] = lang_mod.rg_prefilter
+    cmd[#cmd + 1] = cwd
+    local lines, code = rg.exec_sync(cmd)
+    if code <= 1 then return lines end
   end
 
-  if #todo == 0 then cb(raw) else step() end
+  local files = {}
+  for _, ext in ipairs(lang_mod.extensions) do
+    vim.list_extend(files, glob_files(cwd, ext))
+  end
+  return files
 end
 
---- Resolve the active backend from config + parser availability.
+--- Read + scan one file for a language, appending raw entries.
+---@param lang_mod table
+---@param path string
+---@param use_ts boolean
+---@param raw RawImport[]
+local function scan_file(lang_mod, path, use_ts, raw)
+  local ok, src_lines = pcall(vim.fn.readfile, path)
+  if not ok or not src_lines then return end
+  local rel = vim.fn.fnamemodify(path, ":."):gsub("\\", "/")
+  local src = table.concat(src_lines, "\n")
+  local scanner = (use_ts and lang_mod.ts_scan_source) or lang_mod.scan_source
+  for _, e in ipairs(scanner(src)) do
+    raw[#raw + 1] = {
+      module   = e.module,
+      name     = e.name,
+      field    = e.field,
+      external = e.external,
+      filename = rel,
+      lnum     = e.lnum,
+      lang     = lang_mod.id,
+    }
+  end
+end
+
+--- Languages enabled by `imports.languages` (default: all).
+---@return table[]
+local function enabled_languages()
+  local cfg    = config.get()
+  local wanted = (cfg.imports and cfg.imports.languages) or {}
+  local out = {}
+  for _, id in ipairs(langs.order) do
+    if wanted[id] ~= false then out[#out + 1] = langs.registry[id] end
+  end
+  return out
+end
+
+--- Resolve the Lua backend from config + parser availability.
 ---@return "treesitter"|"ripgrep"
-local function resolve_backend()
-  local engine = (config.get().imports and config.get().imports.engine) or "auto"
-  local ts_ok  = require("insights.imports.ts_requires").available()
+local function lua_backend()
+  local engine  = (config.get().imports and config.get().imports.engine) or "auto"
+  local lua_mod = langs.registry.lua
+  local ts_ok   = lua_mod.ts_available()
   if engine == "ripgrep" then return "ripgrep" end
   if engine == "treesitter" or (engine == "auto" and ts_ok) then
     if ts_ok then return "treesitter" end
@@ -244,49 +154,100 @@ local function resolve_backend()
   return "ripgrep"
 end
 
+--- Build the { lang_mod, path, use_ts }[] work list and the per-language
+--- backend-label map for a cwd scan.
+---@param cwd string
+---@return table[] todo, table<string,string> methods
+local function build_worklist(cwd)
+  local todo, methods = {}, {}
+  for _, lang_mod in ipairs(enabled_languages()) do
+    local use_ts = false
+    if lang_mod.id == "lua" then
+      local backend = lua_backend()
+      use_ts = backend == "treesitter"
+      methods.lua = use_ts and "treesitter" or "ripgrep"
+    else
+      methods[lang_mod.id] = "regex"
+    end
+    for _, path in ipairs(candidate_files(cwd, lang_mod)) do
+      todo[#todo + 1] = { lang_mod = lang_mod, path = path, use_ts = use_ts }
+    end
+  end
+  return todo, methods
+end
+
 --- Aggregate raw imports into the classified/counted ImportData shape.
 ---@param raw RawImport[]
----@param method string
+---@param methods table<string, string>
 ---@param cwd string
 ---@return ImportData
-local function build_data(raw, method, cwd)
-  local entries, counts, externals = {}, {}, {}
+local function build_data(raw, methods, cwd)
+  local entries, counts, externals, lang_totals = {}, {}, {}, {}
   for _, e in ipairs(raw) do
-    local mod = e.module
-    if externals[mod] == nil then
-      externals[mod] = is_external(mod, cwd)
+    local k = ckey(e.lang, e.module)
+    if externals[k] == nil then
+      if e.external ~= nil then
+        externals[k] = e.external
+      else
+        local lang_mod = langs.registry[e.lang]
+        externals[k] = (lang_mod and lang_mod.is_external(e.module, cwd)) or false
+      end
     end
-    counts[mod] = (counts[mod] or 0) + 1
+    counts[k] = (counts[k] or 0) + 1
+    lang_totals[e.lang] = (lang_totals[e.lang] or 0) + 1
     entries[#entries + 1] = {
-      module   = mod,
+      module   = e.module,
       name     = e.name,
       field    = e.field,
       filename = e.filename,
       lnum     = e.lnum,
-      external = externals[mod],
+      lang     = e.lang,
+      external = externals[k],
     }
   end
-  return { entries = entries, counts = counts, externals = externals, method = method }
+  return { entries = entries, counts = counts, externals = externals,
+           lang_totals = lang_totals, methods = methods }
 end
 
---- Scan the cwd for all require() calls (synchronous — for the Lua API).
+--- Scan the cwd for all import/require calls (synchronous — for the Lua API).
 ---@return ImportData
 function M.scan_cwd()
-  local cwd    = vim.fn.getcwd()
-  local method = resolve_backend()
-  local raw    = (method == "treesitter") and collect_via_ts(cwd) or collect_via_rg(cwd)
-  return build_data(raw, method, cwd)
+  local cwd = vim.fn.getcwd()
+  local todo, methods = build_worklist(cwd)
+  local raw = {}
+  for _, item in ipairs(todo) do
+    scan_file(item.lang_mod, item.path, item.use_ts, raw)
+  end
+  return build_data(raw, methods, cwd)
 end
 
---- Scan the cwd for all require() calls without blocking the editor.
+--- Scan the cwd for all import/require calls without blocking the editor.
+--- File discovery (ripgrep or globpath) runs synchronously — it only lists
+--- names — while reading + parsing file contents is chunked across
+--- `vim.schedule` so large projects don't freeze the UI.
 ---@param cb fun(data: ImportData)
 function M.scan_cwd_async(cb)
-  local cwd    = vim.fn.getcwd()
-  local method = resolve_backend()
-  local collect = (method == "treesitter") and collect_via_ts_async or collect_via_rg_async
-  collect(cwd, function(raw)
-    cb(build_data(raw, method, cwd))
-  end)
+  local cwd = vim.fn.getcwd()
+  local todo, methods = build_worklist(cwd)
+  local raw   = {}
+  local CHUNK = 40
+  local i     = 1
+
+  local function step()
+    local stop = math.min(i + CHUNK - 1, #todo)
+    for k = i, stop do
+      local item = todo[k]
+      scan_file(item.lang_mod, item.path, item.use_ts, raw)
+    end
+    i = stop + 1
+    if i > #todo then
+      cb(build_data(raw, methods, cwd))
+    else
+      vim.schedule(step)
+    end
+  end
+
+  if #todo == 0 then cb(build_data(raw, methods, cwd)) else step() end
 end
 
 --- Expand filter arguments (group names + literal prefixes) into prefix list.
@@ -306,18 +267,74 @@ local function expand_filters(filters)
   return out
 end
 
---- Test whether a module matches any prefix (exact or `prefix.` boundary).
+--- Test whether a module matches any prefix (exact or `prefix.`/`prefix::` boundary).
 ---@param module string
 ---@param prefixes string[]
 ---@return boolean
 local function matches(module, prefixes)
   if #prefixes == 0 then return true end
   for _, p in ipairs(prefixes) do
-    if module == p or module:sub(1, #p + 1) == p .. "." then
+    if module == p or module:sub(1, #p + 1) == p .. "."
+       or module:sub(1, #p + 2) == p .. "::" then
       return true
     end
   end
   return false
+end
+
+local LANG_ALIASES = {
+  py = "python", js = "javascript", ts = "javascript",
+  jsx = "javascript", tsx = "javascript", mjs = "javascript", cjs = "javascript",
+  rs = "rust", cpp = "c", h = "c", hpp = "c",
+}
+
+--- Resolve a filter token to a registered language id, or nil.
+---@param tok string
+---@return string|nil
+local function resolve_lang_token(tok)
+  if langs.registry[tok] then return tok end
+  return LANG_ALIASES[tok]
+end
+
+--- Split filter tokens into a language-id set and the remaining module-prefix
+--- tokens, so `:Insights imports python lib` scopes to Python AND the "lib"
+--- group in one call.
+---@param filters string[]
+---@return table<string, boolean> lang_sel, string[] rest
+local function split_filters(filters)
+  local lang_sel, rest = {}, {}
+  for _, f in ipairs(filters) do
+    local lid = resolve_lang_token(f)
+    if lid then lang_sel[lid] = true else rest[#rest + 1] = f end
+  end
+  return lang_sel, rest
+end
+
+--- Filter (by language + module prefix) and sort `data.entries`, the shared
+--- basis for the scratch report, the picker view and the reverse/unused views.
+---@param data ImportData
+---@param filters string[]
+---@return ImportEntry[]
+function M.filtered_entries(data, filters)
+  local lang_sel, prefix_filters = split_filters(filters or {})
+  local prefixes = expand_filters(prefix_filters)
+  local has_lang_filter = next(lang_sel) ~= nil
+
+  local entries = {}
+  for _, e in ipairs(data.entries) do
+    if (not has_lang_filter or lang_sel[e.lang]) and matches(e.module, prefixes) then
+      entries[#entries + 1] = e
+    end
+  end
+
+  table.sort(entries, function(a, b)
+    if a.lang ~= b.lang then return a.lang < b.lang end
+    if a.module ~= b.module then return a.module < b.module end
+    if a.filename ~= b.filename then return a.filename < b.filename end
+    return a.lnum < b.lnum
+  end)
+
+  return entries
 end
 
 --- Build the report lines together with a per-line lookup table mapping each
@@ -325,77 +342,75 @@ end
 --- import it represents. The lookup powers "go to definition" in the report.
 ---@param data ImportData
 ---@param filters string[]
----@return string[] lines, table<integer, { module: string, field: string|nil }> line_index
+---@return string[] lines, table<integer, { module: string, field: string|nil, lang: string }> line_index
 function M.build_report(data, filters)
-  local prefixes = expand_filters(filters or {})
-  local root     = vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
+  filters = filters or {}
+  local root    = vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
+  local entries = M.filtered_entries(data, filters)
 
-  -- Filter entries
-  local entries = {}
-  for _, e in ipairs(data.entries) do
-    if matches(e.module, prefixes) then entries[#entries + 1] = e end
-  end
-
-  -- Recompute counts for the filtered set
   local counts = {}
   for _, e in ipairs(entries) do
-    counts[e.module] = (counts[e.module] or 0) + 1
+    local k = ckey(e.lang, e.module)
+    counts[k] = (counts[k] or 0) + 1
   end
 
   local unique = vim.tbl_count(counts)
-  local title  = (#prefixes > 0)
+  local title  = (#filters > 0)
     and string.format(" [filter: %s]", table.concat(filters, ", "))
     or  ""
 
   local lines = {
     string.format("=== Imports — %s ===%s", root, title),
-    string.format("total require() calls : %d   unique modules : %d   backend : %s",
-      #entries, unique, data.method or "?"),
-    "",
-    "--- Count ---",
+    string.format("total import/require calls : %d   unique modules : %d", #entries, unique),
   }
 
-  ---@type table<integer, { module: string, field: string|nil }>
+  for _, id in ipairs(langs.order) do
+    if data.lang_totals[id] then
+      local lang_mod = langs.registry[id]
+      lines[#lines + 1] = string.format("  %-10s: %4d call%s   (backend: %s)",
+        lang_mod.label, data.lang_totals[id],
+        data.lang_totals[id] == 1 and "" or "s", data.methods[id] or "?")
+    end
+  end
+
+  lines[#lines + 1] = ""
+  lines[#lines + 1] = "--- Count ---"
+
+  ---@type table<integer, { module: string, field: string|nil, lang: string }>
   local line_index = {}
 
-  -- Sort modules by count desc, then name asc
+  -- Sort modules by count desc, then module asc, then lang asc
   local mods = {}
-  for mod, c in pairs(counts) do
-    mods[#mods + 1] = { module = mod, count = c }
+  for k, c in pairs(counts) do
+    local lang, mod = k:match("^(.-)\1(.*)$")
+    mods[#mods + 1] = { lang = lang, module = mod, count = c }
   end
   table.sort(mods, function(a, b)
     if a.count ~= b.count then return a.count > b.count end
-    return a.module < b.module
+    if a.module ~= b.module then return a.module < b.module end
+    return a.lang < b.lang
   end)
 
   for _, m in ipairs(mods) do
-    local tag = data.externals[m.module] and "  (extern)" or ""
-    lines[#lines + 1] = string.format("  %3d  %s%s", m.count, m.module, tag)
-    -- Count line → module file (no field).
-    line_index[#lines] = { module = m.module }
+    local tag = data.externals[ckey(m.lang, m.module)] and "  (extern)" or ""
+    lines[#lines + 1] = string.format("  %3d  [%-3s] %s%s",
+      m.count, langs.tags[m.lang] or m.lang, m.module, tag)
+    line_index[#lines] = { module = m.module, lang = m.lang }
   end
 
   lines[#lines + 1] = ""
   lines[#lines + 1] = "--- Occurrences ---"
 
-  -- Sort occurrences by module, then file, then line
-  table.sort(entries, function(a, b)
-    if a.module ~= b.module then return a.module < b.module end
-    if a.filename ~= b.filename then return a.filename < b.filename end
-    return a.lnum < b.lnum
-  end)
-
   for _, e in ipairs(entries) do
     local imported = e.name or "?"
     if e.field then imported = imported .. " (." .. e.field .. ")" end
-    lines[#lines + 1] = string.format("%s:%d  %-32s  %s",
-      e.filename, e.lnum, e.module, imported)
-    -- Occurrence line → field definition (if a field was accessed).
-    line_index[#lines] = { module = e.module, field = e.field }
+    lines[#lines + 1] = string.format("%s:%d  [%-3s] %-32s  %s",
+      e.filename, e.lnum, langs.tags[e.lang] or e.lang, e.module, imported)
+    line_index[#lines] = { module = e.module, field = e.field, lang = e.lang }
   end
 
   if #entries == 0 then
-    lines[#lines + 1] = "  (no matching require() calls)"
+    lines[#lines + 1] = "  (no matching import/require calls)"
   end
 
   return lines, line_index
@@ -407,6 +422,112 @@ end
 ---@return string[]
 function M.format_report(data, filters)
   local lines = M.build_report(data, filters)
+  return lines
+end
+
+--- Build a report listing every occurrence whose module matches `query`
+--- (same prefix rule as the main filter) — "given a module, which files
+--- import it".
+---@param data ImportData
+---@param query string
+---@return string[]
+function M.build_reverse_report(data, query)
+  local root = vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
+  local entries = {}
+  for _, e in ipairs(data.entries) do
+    if matches(e.module, { query }) then entries[#entries + 1] = e end
+  end
+
+  table.sort(entries, function(a, b)
+    if a.filename ~= b.filename then return a.filename < b.filename end
+    return a.lnum < b.lnum
+  end)
+
+  local files, seen = {}, {}
+  for _, e in ipairs(entries) do
+    if not seen[e.filename] then
+      seen[e.filename] = true
+      files[#files + 1] = e.filename
+    end
+  end
+
+  local lines = {
+    string.format("=== Imports — Reverse: %s (%s) ===", query, root),
+    string.format("%d occurrence(s) across %d file(s)", #entries, #files),
+    "",
+  }
+  for _, e in ipairs(entries) do
+    local imported = e.name or "?"
+    if e.field then imported = imported .. " (." .. e.field .. ")" end
+    lines[#lines + 1] = string.format("%s:%d  [%-3s] %s",
+      e.filename, e.lnum, langs.tags[e.lang] or e.lang, imported)
+  end
+  if #entries == 0 then
+    lines[#lines + 1] = "  (no file imports '" .. query .. "')"
+  end
+
+  return lines
+end
+
+--- Whole-word occurrence count of `name` in `text`.
+---@param text string
+---@param name string
+---@return integer
+local function count_word(text, name)
+  local n = 0
+  for _ in text:gmatch("%f[%w_]" .. vim.pesc(name) .. "%f[%W]") do n = n + 1 end
+  return n
+end
+
+--- Build a report of bound import names that never appear again in their
+--- file. Crude textual check, not a reference analysis: re-exports via
+--- string, reflection, and shadowed names can produce false positives.
+---@param data ImportData
+---@param filters string[]
+---@return string[]
+function M.build_unused_report(data, filters)
+  filters = filters or {}
+  local root    = vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
+  local entries = M.filtered_entries(data, filters)
+
+  local file_cache = {}
+  local function file_text(path)
+    if file_cache[path] == nil then
+      local ok, fl = pcall(vim.fn.readfile, path)
+      file_cache[path] = (ok and type(fl) == "table") and table.concat(fl, "\n") or false
+    end
+    return file_cache[path] or nil
+  end
+
+  local unused = {}
+  for _, e in ipairs(entries) do
+    if e.name and e.name ~= "_" and e.name ~= "*" then
+      local text = file_text(e.filename)
+      if text and count_word(text, e.name) <= 1 then
+        unused[#unused + 1] = e
+      end
+    end
+  end
+
+  local title = (#filters > 0)
+    and string.format(" [filter: %s]", table.concat(filters, ", "))
+    or  ""
+
+  local lines = {
+    string.format("=== Imports — Unused — %s ===%s", root, title),
+    string.format("possibly-unused imports : %d", #unused),
+    "(heuristic: bound name never appears again in its file — re-exports,",
+    " reflection, or shadowed names can be false positives)",
+    "",
+  }
+  for _, e in ipairs(unused) do
+    lines[#lines + 1] = string.format("%s:%d  [%-3s] %-32s  %s",
+      e.filename, e.lnum, langs.tags[e.lang] or e.lang, e.module, e.name)
+  end
+  if #unused == 0 then
+    lines[#lines + 1] = "  (none found)"
+  end
+
   return lines
 end
 
@@ -428,14 +549,35 @@ function M.write_report(lines, out_path)
   return true, nil
 end
 
---- Build the report + keymaps for `data` and open it in a scratch buffer.
+--- Map filtered entries onto the shape the generic telescope/fzf symbol
+--- pickers already understand (`filename`/`lnum`/`name`/`func_type`), so the
+--- imports occurrence list gets a picker view for free.
+---@param entries ImportEntry[]
+---@return table[]
+local function to_picker_entries(entries)
+  local out = {}
+  for _, e in ipairs(entries) do
+    out[#out + 1] = {
+      filename  = e.filename,
+      lnum      = e.lnum,
+      name      = e.module,
+      func_type = langs.tags[e.lang] or e.lang,
+    }
+  end
+  return out
+end
+
+--- Build the report + keymaps for `data` and open it (scratch buffer by
+--- default, or a telescope/fzf picker over the occurrence list when `ui` is
+--- given).
 ---@param data ImportData
 ---@param filters string[]
-local function present(data, filters)
+---@param ui string|nil  "telescope"|"fzf"|nil (nil = scratch buffer)
+local function present(data, filters, ui)
   local cfg = config.get()
 
   if #data.entries == 0 then
-    notify.warn("no require() calls found in cwd")
+    notify.warn("no import/require calls found in cwd")
     return
   end
 
@@ -448,6 +590,22 @@ local function present(data, filters)
     else       notify.warn("could not write report: " .. tostring(err)) end
   end
 
+  if ui == "telescope" or ui == "fzf" then
+    local entries = M.filtered_entries(data, filters)
+    if #entries == 0 then
+      notify.warn("no matching import/require calls")
+      return
+    end
+    local title = string.format("Imports — %d occurrence(s)", #entries)
+    local picker_entries = to_picker_entries(entries)
+    if ui == "fzf" then
+      require("insights.ui.fzf").open(picker_entries, title)
+    else
+      require("insights.ui.telescope").open(picker_entries, title)
+    end
+    return
+  end
+
   local def_cfg = (cfg.imports and cfg.imports.definition) or {}
   local maps    = def_cfg.keymaps or {}
 
@@ -457,6 +615,10 @@ local function present(data, filters)
     local entry = line_index[vim.api.nvim_win_get_cursor(0)[1]]
     if not entry then
       notify.info("no import on this line (place the cursor on a Count or Occurrence line)")
+      return
+    end
+    if entry.lang ~= "lua" then
+      notify.info("go to definition is currently Lua-only (this is a " .. entry.lang .. " import)")
       return
     end
     require("insights.imports.definition").reveal(entry, view,
@@ -479,15 +641,41 @@ local function present(data, filters)
     { keymaps = keymaps })
 end
 
---- Run the import analysis and open the report in a scratch buffer.
---- The scan runs asynchronously (ripgrep via vim.system, or chunked Tree-sitter
---- parsing) so the editor is not blocked; the report opens when it completes.
+--- Run the import analysis and open the report.
+--- The scan runs asynchronously so it never blocks the editor; the report
+--- opens when it completes.
 ---@param filters string[]|nil
-function M.run(filters)
+---@param ui string|nil  "telescope"|"fzf"|nil (nil = scratch buffer)
+function M.run(filters, ui)
   filters = filters or {}
-  notify.info("scanning require() calls…")
+  notify.info("scanning imports…")
   M.scan_cwd_async(function(data)
-    present(data, filters)
+    present(data, filters, ui)
+  end)
+end
+
+--- Run the reverse lookup: given a module, list every file that imports it.
+---@param query string
+function M.run_reverse(query)
+  if not query or query == "" then
+    notify.warn("usage: :Insights imports reverse <module>")
+    return
+  end
+  notify.info("scanning imports…")
+  M.scan_cwd_async(function(data)
+    local lines = M.build_reverse_report(data, query)
+    require("insights.ui.scratch").open(lines, "Imports Reverse — " .. query)
+  end)
+end
+
+--- Run the unused-import check and open the report.
+---@param filters string[]|nil
+function M.run_unused(filters)
+  filters = filters or {}
+  notify.info("scanning imports…")
+  M.scan_cwd_async(function(data)
+    local lines = M.build_unused_report(data, filters)
+    require("insights.ui.scratch").open(lines, "Imports Unused")
   end)
 end
 

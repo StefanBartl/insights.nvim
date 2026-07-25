@@ -340,64 +340,114 @@ vim-plug: >
 4.7 Imports                                       *insights-imports*
 
                                          *:Insights-imports*
-:Insights imports [filter...]
+:Insights imports [filter/lang...] [telescope|fzf]
 
-  Scan every Lua file under the current working directory for `require(...)`
-  calls and display a report in a scratch buffer. The report is also written
-  to the file configured in |insights-config-imports|.
+  Scan source files under the current working directory for import/require
+  statements across six languages — Lua, Python, JavaScript/TypeScript, Go,
+  Rust, and C/C++ — and display a report in a scratch buffer (default) or a
+  telescope/fzf picker over the occurrence list. The scratch report is also
+  written to the file configured in |insights-config-imports|.
 
   [filter]  Zero or more module filters. A module matches a filter when it
-            equals the filter or begins with `filter.` (prefix on the module
-            hierarchy). `lib` matches `lib`, `lib.nvim`, `lib.usrcmds` but not
-            `mylib`. A filter that names a configured group (see
-            |insights-config-imports|) expands to that group's prefix
-            list. Multiple filters are OR-combined. Tab-completion suggests
-            configured group names.
+            equals the filter or begins with `filter.`/`filter::` (prefix on
+            the module hierarchy). `lib` matches `lib`, `lib.nvim`,
+            `lib.usrcmds` but not `mylib`. A filter that names a configured
+            group (see |insights-config-imports|) expands to that group's
+            prefix list. Multiple filters are OR-combined.
+  [lang]    A language id/alias (`lua`, `python`/`py`, `javascript`/`js`/`ts`,
+            `go`, `rust`/`rs`, `c`/`cpp`) scopes the report to just that
+            language. Multiple language tokens are OR-combined; combined with
+            module filters, both conditions apply (AND).
+  [ui]      `telescope` or `fzf` opens a picker over the occurrence list
+            instead of the scratch buffer (still writes `output_file`).
+  Tab-completion suggests configured group names, language ids, and the
+  picker tokens.
 
-  How modules are detected: by default the scan uses Tree-sitter and counts
-  only genuine `require("…")` calls in the syntax tree, so the word `require`
-  inside comments or string literals is ignored. The string argument is taken
-  as the module path; the bound variable and an optional trailing field access
-  (`require("x").field`) are read from the AST. When the Lua Tree-sitter parser
-  is unavailable the scan falls back to a ripgrep line match (which matches the
-  word `require` anywhere and is therefore less precise). The active backend is
-  shown in the report header and is selectable via
-  |insights-config-imports|.
+  How modules are detected: Lua uses Tree-sitter by default — only genuine
+  `require("…")` calls in the syntax tree are counted, so the word `require`
+  inside comments or string literals is ignored — with a ripgrep line-scan
+  fallback when the Lua parser is unavailable (selectable via `imports.engine`,
+  see |insights-config-imports|). The other five languages use a regex/text
+  scan of each file's source (there is no Tree-sitter query for them yet);
+  this still resolves grouped/multi-line syntax correctly (Go `import ( … )`
+  blocks, Python `from x import ( … )`, nested Rust `use a::{ … }`). The
+  backend used per language is shown in the report header.
 
   Report sections:
-    Count        Each module with its occurrence count, sorted descending.
-                 A module with no matching `.lua` file inside the project is
-                 tagged `(extern)` — e.g. `vim`, `bit`, `telescope.actions`.
-    Occurrences  Every call as `path:line  module  imported-name (.field)`,
-                 sorted by module, then file, then line.
+    Count        Each module with its occurrence count, sorted descending,
+                 tagged with its language (`[lua]`, `[py]`, `[js]`, `[go]`,
+                 `[rs]`, `[c]`). A module with no matching local source file
+                 is tagged `(extern)` — e.g. `vim`, `react`, `fmt`.
+    Occurrences  Every call as `path:line  [lang]  module  imported-name
+                 (.field)`, sorted by language, then module, then file, line.
+
+  External/local classification per language:
+    Lua         no matching `.lua` file under `lua/<path>` or `<path>` (cwd)
+    Python      relative imports (`from . import x`) are always local;
+                absolute ones need a matching `<path>.py` or `<path>/__init__.py`
+    JS/TS       relative/absolute specifiers (`./x`, `/x`) are local; bare
+                specifiers (`react`, `@scope/pkg`) are npm packages
+    Go          local iff the import path matches (or is a subpackage of) the
+                project's own module path in `go.mod`; without `go.mod`,
+                everything is reported external
+    Rust        `crate::…`/`self::…`/`super::…` are local; everything else is
+                an external crate
+    C/C++       `#include <...>` (system) vs. `#include "..."` (local) — the
+                include form itself decides, no filesystem lookup
 
   Scratch buffer keymaps:
     q / <Esc>   Close the buffer.
-    gf          Follow `path:line` on the current line (the require site).
-    gd          Go to the definition behind the import on the current line.
+    gf          Follow `path:line` on the current line (the import site).
+    gd          Go to the definition behind a Lua import on the current line.
     gp          Preview that definition in a floating window.
 
-  Go to definition: `gd` / `gp` resolve the required module to the file that
-  defines it — without executing `require(...)` — and reveal the definition of
-  the accessed field. On an Occurrence line the jump lands on the field's
-  definition (e.g. `…notify  notify (.create)` opens `function M.create`); on a
-  Count line it opens the module file. Field location is Tree-sitter-accurate
-  (`function M.f()`, `M.f = function`, `local f = …`, table fields) with a regex
-  fallback. Module resolution searches project-local `lua/` paths first, then
-  the Neovim loader cache, `package.path`, and the runtimepath. The view, float
-  border, and keys are configured under |insights-config-imports|.
+  Go to definition (`gd`/`gp`) is currently Lua-only: it resolves the required
+  module to the file that defines it — without executing `require(...)` — and
+  reveals the definition of the accessed field. On an Occurrence line the jump
+  lands on the field's definition (e.g. `…notify  notify (.create)` opens
+  `function M.create`); on a Count line it opens the module file. Field
+  location is Tree-sitter-accurate with a regex fallback. Module resolution
+  searches project-local `lua/` paths first, then the Neovim loader cache,
+  `package.path`, and the runtimepath. Placing the cursor on a non-Lua entry
+  and pressing `gd`/`gp` just notifies that it isn't supported yet. The view,
+  float border, and keys are configured under |insights-config-imports|.
 
-  Currently Lua-only; other languages are tracked in the project roadmap.
-
-  The scan runs asynchronously and does not block the editor: the ripgrep
-  backend runs `rg` via |vim.system()| and the Tree-sitter backend parses files
-  in scheduled chunks. The report opens when the scan completes.
+  The scan runs asynchronously and does not block the editor: file discovery
+  uses `rg --files-with-matches` (or a plain glob when ripgrep is unavailable),
+  then reads + parses matched files in scheduled chunks. The report opens when
+  the scan completes.
 
   Examples: >
     :Insights imports
+    :Insights imports python
+    :Insights imports js fzf
     :Insights imports lib
     :Insights imports insights
     :Insights imports lib foo.bar
+<
+                                         *:Insights-imports-reverse*
+:Insights imports reverse {module}
+
+  Given a module, list every file that imports it — the reverse of the main
+  report. `{module}` matches by the same exact/prefix rule as the main
+  filters. Opens a scratch buffer listing `path:line  [lang]  imported-name`
+  per occurrence, grouped implicitly by sorting on file then line.
+
+  Example: >
+    :Insights imports reverse insights.config
+<
+                                         *:Insights-imports-unused*
+:Insights imports unused [filter/lang...]
+
+  List bound import names that never appear again in their file — a crude
+  textual check (whole-word count of the bound identifier across the file),
+  not a reference analysis. False positives are possible: re-exports via
+  string, reflection, and shadowed names all look "unused" to this heuristic.
+  Blank/wildcard bindings (Go `_`, a bare `*`) are always skipped. Accepts the
+  same language/module filters as the main report.
+
+  Example: >
+    :Insights imports unused python
 <
 ------------------------------------------------------------------------------
 4.8 Conflicts                                   *insights-conflicts*
@@ -696,8 +746,12 @@ All of these can be overridden per invocation with the flags documented under
 >
   imports = {
     enable      = true,
-    engine      = "auto",   -- "auto" | "treesitter" | "ripgrep"
+    engine      = "auto",   -- "auto" | "treesitter" | "ripgrep" — Lua only
     output_file = vim.fn.stdpath("state") .. "/insights/imports.md",
+    languages = {
+      lua = true, python = true, javascript = true,
+      go = true, rust = true, c = true,
+    },
     groups = {
       lib = { "lib", "lib.nvim", "lib.usrcmds" },
     },
@@ -713,7 +767,8 @@ All of these can be overridden per invocation with the flags documented under
   Set to `false` to hide the `imports` subcommand.
 
 `engine`
-  Detection backend for require() calls:
+  Detection backend for Lua require() calls only — the other five languages
+  always use a regex/text scan (no Tree-sitter query implemented for them):
     "auto"        (default) Tree-sitter when the Lua parser is available,
                   otherwise the ripgrep line scan.
     "treesitter"  Force the AST scan. Falls back to ripgrep (with a warning)
@@ -727,18 +782,25 @@ All of these can be overridden per invocation with the flags documented under
   Path where the report is written (in addition to the scratch buffer). The
   directory is created automatically. Set to `""` to skip writing a file.
 
+`languages`
+  Which languages |:Insights-imports| scans; set an entry to `false` to skip
+  it entirely (e.g. a Python-only project could set everything but `python`
+  to `false`). A bare language id/alias used as a filter argument scopes a
+  single run to that language without changing this table.
+
 `groups`
   Named filter groups. Each name maps to a list of module prefixes. Passing
   the group name as a filter to |:Insights-imports| expands to those
   prefixes. Group names are offered in tab-completion.
 
 `classify_external`
-  When `true`, modules that have no matching `.lua` file inside the project
-  (checked under `lua/<path>.lua`, `lua/<path>/init.lua`, `<path>.lua`, and
-  `<path>/init.lua`) are tagged `(extern)` in the count table.
+  When `true`, modules with no matching local source file are tagged
+  `(extern)` in the count table. Resolution is per-language — see
+  |insights-imports| for the exact rule each language uses.
 
 `definition`
-  Controls "go to definition" from the imports report (`gd` / `gp`).
+  Controls "go to definition" from the imports report (`gd` / `gp`),
+  currently Lua-only.
     view     "edit" jumps in the current window; "float" opens a preview
              window. Affects `gd`; `gp` always uses a float.
     border   Border style for the floating preview ("rounded", "single", …).
@@ -960,13 +1022,29 @@ After calling `setup()`, the following functions are available:
   in a scratch buffer.
 
                                              *insights.run_imports()*
-`require("insights").run_imports([filters])`
+`require("insights").run_imports([filters], [ui])`
 
-  Scan require() usage for the current project and open the report in a
-  scratch buffer.
+  Scan import/require usage for the current project (Lua, Python, JS/TS, Go,
+  Rust, C/C++) and open the report.
 
-  `filters`  optional list of module prefixes / group names to filter by,
-             e.g. `{ "insights" }` or `{ "lib" }`.
+  `filters`  optional list of module prefixes / language ids / group names to
+             filter by, e.g. `{ "insights" }`, `{ "lib" }`, or `{ "python" }`.
+  `ui`       optional `"telescope"` or `"fzf"` to open a picker over the
+             occurrence list instead of the scratch buffer.
+
+                                             *insights.run_imports_reverse()*
+`require("insights").run_imports_reverse(module)`
+
+  List every file that imports `module` and open the report in a scratch
+  buffer.
+
+                                             *insights.run_imports_unused()*
+`require("insights").run_imports_unused([filters])`
+
+  List bound import names that never appear again in their file (heuristic,
+  see |insights-imports|) and open the report in a scratch buffer.
+
+  `filters`  optional list of module prefixes / language ids / group names.
 
                                               *insights.write_tree()*
 `require("insights").write_tree([callback])`

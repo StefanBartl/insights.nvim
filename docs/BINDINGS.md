@@ -31,13 +31,14 @@ imports reports, …). Configurable under `ui.close_keys` (list) and
 
 ### Buffer-local — imports report
 
-Additional keymaps on the `:Insights imports` report buffer only.
-Configurable under `imports.definition.keymaps`; set a key to `false` to
-disable it.
+Additional keymaps on the `:Insights imports` scratch report buffer only
+(not the `telescope`/`fzf` picker view). Configurable under
+`imports.definition.keymaps`; set a key to `false` to disable it.
+Lua-only — on a non-Lua import these just notify that it isn't supported yet.
 
 | Key | Config key | Action |
 |-----|------------|--------|
-| `gd` | `imports.definition.keymaps.jump` | Reveal the definition behind the `require()` on this line (jump or float, per `imports.definition.view`) |
+| `gd` | `imports.definition.keymaps.jump` | Reveal the definition behind the Lua `require()` on this line (jump or float, per `imports.definition.view`) |
 | `gp` | `imports.definition.keymaps.preview` | Always reveal the definition in a floating preview |
 
 ### Buffer-local — fileinfo float
@@ -69,7 +70,9 @@ A single dispatcher command with tab-completion at every level, built via
 | `fileinfo` | — | Toggle `fs.stat` float for current buffer |
 | `cache` | `build\|info\|clear` | Manage the symbol index cache |
 | `compress` | `[path] [outdir]` | Compress a project directory |
-| `imports` | `[filter...]` | `require()` analysis report |
+| `imports` | `[filter/lang...] [telescope\|fzf]` | Import/require analysis (Lua, Python, JS/TS, Go, Rust, C/C++) |
+| `imports reverse` | `<module>` | List every file that imports `<module>` |
+| `imports unused` | `[filter/lang...]` | Bound import names never referenced again in their file |
 | `conflicts` | — | Quickfix unresolved git conflicts |
 | `unimported` | — | Check used-but-unimported components in current buffer |
 | `devserver` | `[list\|kill]` | List or kill tracked dev servers (default: `list`) |

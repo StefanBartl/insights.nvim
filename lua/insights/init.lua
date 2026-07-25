@@ -39,10 +39,23 @@ function M.run_metrics()
   require("insights.metrics").run()
 end
 
----Analyze require() usage for the current project and open the report.
----@param filters string[]|nil  module prefixes / group names to filter by
-function M.run_imports(filters)
-  require("insights.imports").run(filters)
+---Analyze import/require usage for the current project and open the report.
+---@param filters string[]|nil  module prefixes / language ids / group names to filter by
+---@param ui string|nil  "telescope"|"fzf"|nil (nil = scratch buffer)
+function M.run_imports(filters, ui)
+  require("insights.imports").run(filters, ui)
+end
+
+---List every file that imports `module` — the reverse of run_imports().
+---@param module string
+function M.run_imports_reverse(module)
+  require("insights.imports").run_reverse(module)
+end
+
+---List bound import names never referenced again in their file (heuristic).
+---@param filters string[]|nil  module prefixes / language ids / group names to filter by
+function M.run_imports_unused(filters)
+  require("insights.imports").run_unused(filters)
 end
 
 ---Write the project file tree.

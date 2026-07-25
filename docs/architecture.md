@@ -37,10 +37,19 @@ lua/insights/
     scratch.lua         read-only scratch buffer display
   compress/init.lua     async compression — engine dispatch (tar / zip / powershell)
   imports/
-    init.lua            require() analysis — backend dispatch, counts, report
-    ts_requires.lua     Tree-sitter require() scanner (AST-accurate)
-    resolve.lua         module path → file resolution (no require side-effects)
-    definition.lua      locate + jump/preview the definition behind an import
+    init.lua            multi-language import analysis — dispatch, counts, report
+    ts_requires.lua     Tree-sitter require() scanner (AST-accurate, Lua)
+    resolve.lua         module path → file resolution (no require side-effects, Lua)
+    definition.lua      locate + jump/preview the definition behind a Lua import
+    langs/
+      init.lua          language registry (id → scanner module)
+      util.lua          shared regex-scan helpers (line offsets, comma/brace splitting)
+      lua.lua           Lua require() — wraps ts_requires.lua + regex fallback
+      python.lua        Python import/from-import scanner
+      javascript.lua    JS/TS import/require scanner
+      go.lua            Go import scanner
+      rust.lua          Rust use-declaration scanner
+      c.lua             C/C++ #include scanner
   health.lua            :checkhealth insights
 plugin/insights.lua   guard + lazy-load trigger
 ```

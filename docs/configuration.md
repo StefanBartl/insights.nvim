@@ -95,18 +95,26 @@ require("insights").setup({
                        -- non-empty = <outdir>/<name>-compressed/
   },
 
-  -- require()/import analysis (:Insights imports)
+  -- import/require analysis (:Insights imports) — Lua, Python, JS/TS, Go,
+  -- Rust, C/C++
   imports = {
     enable      = true,
     engine      = "auto",   -- "auto" → Tree-sitter if Lua parser present, else
                             -- ripgrep; "treesitter" / "ripgrep" force a backend
+                            -- (Lua-only — other languages always regex-scan)
     output_file = vim.fn.stdpath("state") .. "/insights/imports.md",
+    -- Which languages to scan; false = skip. A bare language id/alias used as
+    -- a filter argument (e.g. :Insights imports python) scopes one run.
+    languages = {
+      lua = true, python = true, javascript = true,
+      go = true, rust = true, c = true,
+    },
     -- Named groups expand to module prefixes when used as a filter,
     -- e.g. :Insights imports lib → matches lib, lib.nvim, lib.usrcmds
     groups = {
       lib = { "lib", "lib.nvim", "lib.usrcmds" },
     },
-    classify_external = true,  -- tag modules without a local .lua file as (extern)
+    classify_external = true,  -- tag modules without a local source file as (extern)
 
     -- "Go to definition" from the imports report (gd / gp)
     definition = {

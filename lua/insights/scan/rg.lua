@@ -47,12 +47,16 @@ local TIMEOUT_MS = 120000
 ---
 ---Deliberately `vim.system` + `vim.wait` rather than `vim.fn.systemlist`, even
 ---though both block the caller and this function's signature is unchanged.
----`systemlist` blocks the event loop outright, which means nothing can be drawn
----while it runs — a progress indicator built on a `vim.uv` timer (as
----`lib.nvim.progress`'s delay guard is) never even fires. `vim.wait` pumps the
----loop instead, so timers run and `:redrawstatus` actually paints, which is what
----lets `symbols.rg_index` report progress from an otherwise synchronous build
----without every caller having to become callback-based.
+---
+---The reason is specifically `vim.schedule`, not libuv: a bare `vim.uv` timer
+---does keep ticking during `vim.fn.system`, but scheduled callbacks do not run
+---until the main loop is free. `lib.nvim.progress` needs them — its delay guard
+---is `vim.schedule_wrap`'d and the statusline style's `:redrawstatus` is
+---`vim.schedule`'d — so under `systemlist` a handle never becomes visible at
+---all. Measured against this repo's own tree: 0 statusline updates with
+---`systemlist`, 75 with the `vim.wait` pump, same instrumentation both times.
+---That is what lets `symbols.rg_index` report progress from an otherwise
+---synchronous build without every caller having to become callback-based.
 ---@param cmd string[]
 ---@return string[], integer
 function M.exec_sync(cmd)

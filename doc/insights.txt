@@ -589,6 +589,8 @@ All keys are optional. Unset keys use the defaults shown below.
       dir         = vim.fn.stdpath("cache") .. "/insights/symbols",
       ttl_seconds = 3600,   -- seconds before cache is considered stale; 0 = never
     },
+
+    progress_style = "auto",  -- indicator while a cwd index is built
   },
 <
 `default_scope`
@@ -610,6 +612,24 @@ All keys are optional. Unset keys use the defaults shown below.
   How long a cached index is considered fresh. The cache is also
   invalidated automatically when source files are modified (mtime check).
   Set to `0` to disable TTL-based expiry (mtime check still applies).
+
+`progress_style`
+  Progress indicator while a cwd index is built. One of `"auto"` (default),
+  `"notify"`, `"statusline"`, `"fidget"`, `"float"`, `"kit"`.
+
+  Building the index runs one `rg` pass per enabled language pattern, each
+  scanning the whole tree — on a large project that is seconds of no output.
+  The indicator counts the passes and shows the running symbol total.
+
+  Requires `lib.nvim`, which provides it via `lib.nvim.progress`. Without
+  `lib.nvim` installed the option is silently a no-op.
+
+  Note that the build is synchronous: it returns symbols to its caller rather
+  than taking a callback, and that public API is unchanged. The indicator can
+  still update live because `insights.scan.rg` waits on each `rg` via
+  `vim.wait`, which pumps the event loop — with a plain `vim.fn.systemlist`
+  nothing could be drawn at all. Cancelling is therefore not offered:
+  `"float"`/`"kit"` would close the indicator without stopping the build.
 
 ------------------------------------------------------------------------------
 6.2 metrics                               *insights-config-metrics*

@@ -38,12 +38,40 @@ function M.build_cmd(pattern, extensions, opts)
   return cmd
 end
 
----Execute rg synchronously; returns (lines, exit_code).
+---How long a single rg invocation may take before it is given up on. A scan of
+---a very large tree can legitimately take a while; this only exists so a wedged
+---process can't hang the editor forever.
+local TIMEOUT_MS = 120000
+
+---Execute rg and wait for it; returns (lines, exit_code).
+---
+---Deliberately `vim.system` + `vim.wait` rather than `vim.fn.systemlist`, even
+---though both block the caller and this function's signature is unchanged.
+---`systemlist` blocks the event loop outright, which means nothing can be drawn
+---while it runs — a progress indicator built on a `vim.uv` timer (as
+---`lib.nvim.progress`'s delay guard is) never even fires. `vim.wait` pumps the
+---loop instead, so timers run and `:redrawstatus` actually paints, which is what
+---lets `symbols.rg_index` report progress from an otherwise synchronous build
+---without every caller having to become callback-based.
 ---@param cmd string[]
 ---@return string[], integer
 function M.exec_sync(cmd)
-  local lines = vim.fn.systemlist(cmd)
-  return lines, vim.v.shell_error
+  local result = nil
+  vim.system(cmd, { text = true }, function(res)
+    result = res
+  end)
+
+  local completed = vim.wait(TIMEOUT_MS, function() return result ~= nil end, 10)
+  if not completed or not result then
+    return {}, -1
+  end
+
+  local out = result.stdout or ""
+  if out == "" then
+    return {}, result.code
+  end
+  -- `systemlist`'s contract: one entry per line, no trailing empty element.
+  return vim.split(out:gsub("\r?\n$", ""), "\r?\n"), result.code
 end
 
 ---Run one rg search and return lines; logs errors (exit != 0 and != 1).

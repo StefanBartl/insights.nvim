@@ -8,6 +8,26 @@ local cache    = require("insights.scan.cache")
 local patterns = require("insights.symbols.patterns")
 local parser   = require("insights.symbols.parser")
 
+local ok_progress, progress_mod = pcall(require, "lib.nvim.progress")
+
+---Starts an indicator for an index build, or nil when lib.nvim isn't installed.
+---
+---This works despite `M.build` being synchronous because `rg.exec_sync` waits
+---via `vim.wait`, which pumps the event loop — so the delay-guard timer fires
+---and the statusline repaints between passes. It would be dead code against a
+---`vim.fn.systemlist`-style block; see the note in `insights.scan.rg`.
+---@param total integer Number of distinct rg passes about to run
+---@param style string|nil
+---@return table|nil
+local function start_progress(total, style)
+  if not ok_progress then
+    return nil
+  end
+  local handle = progress_mod.create({ title = "[insights]", style = style or "auto" })
+  handle:update({ text = string.format("indexing symbols (%d passes)", total), current = 0, total = total })
+  return handle
+end
+
 ---Build a fresh index; returns (entries, errors, stats).
 ---@param cfg InsightsConfig
 ---@return table[], string[], { total_files: integer, total_symbols: integer, duration: number }
@@ -29,10 +49,39 @@ function M.build(cfg)
   local all_lines, errors = {}, {}
   local seen_patterns = {}
 
+  -- Count the distinct passes up front rather than using `#pats`: duplicate
+  -- language/pattern pairs are skipped below, so `#pats` would promise more work
+  -- than actually happens and the indicator would stall short of its total.
+  local total_passes = 0
+  do
+    local counted = {}
+    for _, pat in ipairs(pats) do
+      local key = pat.language .. "::" .. pat.pattern
+      if not counted[key] then
+        counted[key] = true
+        total_passes = total_passes + 1
+      end
+    end
+  end
+
+  local progress = start_progress(total_passes, sym_cfg.progress_style)
+  local pass = 0
+
   for _, pat in ipairs(pats) do
     local key = pat.language .. "::" .. pat.pattern
     if not seen_patterns[key] then
       seen_patterns[key] = true
+
+      -- Named before the pass runs: each rg call scans the whole tree, so this
+      -- is what the user is waiting on, not what just finished.
+      if progress then
+        progress:update({
+          text = string.format("%s (%d symbols so far)", pat.language, #all_lines),
+          current = pass,
+          total = total_passes,
+        })
+      end
+
       local exts = patterns.get_extensions({ [pat.language] = true })
       local cmd = rg.build_cmd(pat.pattern, exts, {
         exclude_patterns = idx_cfg.exclude_patterns,
@@ -43,7 +92,12 @@ function M.build(cfg)
       for _, l in ipairs(lines) do
         all_lines[#all_lines + 1] = l
       end
+      pass = pass + 1
     end
+  end
+
+  if progress then
+    progress:finish(string.format("indexed %d matches", #all_lines))
   end
 
   notify.debug(string.format("rg produced %d lines", #all_lines))

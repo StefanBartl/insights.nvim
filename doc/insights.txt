@@ -627,9 +627,13 @@ All keys are optional. Unset keys use the defaults shown below.
   Note that the build is synchronous: it returns symbols to its caller rather
   than taking a callback, and that public API is unchanged. The indicator can
   still update live because `insights.scan.rg` waits on each `rg` via
-  `vim.wait`, which pumps the event loop — with a plain `vim.fn.systemlist`
-  nothing could be drawn at all. Cancelling is therefore not offered:
-  `"float"`/`"kit"` would close the indicator without stopping the build.
+  `vim.wait`, which drains scheduled callbacks. That specifically — not libuv
+  timers, which keep ticking either way — is what a progress handle needs:
+  `lib.nvim.progress` schedules both its delay guard and its statusline
+  redraw. Under a plain `vim.fn.systemlist` a handle never becomes visible.
+
+  Cancelling is not offered: `"float"`/`"kit"` would close the indicator
+  without stopping the build.
 
 ------------------------------------------------------------------------------
 6.2 metrics                               *insights-config-metrics*

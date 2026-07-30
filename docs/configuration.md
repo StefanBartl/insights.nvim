@@ -35,6 +35,11 @@ require("insights").setup({
       dir         = vim.fn.stdpath("cache") .. "/insights/symbols",
       ttl_seconds = 3600,   -- 0 = never expire
     },
+
+    -- Progress indicator while a cwd index is built (one rg pass per language
+    -- pattern). Needs lib.nvim; silently a no-op without it.
+    -- "auto" | "notify" | "statusline" | "fidget" | "float" | "kit"
+    progress_style = "auto",
   },
 
   -- Lua code metrics + documentation-file analysis

@@ -43,6 +43,15 @@
 ---@field use_treesitter_for_lua boolean
 ---@field indexing Insights.Symbols.Indexing
 ---@field cache Insights.Symbols.Cache
+---@field progress_style Insights.ProgressStyle  Indicator while the cwd symbol index is built; needs lib.nvim, no-op without it
+
+---@alias Insights.ProgressStyle
+---| "auto"        # fidget.nvim when installed, else vim.notify
+---| "notify"      # vim.notify
+---| "statusline"  # headless; read via lib.nvim.progress.styles.statusline.active()
+---| "fidget"      # fidget.nvim's LSP-style handles
+---| "float"       # small floating window
+---| "kit"         # like "float", themed via lib.nvim.ui.kit
 
 ---@class Insights.MetricsConfig
 ---@field enable boolean

@@ -227,6 +227,8 @@ function M.check()
   check_autocmds()
   check_compress()
   check_cache()
+
+  require("lib.nvim.usercmd.composer").checkhealth("Insights")
 end
 
 return M

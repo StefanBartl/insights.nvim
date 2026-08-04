@@ -1,4 +1,6 @@
 ---@module 'insights.health'
+--- :checkhealth insights — verifies dependencies, external tools and
+--- config-driven feature availability, one section per feature area.
 local M = {}
 
 local ok_s   = vim.health.ok    or vim.health.report_ok
@@ -7,9 +9,16 @@ local err_s   = vim.health.error or vim.health.report_error
 local info_s  = vim.health.info  or vim.health.report_info
 local start_s = vim.health.start or vim.health.report_start
 
+---@internal
+---@param bin string
+---@return boolean
 local function exe(bin) return vim.fn.executable(bin) == 1 end
+
+---@internal
+---@return boolean
 local function platform_is_windows() return require("insights.util.platform").is_windows() end
 
+---@internal
 local function check_lib()
   start_s("lib.nvim")
   if pcall(require, "lib.nvim.notify") then
@@ -29,6 +38,7 @@ local function check_lib()
   end
 end
 
+---@internal
 local function check_autocmds()
   start_s("Automatic triggers")
   local ok, cfg_mod = pcall(require, "insights.config")
@@ -69,6 +79,7 @@ local function check_autocmds()
   end
 end
 
+---@internal
 local function check_neovim()
   start_s("Neovim version")
   local v = vim.version()
@@ -84,6 +95,7 @@ local function check_neovim()
   end
 end
 
+---@internal
 local function check_tools()
   start_s("External tools")
   if exe("rg") then
@@ -107,6 +119,7 @@ local function check_tools()
   end
 end
 
+---@internal
 local function check_pickers()
   start_s("Optional pickers")
   if pcall(require, "telescope") then
@@ -121,6 +134,7 @@ local function check_pickers()
   end
 end
 
+---@internal
 local function check_treesitter()
   start_s("Tree-sitter (optional Lua scanner)")
   if pcall(require, "nvim-treesitter") then
@@ -130,6 +144,7 @@ local function check_treesitter()
   end
 end
 
+---@internal
 local function check_config()
   start_s("Configuration")
   local ok, cfg_mod = pcall(require, "insights.config")
@@ -150,6 +165,7 @@ local function check_config()
   info_s("imports.engine = " .. (cfg.imports and cfg.imports.engine or "auto"))
 end
 
+---@internal
 local function check_compress()
   start_s("Compress feature")
   local ok, cfg_mod = pcall(require, "insights.config")
@@ -196,6 +212,7 @@ local function check_compress()
   end
 end
 
+---@internal
 local function check_cache()
   start_s("Symbol cache")
   local ok, cfg_mod = pcall(require, "insights.config")

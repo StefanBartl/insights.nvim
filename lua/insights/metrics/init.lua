@@ -25,6 +25,7 @@ function M.normalize_dir(path)
   return (p:gsub("\\", "/"):gsub("/+$", ""))
 end
 
+---@internal
 --- Average the per-folder ratios into state.global_averages.
 ---@param state MetricsState
 local function compute_global_averages(state)
@@ -108,6 +109,7 @@ function M.analyze_single(path)
   }
 end
 
+---@internal
 ---@param a any
 ---@param b any
 ---@param d any
@@ -118,6 +120,7 @@ local function pick(a, b, d)
   return d
 end
 
+---@internal
 --- Resolve invocation options against the metrics config defaults.
 ---@param opts table
 ---@param cfg table
@@ -145,6 +148,7 @@ local function resolve(opts, cfg)
   }
 end
 
+---@internal
 --- Assemble the Lua-section report lines for `state` per resolved options `o`.
 ---@param state MetricsState
 ---@param o table
@@ -211,6 +215,7 @@ function M.write_report(lines, out_path)
   return true, nil
 end
 
+---@internal
 --- Display the report in a scratch buffer and write it to the output file.
 ---@param lines string[]
 ---@param title string

@@ -13,6 +13,7 @@ M.label      = "Python"
 M.extensions = { "py" }
 M.rg_prefilter = "^\\s*(import|from)\\s"
 
+---@internal
 --- Drop a trailing `# comment` (heuristic: no attempt to avoid `#` inside
 --- string literals — import lines rarely contain one).
 ---@param line string

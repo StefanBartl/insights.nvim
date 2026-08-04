@@ -40,6 +40,7 @@ local langs    = require("insights.imports.langs")
 
 local IGNORE = { "/%.git/", "/node_modules/", "/%.cache/", "/build/", "/dist/", "/target/" }
 
+---@internal
 --- Composite key so identically-named modules in different languages
 --- (e.g. Python's "os" vs. Go's "os") never collide in counts/externals.
 ---@param lang string
@@ -49,6 +50,7 @@ local function ckey(lang, module)
   return lang .. "\1" .. module
 end
 
+---@internal
 ---@param path string
 ---@return boolean
 local function skip_path(path)
@@ -59,6 +61,7 @@ local function skip_path(path)
   return false
 end
 
+---@internal
 --- Extension glob (IGNORE-filtered), used when ripgrep is unavailable.
 ---@param cwd string
 ---@param ext string
@@ -72,6 +75,7 @@ local function glob_files(cwd, ext)
   return todo
 end
 
+---@internal
 --- Candidate files for one language: a `rg --files-with-matches` prefilter
 --- when ripgrep is available (fast even on large repos — only lists file
 --- names, doesn't read them), else a plain extension glob.
@@ -104,6 +108,7 @@ local function candidate_files(cwd, lang_mod)
   return files
 end
 
+---@internal
 --- Read + scan one file for a language, appending raw entries.
 ---@param lang_mod table
 ---@param path string
@@ -128,6 +133,7 @@ local function scan_file(lang_mod, path, use_ts, raw)
   end
 end
 
+---@internal
 --- Languages enabled by `imports.languages` (default: all).
 ---@return table[]
 local function enabled_languages()
@@ -140,6 +146,7 @@ local function enabled_languages()
   return out
 end
 
+---@internal
 --- Resolve the Lua backend from config + parser availability.
 ---@return "treesitter"|"ripgrep"
 local function lua_backend()
@@ -154,6 +161,7 @@ local function lua_backend()
   return "ripgrep"
 end
 
+---@internal
 --- Build the { lang_mod, path, use_ts }[] work list and the per-language
 --- backend-label map for a cwd scan.
 ---@param cwd string
@@ -176,6 +184,7 @@ local function build_worklist(cwd)
   return todo, methods
 end
 
+---@internal
 --- Aggregate raw imports into the classified/counted ImportData shape.
 ---@param raw RawImport[]
 ---@param methods table<string, string>
@@ -250,6 +259,7 @@ function M.scan_cwd_async(cb)
   if #todo == 0 then cb(build_data(raw, methods, cwd)) else step() end
 end
 
+---@internal
 --- Expand filter arguments (group names + literal prefixes) into prefix list.
 ---@param filters string[]
 ---@return string[]
@@ -267,6 +277,7 @@ local function expand_filters(filters)
   return out
 end
 
+---@internal
 --- Test whether a module matches any prefix (exact or `prefix.`/`prefix::` boundary).
 ---@param module string
 ---@param prefixes string[]
@@ -288,6 +299,7 @@ local LANG_ALIASES = {
   rs = "rust", cpp = "c", h = "c", hpp = "c",
 }
 
+---@internal
 --- Resolve a filter token to a registered language id, or nil.
 ---@param tok string
 ---@return string|nil
@@ -296,6 +308,7 @@ local function resolve_lang_token(tok)
   return LANG_ALIASES[tok]
 end
 
+---@internal
 --- Split filter tokens into a language-id set and the remaining module-prefix
 --- tokens, so `:Insights imports python lib` scopes to Python AND the "lib"
 --- group in one call.
@@ -469,6 +482,7 @@ function M.build_reverse_report(data, query)
   return lines
 end
 
+---@internal
 --- Whole-word occurrence count of `name` in `text`.
 ---@param text string
 ---@param name string
@@ -549,6 +563,7 @@ function M.write_report(lines, out_path)
   return true, nil
 end
 
+---@internal
 --- Map filtered entries onto the shape the generic telescope/fzf symbol
 --- pickers already understand (`filename`/`lnum`/`name`/`func_type`), so the
 --- imports occurrence list gets a picker view for free.
@@ -567,6 +582,7 @@ local function to_picker_entries(entries)
   return out
 end
 
+---@internal
 --- Build the report + keymaps for `data` and open it (scratch buffer by
 --- default, or a telescope/fzf picker over the occurrence list when `ui` is
 --- given).

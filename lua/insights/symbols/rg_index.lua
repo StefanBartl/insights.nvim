@@ -10,6 +10,7 @@ local parser   = require("insights.symbols.parser")
 
 local ok_progress, progress_mod = pcall(require, "lib.nvim.progress")
 
+---@internal
 ---Starts an indicator for an index build, or nil when lib.nvim isn't installed.
 ---
 ---This works despite `M.build` being synchronous because `rg.exec_sync` waits

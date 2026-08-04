@@ -15,12 +15,14 @@ M.label        = "JS/TS"
 M.extensions   = { "js", "jsx", "mjs", "cjs", "ts", "tsx" }
 M.rg_prefilter = "\\b(import|require)\\b"
 
+---@internal
 ---@param tok string
 ---@return string
 local function strip_type_kw(tok)
   return (tok:gsub("^type%s+", ""))
 end
 
+---@internal
 --- Parse the clause between `import` and `from "…"` into bound-name entries.
 ---@param clause string
 ---@return { name: string, field: string|nil }[]

@@ -9,6 +9,7 @@
 ---   4. runtime files (`nvim_get_runtime_file`)
 local M = {}
 
+---@internal
 --- Project-local candidate paths for a module, relative to `cwd`.
 --- Mirrors the candidate set used by imports/init.lua `is_external`, so a module
 --- tagged as project-local there resolves to the same file here.

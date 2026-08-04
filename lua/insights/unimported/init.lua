@@ -12,6 +12,7 @@ local M = {}
 
 local api = vim.api
 
+---@internal
 ---Component tags referenced in `lines`, in first-seen order.
 ---@param lines string[]
 ---@return string[]
@@ -25,6 +26,7 @@ local function used_components(lines)
   return require("lib.lua.tables").dedup_list(order)
 end
 
+---@internal
 ---Is `name` bound in this file — imported, or declared locally?
 ---
 ---Matched with frontier patterns so that an import of `ButtonGroup` does not

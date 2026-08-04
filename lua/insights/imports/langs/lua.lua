@@ -10,6 +10,7 @@ M.label        = "Lua"
 M.extensions   = { "lua" }
 M.rg_prefilter = "require"
 
+---@internal
 --- A valid module path: identifier chars plus dot/dash/slash separators.
 --- Filters out punctuation garbage matched from comments / string-building code.
 ---@param mod string
@@ -18,6 +19,7 @@ local function is_module_path(mod)
   return mod:match("^[%w_][%w_%.%-/]*$") ~= nil
 end
 
+---@internal
 --- Parse a single source line for every require occurrence.
 --- Returns a list because a line may contain more than one call.
 ---@param line string
@@ -42,6 +44,7 @@ local function parse_requires(line)
   return out
 end
 
+---@internal
 --- Extract the local variable name a require is assigned to, if any.
 ---@param line string
 ---@return string|nil

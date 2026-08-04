@@ -11,6 +11,7 @@ local M = {}
 
 local autocmd = require("lib.nvim.autocmd")
 
+---@internal
 ---Claim (and clear) a group. Clearing on every setup() makes re-running it
 ---idempotent, and makes `enable = false` tear down a previously enabled
 ---feature instead of leaving its autocmds behind.
@@ -20,6 +21,7 @@ local function augroup(name)
   return autocmd.group("Insights_" .. name, true)
 end
 
+---@internal
 ---Accept a string or a list of events; fall back to `default`.
 ---@param events string|string[]|nil
 ---@param default string[]
@@ -34,6 +36,7 @@ local function norm_events(events, default)
   return default
 end
 
+---@internal
 ---@param cfg Insights.ConflictsConfig
 local function setup_conflicts(cfg)
   local grp = augroup("conflicts")
@@ -48,6 +51,7 @@ local function setup_conflicts(cfg)
   })
 end
 
+---@internal
 ---@param cfg Insights.UnimportedConfig
 local function setup_unimported(cfg)
   local grp = augroup("unimported")
@@ -65,6 +69,7 @@ local function setup_unimported(cfg)
   })
 end
 
+---@internal
 ---@param cfg Insights.DevserverConfig
 local function setup_devserver(cfg)
   local grp = augroup("devserver")

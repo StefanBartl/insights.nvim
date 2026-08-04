@@ -13,6 +13,7 @@ local notify  = require("insights.util.notify").create("[insights.imports]")
 
 local ts = vim.treesitter
 
+---@internal
 --- Read a file's lines, or nil on failure.
 ---@param path string
 ---@return string[]|nil
@@ -22,6 +23,7 @@ local function read_lines(path)
   return nil
 end
 
+---@internal
 --- Last identifier of a name node: `foo` for `identifier`, `bar` for
 --- `M.bar` / `M:bar`.
 ---@param node TSNode|nil
@@ -40,6 +42,7 @@ local function last_name(node, src)
   return nil
 end
 
+---@internal
 --- First named child of `node` with the given type, or nil.
 ---@param node TSNode
 ---@param type_name string
@@ -52,6 +55,7 @@ local function child_of_type(node, type_name)
   return nil
 end
 
+---@internal
 --- Tree-sitter search for the definition of `field` in `src`.
 --- Matches `function M.field()`, `M.field = …`, `local field = …`,
 --- `function field()` and `field = …` table fields.
@@ -107,6 +111,7 @@ local function ts_find(src, field)
   return { srow = srow, erow = erow }
 end
 
+---@internal
 --- Regex fallback: scan lines for a definition of `field`.
 ---@param lines string[]
 ---@param field string
@@ -172,6 +177,7 @@ function M.locate(entry)
   return { path = path, srow = hit.srow, erow = hit.erow }
 end
 
+---@internal
 --- Jump to the definition in the current window.
 ---@param loc { path: string, srow: integer }
 local function open_edit(loc)
@@ -180,6 +186,7 @@ local function open_edit(loc)
   vim.cmd("normal! zz")
 end
 
+---@internal
 --- Show the definition in a floating preview window.
 ---@param loc { path: string, srow: integer, erow: integer }
 ---@param border string

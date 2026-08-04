@@ -18,6 +18,7 @@ M.rg_prefilter = "\\bimport\\b"
 ---@type table<string, string|false>
 local module_path_cache = {}
 
+---@internal
 ---@param cwd string
 ---@return string|false
 local function module_path(cwd)

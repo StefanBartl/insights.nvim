@@ -15,6 +15,7 @@ local defaults = require("insights.config.DEFAULTS")
 ---@type InsightsConfig
 local current = vim.deepcopy(defaults)
 
+---@internal
 --- Expand `~`/`$VAR`/`%VAR%` in the handful of user-configurable path fields.
 --- Defaults come from vim.fn.stdpath() and are already absolute, but
 --- expand_path is a no-op on paths without env references, so running it

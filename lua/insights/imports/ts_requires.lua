@@ -23,6 +23,7 @@ function M.available()
   return pcall(ts.get_string_parser, "", "lua")
 end
 
+---@internal
 --- Strip surrounding quotes / long-bracket markers from a string literal.
 ---@param s string
 ---@return string
@@ -33,6 +34,7 @@ local function strip_quotes(s)
     or s
 end
 
+---@internal
 --- Trailing field access on a require call, e.g. "create" in
 --- `require("x").create(...)` or "bar" in `require("x").bar`.
 ---@param call TSNode
@@ -49,6 +51,7 @@ local function trailing_field(call, bufnr)
   return nil
 end
 
+---@internal
 --- First named child of `node` with the given type, or nil.
 ---@param node TSNode
 ---@param type_name string
@@ -61,6 +64,7 @@ local function child_of_type(node, type_name)
   return nil
 end
 
+---@internal
 --- Local/assignment variable the require result is bound to. Handles multiple
 --- assignment (`local a, b = 1, require(...)`) by index alignment.
 ---@param call TSNode
@@ -103,6 +107,7 @@ local function lhs_name(call, src)
   return var and ts.get_node_text(var, src) or nil
 end
 
+---@internal
 --- Walk a parsed tree and collect require() calls.
 ---@param root TSNode
 ---@param src integer|string   buffer handle or source string

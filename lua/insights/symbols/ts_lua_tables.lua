@@ -9,6 +9,7 @@ local notify = require("insights.util.notify").create("[insights.symbols.ts_lua_
 local api    = vim.api
 local ts     = vim.treesitter
 
+---@internal
 ---Build full dot-path for nested table assignments like `state.win = {}`.
 ---@param node TSNode
 ---@param bufnr integer

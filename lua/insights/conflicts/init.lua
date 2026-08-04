@@ -9,6 +9,7 @@ local M = {}
 
 local fn = vim.fn
 
+---@internal
 ---Run a git command and return its stdout only.
 ---
 ---`vim.system` rather than `systemlist`, because the latter folds stderr into
@@ -20,6 +21,7 @@ local function run(cmd)
   return vim.system(cmd, { text = true }):wait()
 end
 
+---@internal
 ---Is the cwd inside a git work tree?
 ---@param git_cmd string
 ---@return boolean

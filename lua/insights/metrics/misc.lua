@@ -21,11 +21,13 @@ local str_fmt = string.format
 ---@field txt      MiscFileStats
 ---@field json     MiscFileStats
 
+---@internal
 ---@return MiscFileStats
 local function empty()
   return { file_count = 0, total_lines = 0, total_words = 0, files = {} }
 end
 
+---@internal
 ---Count lines and words of a single non-Lua file.
 ---@param path string
 ---@return integer lines, integer words

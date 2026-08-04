@@ -95,6 +95,7 @@ function M.track(chan, cmd, kill)
   tracked[chan] = { pid = pid, cmd = cmd, kill_on_exit = kill }
 end
 
+---@internal
 ---Ask the user whether the server in `chan` should be killed on exit.
 ---@param chan integer
 ---@param cmd string

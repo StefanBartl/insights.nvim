@@ -1,6 +1,9 @@
 ---@module 'insights.util.platform'
+--- Cross-platform helpers: OS detection, path joining, shell execution and
+--- clipboard access, delegating to lib.nvim where available.
 local M = {}
 
+---@return boolean
 function M.is_windows()
   return require("lib.nvim.cross.platform.is_windows")()
 end

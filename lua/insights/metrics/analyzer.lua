@@ -8,6 +8,7 @@ local IGNORE_DIRS = {
   [".cache"] = true, ["debuglog"] = true, ["docs"] = true,
 }
 
+---@internal
 ---Return true if any path segment is an ignored directory. Matches whole
 ---segments only (so a project rooted at e.g. `.../docs/` is not ignored, and
 ---a file named `docs.lua` is kept).
@@ -53,6 +54,7 @@ function M.get_lua_files(dir)
   return M.list_files(dir, "*.lua")
 end
 
+---@internal
 ---@param s string|nil
 ---@return integer
 local function word_count(s)

@@ -11,6 +11,7 @@ local sort         = table.sort
 
 local HEADER_COLS = { "L1", "L2", "L3", "L4", "L5", "W1", "W2", "W3", "W4", "W5" }
 
+---@internal
 ---@param value any
 ---@param width integer
 ---@return string
@@ -18,6 +19,7 @@ local function cell(value, width)
   return str_fmt("%-" .. tostring(width) .. "s", tostring(value))
 end
 
+---@internal
 ---Row with a wide left "File" column followed by the data cells.
 ---@param left string
 ---@param cells string[]
@@ -31,6 +33,7 @@ local function row_with_file_col(left, cells, col_width)
   return table.concat(parts, "")
 end
 
+---@internal
 ---The ten formatted data cells for a stats object.
 ---@param s table
 ---@param mode string
@@ -62,6 +65,7 @@ function M.legend()
   }
 end
 
+---@internal
 ---Sorted (folder, stats) pairs, largest by total lines first.
 ---@param state table
 ---@return { folder: string, stats: table }[]
@@ -205,6 +209,7 @@ function M.folder_ratios(state, show_deviations)
   return out
 end
 
+---@internal
 ---Flatten all files across folders.
 ---@param state table
 ---@return { rel: string, stats: table }[]
@@ -216,6 +221,7 @@ local function all_files(state)
   return files
 end
 
+---@internal
 ---Top-N files by a numeric stat field.
 ---@param state table
 ---@param n integer

@@ -15,6 +15,7 @@ M.label        = "Rust"
 M.extensions   = { "rs" }
 M.rg_prefilter = "\\buse\\s"
 
+---@internal
 --- Expand a (possibly nested) `use` clause into flat `{ path, alias }`
 --- entries. `prefix` is the already-resolved path segment accumulated from
 --- enclosing groups.

@@ -6,6 +6,7 @@ local uv = vim.uv or vim.loop
 
 local CACHE_VERSION = "1.0.0"
 
+---@internal
 ---@param dir string
 ---@param ns  string  namespace slug (e.g. "symbols")
 ---@return string
@@ -15,6 +16,9 @@ local function cache_path(dir, ns)
   return dir .. "/" .. ns .. "_" .. hash .. ".json"
 end
 
+---@internal
+---@param path string
+---@return integer|nil
 local function get_mtime(path)
   local st = uv.fs_stat(path)
   return st and st.mtime.sec or nil

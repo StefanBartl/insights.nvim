@@ -20,6 +20,7 @@ local M = {}
 -- Outdir resolution
 -- ---------------------------------------------------------------------------
 
+---@internal
 ---Resolve and create the output directory.
 ---@param path       string  Absolute directory being compressed.
 ---@param cfg_outdir string  compress.outdir from config ("" = adjacent).
@@ -47,6 +48,11 @@ end
 
 local engines = {}
 
+---@internal
+---Compress `path` into `outdir` via find + tar (Unix/macOS).
+---@param path string
+---@param outdir string
+---@param on_complete fun(success: boolean, message: string)
 function engines.tar(path, outdir, on_complete)
   local name      = vim.fn.fnamemodify(path, ":t")
   local out_path  = outdir .. "/" .. name .. ".tar.gz"
@@ -69,6 +75,11 @@ function engines.tar(path, outdir, on_complete)
   end)
 end
 
+---@internal
+---Compress `path` into `outdir` via find + zip (Unix/macOS, requires zip).
+---@param path string
+---@param outdir string
+---@param on_complete fun(success: boolean, message: string)
 function engines.zip(path, outdir, on_complete)
   local name      = vim.fn.fnamemodify(path, ":t")
   local out_path  = outdir .. "/" .. name .. ".zip"
@@ -92,6 +103,11 @@ function engines.zip(path, outdir, on_complete)
   end)
 end
 
+---@internal
+---Compress `path` into `outdir` via PowerShell's Compress-Archive (Windows).
+---@param path string
+---@param outdir string
+---@param on_complete fun(success: boolean, message: string)
 function engines.powershell(path, outdir, on_complete)
   local name      = vim.fn.fnamemodify(path, ":t")
   local out_path  = outdir .. "\\" .. name .. ".zip"

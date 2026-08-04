@@ -34,6 +34,7 @@ local SYMBOL_TYPES  = { "functions", "tables", "strings" }
 
 local notify = require("insights.util.notify").create("[insights]")
 
+---@internal
 ---Open symbol picker in the requested UI.
 ---@param entries table[]
 ---@param ui      string  "telescope"|"fzf"|"scratch"
@@ -62,6 +63,7 @@ local METRICS_BOOL_FLAGS = {
 }
 local METRICS_VALUE_FLAGS = { "topn", "colwidth", "file" }
 
+---@internal
 ---FlagSpec list for the `metrics` route — declared purely so composer's own
 ---`--<Tab>` completion fires (composer intercepts any "--"-prefixed arg_lead
 ---unconditionally, ahead of a route's own `args` completers — a plain
@@ -83,6 +85,7 @@ local function metrics_flag_specs()
   return specs
 end
 
+---@internal
 ---Re-derive the original flat token list from a metrics route's ctx, so
 ---parse_metrics_args (below, unchanged) can parse it exactly as before.
 ---@param ctx table
@@ -103,6 +106,7 @@ end
 local IMPORT_LANG_IDS = { "lua", "python", "javascript", "go", "rust", "c" }
 local IMPORT_UIS      = { "telescope", "fzf", "scratch" }
 
+---@internal
 ---Completion candidates for `:Insights imports` (group names, language ids,
 ---and the picker-UI tokens — all order-independent, like SYMBOL_TOKENS).
 ---@param arglead string
@@ -120,6 +124,7 @@ local function import_tokens(arglead)
   return out
 end
 
+---@internal
 ---Choose best available picker.
 ---@return string
 local function default_ui()
@@ -128,6 +133,10 @@ local function default_ui()
   return "scratch"
 end
 
+---@internal
+---Dispatch `:Insights symbols` — parses order-independent scope/ui/rebuild/type
+---tokens, runs the matching symbol scan, and opens the resulting picker.
+---@param args string[]
 local function handle_symbols(args)
   local scope    = "cwd"
   local ui       = nil
@@ -172,6 +181,7 @@ local function handle_symbols(args)
   open_symbol_picker(entries, ui, scope .. " " .. sym_type)
 end
 
+---@internal
 ---Parse :Insights metrics flags + optional directory into an options table.
 ---@param args string[]
 ---@return table
@@ -203,33 +213,40 @@ local function parse_metrics_args(args)
   return opts
 end
 
+---@internal
 ---@param args string[]  flags + optional directory (default: cwd)
 local function handle_metrics(args)
   require("insights.metrics").run(parse_metrics_args(args))
 end
 
+---@internal
 local function handle_tree()
   require("insights.tree").write_tree(function(ok, msg)
     if ok then notify.info(msg) else notify.error(msg) end
   end)
 end
 
+---@internal
 local function handle_count()
   require("insights.tree").count_files(function(ok, msg)
     if ok then notify.info(msg) else notify.error(msg) end
   end)
 end
 
+---@internal
 local function handle_clipboard()
   require("insights.tree").copy_to_clipboard(function(ok, msg)
     if ok then notify.info(msg) else notify.error(msg) end
   end)
 end
 
+---@internal
 local function handle_fileinfo()
   require("insights.fileinfo").show()
 end
 
+---@internal
+---@param args string[]  optional [path, outdir]
 local function handle_compress(args)
   local cfg = require("insights.config").get()
   if not (cfg.compress and cfg.compress.enable) then
@@ -253,6 +270,7 @@ local function handle_compress(args)
   end)
 end
 
+---@internal
 ---Split repeated imports tokens into filters + an optional picker-UI choice.
 ---@param args string[]
 ---@return string[] filters, string|nil ui
@@ -268,6 +286,8 @@ local function split_import_args(args)
   return filters, ui
 end
 
+---@internal
+---@param args string[]  filters + optional picker UI
 local function handle_imports(args)
   local cfg = require("insights.config").get()
   if not (cfg.imports and cfg.imports.enable) then
@@ -278,6 +298,8 @@ local function handle_imports(args)
   require("insights.imports").run(filters, ui)
 end
 
+---@internal
+---@param args string[]  args[1] is the target module name
 local function handle_imports_reverse(args)
   local cfg = require("insights.config").get()
   if not (cfg.imports and cfg.imports.enable) then
@@ -287,6 +309,8 @@ local function handle_imports_reverse(args)
   require("insights.imports").run_reverse(args[1])
 end
 
+---@internal
+---@param args string[]  filters, same shape as handle_imports
 local function handle_imports_unused(args)
   local cfg = require("insights.config").get()
   if not (cfg.imports and cfg.imports.enable) then
@@ -296,6 +320,7 @@ local function handle_imports_unused(args)
   require("insights.imports").run_unused(args)
 end
 
+---@internal
 local function handle_conflicts()
   local cfg = require("insights.config").get()
   if not (cfg.conflicts and cfg.conflicts.enable) then
@@ -305,6 +330,7 @@ local function handle_conflicts()
   require("insights.conflicts").run()
 end
 
+---@internal
 local function handle_unimported()
   local cfg = require("insights.config").get()
   if not (cfg.unimported and cfg.unimported.enable) then
@@ -314,6 +340,8 @@ local function handle_unimported()
   require("insights.unimported").run()
 end
 
+---@internal
+---@param args string[]  args[1] is the subcommand, "list"|"kill" (default "list")
 local function handle_devserver(args)
   local cfg = require("insights.config").get()
   if not (cfg.devserver and cfg.devserver.enable) then
@@ -345,6 +373,8 @@ local function handle_devserver(args)
   end
 end
 
+---@internal
+---@param args string[]  args[1] is the subcommand, "build"|"info"|"clear"
 local function handle_cache(args)
   local sub = args[1] or ""
   local cfg = require("insights.config").get().symbols.cache
@@ -383,6 +413,7 @@ end
 
 -- ── composer wiring ──────────────────────────────────────────────────────────
 
+---@internal
 ---Prefix-filter, matching composer's own convention (its built-in types all
 ---filter this way — the old hand-rolled completers above did NOT filter
 ---symbols/cache/devserver candidates by arglead at all, an inconsistency
@@ -424,6 +455,7 @@ composer.register_type("INSIGHTS_DIR_SOFT", {
   complete = function(arg_lead) return vim.fn.getcompletion(arg_lead, "dir") end,
 })
 
+---@internal
 ---N optional positional slots of the same type — reproduces "same completion
 ---candidates at every position" for an order-independent/variadic grammar.
 ---@param type_name string
@@ -437,6 +469,7 @@ local function repeated_args(type_name, count)
   return out
 end
 
+---@internal
 ---Every bound positional plus whatever overflowed the declared slots, in order.
 ---@param ctx table
 ---@return string[]
@@ -447,6 +480,12 @@ local function merged_tokens(ctx)
   return out
 end
 
+---@internal
+---Build a composer route for a subcommand that takes no arguments.
+---@param path string[]
+---@param desc string
+---@param fn fun()
+---@return table
 local function no_arg_route(path, desc, fn)
   return { path = path, desc = desc, run = function(_) fn() end }
 end

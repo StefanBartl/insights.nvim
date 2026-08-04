@@ -4,6 +4,7 @@ local M = {}
 
 local patterns_mod = require("insights.symbols.patterns")
 
+---@internal
 ---Parse a single `filename:line:col:text` line from rg --vimgrep.
 ---Returns nil on malformed input.
 ---@param line string
@@ -25,6 +26,7 @@ local function parse_vimgrep_line(line)
   return { filename = parts[1], lnum = lnum, col = col, text = vim.trim(parts[4]) }
 end
 
+---@internal
 ---Extract function name from matched text.
 ---@param text     string
 ---@param language string
@@ -64,6 +66,7 @@ local function extract_name(text, language)
   return nil
 end
 
+---@internal
 ---Extract a cleaned signature like `foo(x, y)` from matched text.
 ---@param text string
 ---@param name string

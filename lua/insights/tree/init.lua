@@ -8,6 +8,11 @@ local config   = require("insights.config")
 
 local fn = vim.fn
 
+---@internal
+---Current working directory + derived project name, or an error.
+---@return string|nil cwd
+---@return string|nil proj
+---@return string|nil err
 local function current_project()
   local cwd  = fn.getcwd()
   if type(cwd) ~= "string" or cwd == "" then return nil, nil, "invalid cwd" end
@@ -16,6 +21,10 @@ local function current_project()
   return cwd, proj, nil
 end
 
+---@internal
+---Create `dir` (and parents) if it does not already exist.
+---@param dir string
+---@return boolean ok, string|nil err
 local function ensure_dir(dir)
   if fn.isdirectory(dir) == 1 then return true, nil end
   local ok, err = pcall(fn.mkdir, dir, "p")
@@ -24,11 +33,16 @@ local function ensure_dir(dir)
   return true, nil
 end
 
+---@internal
+---Resolve the configured tree output path for a project name.
+---@param proj string
+---@return string
 local function output_path(proj)
   local cfg = config.get().tree
   return cfg.outdir .. "/" .. (cfg.outfile_fmt:gsub("%%s", proj))
 end
 
+---@internal
 ---Build a shell command that lists relative file paths in the project.
 ---@param cwd     string
 ---@param exclude string[]
@@ -81,6 +95,9 @@ function M.write_tree(callback)
   local ok, derr = ensure_dir(cfg.outdir)
   if not ok then callback(false, "cannot create outdir: " .. tostring(derr), nil); return end
 
+  -- current_project() only ever returns proj alongside a truthy cwd (see its
+  -- own branches above), so cwd being non-nil here guarantees proj is too.
+  ---@cast proj string
   local out = output_path(proj)
   local cmd = build_tree_cmd(cwd, cfg.exclude_patterns) .. " > " .. fn.shellescape(out)
 

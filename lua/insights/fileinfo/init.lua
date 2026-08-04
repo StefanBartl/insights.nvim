@@ -12,10 +12,16 @@ local make_scratch = require("lib.nvim.window.make_scratch")
 local active_win  = nil
 local active_path = nil
 
+---@internal
+---@param size integer
+---@return string
 local function format_size(size)
   return str_fmt("%d bytes (%.2f MiB)", size, size / (1024 * 1024))
 end
 
+---@internal
+---@param stat table  uv.fs_stat() result
+---@return string
 local function format_permissions(stat)
   local mode  = stat.mode or 0
   local octal = str_fmt("%o", mode)
@@ -38,6 +44,8 @@ local function format_permissions(stat)
   return str_fmt("%s (POSIX %s %s %s)", octal, u, g, o)
 end
 
+---@internal
+---Close the currently open hover float, if any.
 local function close_active()
   if active_win and api.nvim_win_is_valid(active_win) then
     api.nvim_win_close(active_win, true)
@@ -45,6 +53,10 @@ local function close_active()
   active_win, active_path = nil, nil
 end
 
+---@internal
+---Open (or toggle closed) a hover float showing `lines` for `path`.
+---@param path string
+---@param lines string[]
 local function open_hover(path, lines)
   -- Toggle: close if same path is already shown
   if active_win and api.nvim_win_is_valid(active_win) and active_path == path then

@@ -7,6 +7,7 @@ local map = require("lib.nvim.map")
 local window = require("lib.nvim.window")
 local notify = require("insights.util.notify").create("[insights.ui.scratch]")
 
+---@internal
 ---Can `win` host the scratch buffer? True for a normal editing window
 ---(buftype "") or a window already showing one of our scratch buffers — but
 ---never a floating window or a special sidebar (neo-tree, qf, help, terminal).
@@ -22,6 +23,7 @@ local function is_usable_window(win)
   return ok and marked == true
 end
 
+---@internal
 ---Find a window to display the scratch buffer in, opening a split if the
 ---current window is a sidebar (so we never hijack neo-tree etc.).
 ---@return integer win

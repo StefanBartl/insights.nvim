@@ -34,10 +34,14 @@ end
 local function analyze_file(path)
   local lines, words = 0, 0
   local ok, fh = pcall(io.open, path, "r")
-  if not ok or not fh then return 0, 0 end
+  if not ok or not fh then
+    return 0, 0
+  end
   for line in fh:lines() do
     lines = lines + 1
-    for _ in line:gmatch("%S+") do words = words + 1 end
+    for _ in line:gmatch("%S+") do
+      words = words + 1
+    end
   end
   fh:close()
   return lines, words
@@ -50,15 +54,15 @@ function M.scan(root)
   local state = { markdown = empty(), txt = empty(), json = empty() }
   local kinds = {
     { key = "markdown", pattern = "*.md" },
-    { key = "txt",      pattern = "*.txt" },
-    { key = "json",     pattern = "*.json" },
+    { key = "txt", pattern = "*.txt" },
+    { key = "json", pattern = "*.json" },
   }
   for _, ft in ipairs(kinds) do
     for _, file in ipairs(analyzer.list_files(root, ft.pattern)) do
       local lines, words = analyze_file(file)
       if lines > 0 or words > 0 then
         local st = state[ft.key]
-        st.file_count  = st.file_count + 1
+        st.file_count = st.file_count + 1
         st.total_lines = st.total_lines + lines
         st.total_words = st.total_words + words
         st.files[#st.files + 1] = { rel = file:sub(#root + 2), lines = lines, words = words }
@@ -72,46 +76,55 @@ end
 ---@param state MiscState
 ---@return boolean
 function M.is_empty(state)
-  return state.markdown.file_count == 0
-     and state.txt.file_count == 0
-     and state.json.file_count == 0
+  return state.markdown.file_count == 0 and state.txt.file_count == 0 and state.json.file_count == 0
 end
 
 --- Build the summary section (one row per file type + total).
 ---@param state MiscState
 ---@return string[]
 function M.build_summary(state)
-  local line  = string.rep("-", 95)
+  local line = string.rep("-", 95)
   local lines = {
     "",
     "=== Documentation & Config Files ===",
     line,
-    str_fmt("| %-20s | %8s | %12s | %12s | %15s |",
-      "Type", "Files", "Lines", "Words", "Avg Lines/File"),
+    str_fmt(
+      "| %-20s | %8s | %12s | %12s | %15s |",
+      "Type",
+      "Files",
+      "Lines",
+      "Words",
+      "Avg Lines/File"
+    ),
     line,
   }
 
   local types = {
     { key = "markdown", label = "Markdown (*.md)" },
-    { key = "txt",      label = "Text/Help (*.txt)" },
-    { key = "json",     label = "JSON (*.json)" },
+    { key = "txt", label = "Text/Help (*.txt)" },
+    { key = "json", label = "JSON (*.json)" },
   }
 
   local tf, tl, tw = 0, 0, 0
   for _, t in ipairs(types) do
     local st = state[t.key]
     if st.file_count > 0 then
-      lines[#lines + 1] = str_fmt("| %-20s | %8d | %12d | %12d | %15.1f |",
-        t.label, st.file_count, st.total_lines, st.total_words,
-        st.total_lines / st.file_count)
+      lines[#lines + 1] = str_fmt(
+        "| %-20s | %8d | %12d | %12d | %15.1f |",
+        t.label,
+        st.file_count,
+        st.total_lines,
+        st.total_words,
+        st.total_lines / st.file_count
+      )
       tf, tl, tw = tf + st.file_count, tl + st.total_lines, tw + st.total_words
     end
   end
 
   if tf > 0 then
     lines[#lines + 1] = line
-    lines[#lines + 1] = str_fmt("| %-20s | %8d | %12d | %12d | %15.1f |",
-      "Total", tf, tl, tw, tl / tf)
+    lines[#lines + 1] =
+      str_fmt("| %-20s | %8d | %12d | %12d | %15.1f |", "Total", tf, tl, tw, tl / tf)
   end
   lines[#lines + 1] = line
   return lines
@@ -121,12 +134,12 @@ end
 ---@param state MiscState
 ---@return string[]
 function M.build_detailed(state)
-  local line  = string.rep("-", 95)
+  local line = string.rep("-", 95)
   local lines = {}
   local types = {
     { key = "markdown", label = "Markdown Files" },
-    { key = "txt",      label = "Text/Help Files" },
-    { key = "json",     label = "JSON Files" },
+    { key = "txt", label = "Text/Help Files" },
+    { key = "json", label = "JSON Files" },
   }
   for _, t in ipairs(types) do
     local st = state[t.key]

@@ -1,8 +1,10 @@
 ---@module 'insights.scan.rg'
 ---@brief Ripgrep command builder and executor.
+---
+--- Low-level scan utility: reports status only, never notifies the user
+--- directly — callers decide whether/how to surface an error (see
+--- Refactoring..md "fail late / report at the boundary").
 local M = {}
-
-local notify = require("insights.util.notify").create("[insights.scan.rg]")
 
 ---Build rg --vimgrep command arguments.
 ---@param pattern string   PCRE2 pattern
@@ -65,7 +67,9 @@ function M.exec_sync(cmd)
     result = res
   end)
 
-  local completed = vim.wait(TIMEOUT_MS, function() return result ~= nil end, 10)
+  local completed = vim.wait(TIMEOUT_MS, function()
+    return result ~= nil
+  end, 10)
   if not completed or not result then
     return {}, -1
   end
@@ -78,23 +82,23 @@ function M.exec_sync(cmd)
   return vim.split(out:gsub("\r?\n$", ""), "\r?\n"), result.code
 end
 
----Run one rg search and return lines; logs errors (exit != 0 and != 1).
+---Run one rg search and return lines. Never notifies — returns an error
+---message instead so the caller can decide whether/how to report it.
 ---@param cmd string[]
----@param label string   e.g. language name for error messages
----@return string[]
+---@param label string|nil   e.g. language name, used in the error message
+---@return string[] lines
+---@return string|nil err
 function M.run(cmd, label)
   if vim.fn.executable("rg") ~= 1 then
-    notify.error("ripgrep (rg) not found in PATH")
-    return {}
+    return {}, "ripgrep (rg) not found in PATH"
   end
   local lines, code = M.exec_sync(cmd)
   if code == 0 then
-    return lines
+    return lines, nil
   elseif code == 1 then
-    return {}  -- exit 1 = no matches, not an error
+    return {}, nil -- exit 1 = no matches, not an error
   else
-    notify.debug(string.format("%s: rg exited %d", label or "rg", code))
-    return {}
+    return {}, string.format("%s: rg exited %d", label or "rg", code)
   end
 end
 

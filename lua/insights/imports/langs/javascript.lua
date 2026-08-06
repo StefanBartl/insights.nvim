@@ -10,9 +10,9 @@ local M = {}
 
 local util = require("insights.imports.langs.util")
 
-M.id           = "javascript"
-M.label        = "JS/TS"
-M.extensions   = { "js", "jsx", "mjs", "cjs", "ts", "tsx" }
+M.id = "javascript"
+M.label = "JS/TS"
+M.extensions = { "js", "jsx", "mjs", "cjs", "ts", "tsx" }
 M.rg_prefilter = "\\b(import|require)\\b"
 
 ---@internal
@@ -69,10 +69,14 @@ function M.scan_source(src)
   local starts = util.line_starts(src)
   local consumed = {}
 
-  local function mark(s, e) consumed[#consumed + 1] = { s, e } end
+  local function mark(s, e)
+    consumed[#consumed + 1] = { s, e }
+  end
   local function is_consumed(pos)
     for _, r in ipairs(consumed) do
-      if pos >= r[1] and pos <= r[2] then return true end
+      if pos >= r[1] and pos <= r[2] then
+        return true
+      end
     end
     return false
   end
@@ -81,7 +85,9 @@ function M.scan_source(src)
   local pos = 1
   while true do
     local s, e, clause, mod = src:find("import%s+([^;]-)from%s*[\"']([^\"']+)[\"']", pos)
-    if not s then break end
+    if not s then
+      break
+    end
     mark(s, e)
     local lnum = util.lnum_at(starts, s)
     local entries = parse_clause(clause)
@@ -99,7 +105,9 @@ function M.scan_source(src)
   pos = 1
   while true do
     local s, e, mod = src:find("import%s*[\"']([^\"']+)[\"']", pos)
-    if not s then break end
+    if not s then
+      break
+    end
     result[#result + 1] = { module = mod, lnum = util.lnum_at(starts, s) }
     pos = e + 1
   end
@@ -108,7 +116,9 @@ function M.scan_source(src)
   pos = 1
   while true do
     local s, e, mod = src:find("import%s*%(%s*[\"']([^\"']+)[\"']%s*%)", pos)
-    if not s then break end
+    if not s then
+      break
+    end
     result[#result + 1] = { module = mod, lnum = util.lnum_at(starts, s) }
     pos = e + 1
   end
@@ -116,9 +126,11 @@ function M.scan_source(src)
   -- 4a. assigned require: `const x = require("mod")`
   pos = 1
   while true do
-    local s, e, name, mod = src:find(
-      "([%w_%$][%w_%$%.]*)%s*=%s*require%s*%(%s*[\"']([^\"']+)[\"']%s*%)", pos)
-    if not s then break end
+    local s, e, name, mod =
+      src:find("([%w_%$][%w_%$%.]*)%s*=%s*require%s*%(%s*[\"']([^\"']+)[\"']%s*%)", pos)
+    if not s then
+      break
+    end
     mark(s, e)
     result[#result + 1] = { module = mod, name = name, lnum = util.lnum_at(starts, s) }
     pos = e + 1
@@ -128,7 +140,9 @@ function M.scan_source(src)
   pos = 1
   while true do
     local s, e, mod = src:find("require%s*%(%s*[\"']([^\"']+)[\"']%s*%)", pos)
-    if not s then break end
+    if not s then
+      break
+    end
     if not is_consumed(s) then
       result[#result + 1] = { module = mod, lnum = util.lnum_at(starts, s) }
     end

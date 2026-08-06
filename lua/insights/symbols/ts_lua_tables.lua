@@ -6,8 +6,8 @@
 local M = {}
 
 local notify = require("insights.util.notify").create("[insights.symbols.ts_lua_tables]")
-local api    = vim.api
-local ts     = vim.treesitter
+local api = vim.api
+local ts = vim.treesitter
 
 ---@internal
 ---Build full dot-path for nested table assignments like `state.win = {}`.
@@ -15,7 +15,7 @@ local ts     = vim.treesitter
 ---@param bufnr integer
 ---@return string|nil
 local function build_table_path(node, bufnr)
-  local parts   = {}
+  local parts = {}
   local current = node
 
   while current do
@@ -46,20 +46,31 @@ end
 ---@param bufnr integer
 ---@return { name: string, lnum: integer, col: integer, filename: string|nil, func_type: string }[]
 function M.scan_buffer(bufnr)
-  if not api.nvim_buf_is_valid(bufnr) then return {} end
+  if not api.nvim_buf_is_valid(bufnr) then
+    return {}
+  end
 
   local ok_ft, ft = pcall(api.nvim_get_option_value, "filetype", { buf = bufnr })
-  if not ok_ft or ft ~= "lua" then return {} end
+  if not ok_ft or ft ~= "lua" then
+    return {}
+  end
 
   local ok_p, parser_obj = pcall(ts.get_parser, bufnr, "lua")
-  if not ok_p or not parser_obj then return {} end
+  if not ok_p or not parser_obj then
+    return {}
+  end
 
   local ok_t, trees = pcall(parser_obj.parse, parser_obj)
-  if not ok_t or not trees or #trees == 0 then return {} end
+  if not ok_t or not trees or #trees == 0 then
+    return {}
+  end
 
   local root = trees[1]:root()
 
-  local ok_q, query = pcall(ts.query.parse, "lua", [[
+  local ok_q, query = pcall(
+    ts.query.parse,
+    "lua",
+    [[
     ; local t = {}  /  t = {}
     (assignment_statement
       (variable_list
@@ -78,10 +89,13 @@ function M.scan_buffer(bufnr)
     (field
       name: (identifier) @field_name
       value: (table_constructor))
-  ]])
-  if not ok_q or not query then return {} end
+  ]]
+  )
+  if not ok_q or not query then
+    return {}
+  end
 
-  local seen   = {}
+  local seen = {}
   local result = {}
 
   for id, node in query:iter_captures(root, bufnr) do
@@ -91,21 +105,21 @@ function M.scan_buffer(bufnr)
 
     if capture == "name" then
       name = ts.get_node_text(node, bufnr)
-
     elseif capture == "path" then
       name = build_table_path(node, bufnr)
-
     elseif capture == "field_name" then
-      local raw  = ts.get_node_text(node, bufnr)
+      local raw = ts.get_node_text(node, bufnr)
       -- Try to prefix with parent assignment variable for context
-      local par  = node:parent()
+      local par = node:parent()
       while par and par:type() ~= "assignment_statement" do
         par = par:parent()
       end
       local ctx = nil
       if par then
         local vl = par:field("variable_list")[1]
-        if vl then ctx = ts.get_node_text(vl, bufnr) end
+        if vl then
+          ctx = ts.get_node_text(vl, bufnr)
+        end
       end
       name = ctx and (ctx .. "." .. raw) or raw
     end
@@ -113,23 +127,25 @@ function M.scan_buffer(bufnr)
     if name and not seen[name] then
       seen[name] = true
       result[#result + 1] = {
-        name      = name,
-        lnum      = row + 1,
-        col       = col,
-        filename  = nil,
+        name = name,
+        lnum = row + 1,
+        col = col,
+        filename = nil,
         func_type = "table",
       }
     end
   end
 
-  table.sort(result, function(a, b) return a.name < b.name end)
+  table.sort(result, function(a, b)
+    return a.name < b.name
+  end)
   return result
 end
 
 ---Scan all .lua files in cwd.
 ---@return table[]
 function M.scan_cwd()
-  local cwd   = vim.fn.getcwd()
+  local cwd = vim.fn.getcwd()
   local files = vim.fn.globpath(cwd, "**/*.lua", false, true)
 
   local ignore = { "/%.git/", "/node_modules/", "/%.cache/", "/build/", "/dist/", "/target/" }
@@ -137,9 +153,14 @@ function M.scan_cwd()
   for _, f in ipairs(files) do
     local ok = true
     for _, pat in ipairs(ignore) do
-      if f:match(pat) then ok = false; break end
+      if f:match(pat) then
+        ok = false
+        break
+      end
     end
-    if ok then filtered[#filtered + 1] = f end
+    if ok then
+      filtered[#filtered + 1] = f
+    end
   end
 
   if #filtered == 0 then

@@ -9,7 +9,7 @@
 local M = {}
 
 local resolve = require("insights.imports.resolve")
-local notify  = require("insights.util.notify").create("[insights.imports]")
+local notify = require("insights.util.notify").create("[insights.imports]")
 
 local ts = vim.treesitter
 
@@ -19,7 +19,9 @@ local ts = vim.treesitter
 ---@return string[]|nil
 local function read_lines(path)
   local ok, src = pcall(vim.fn.readfile, path)
-  if ok and type(src) == "table" then return src end
+  if ok and type(src) == "table" then
+    return src
+  end
   return nil
 end
 
@@ -30,14 +32,18 @@ end
 ---@param src string
 ---@return string|nil
 local function last_name(node, src)
-  if not node then return nil end
+  if not node then
+    return nil
+  end
   local t = node:type()
   if t == "identifier" then
     return ts.get_node_text(node, src)
   end
   if t == "dot_index_expression" or t == "method_index_expression" then
     local f = node:field("field")[1] or node:field("method")[1]
-    if f then return ts.get_node_text(f, src) end
+    if f then
+      return ts.get_node_text(f, src)
+    end
   end
   return nil
 end
@@ -50,7 +56,9 @@ end
 local function child_of_type(node, type_name)
   for i = 0, node:named_child_count() - 1 do
     local ch = node:named_child(i)
-    if ch:type() == type_name then return ch end
+    if ch:type() == type_name then
+      return ch
+    end
   end
   return nil
 end
@@ -64,14 +72,20 @@ end
 ---@return { srow: integer, erow: integer }|nil   0-based inclusive rows
 local function ts_find(src, field)
   local ok_p, parser = pcall(ts.get_string_parser, src, "lua")
-  if not ok_p or not parser then return nil end
+  if not ok_p or not parser then
+    return nil
+  end
   local ok_t, trees = pcall(parser.parse, parser)
-  if not ok_t or not trees or #trees == 0 then return nil end
+  if not ok_t or not trees or #trees == 0 then
+    return nil
+  end
 
   local found
   ---@param node TSNode
   local function visit(node)
-    if found then return end
+    if found then
+      return
+    end
     local t = node:type()
 
     if t == "function_declaration" then
@@ -96,18 +110,24 @@ local function ts_find(src, field)
       end
     end
 
-    if found then return end
+    if found then
+      return
+    end
     for i = 0, node:named_child_count() - 1 do
       visit(node:named_child(i))
     end
   end
 
   visit(trees[1]:root())
-  if not found then return nil end
+  if not found then
+    return nil
+  end
 
   local srow, _, erow, ecol = found:range()
   -- range()'s end is exclusive of the last line when ecol == 0.
-  if ecol == 0 and erow > srow then erow = erow - 1 end
+  if ecol == 0 and erow > srow then
+    erow = erow - 1
+  end
   return { srow = srow, erow = erow }
 end
 
@@ -120,14 +140,14 @@ local function regex_find(lines, field)
   local fp = vim.pesc(field)
   -- Ordered so function definitions win over plain data assignments.
   local patterns = {
-    "^%s*function%s+[%w_%.:]*[%.:]" .. fp .. "%s*%(",  -- function M.field(
-    "^%s*local%s+function%s+" .. fp .. "%s*%(",         -- local function field(
-    "^%s*function%s+" .. fp .. "%s*%(",                 -- function field(
-    "^%s*[%w_%.]*%." .. fp .. "%s*=%s*function",        -- M.field = function
-    "^%s*local%s+" .. fp .. "%s*=%s*function",          -- local field = function
-    "^%s*[%w_%.]*%." .. fp .. "%s*=",                   -- M.field = <data>
-    "^%s*local%s+" .. fp .. "%s*=",                     -- local field = <data>
-    "^%s*" .. fp .. "%s*=",                             -- field = <table entry>
+    "^%s*function%s+[%w_%.:]*[%.:]" .. fp .. "%s*%(", -- function M.field(
+    "^%s*local%s+function%s+" .. fp .. "%s*%(", -- local function field(
+    "^%s*function%s+" .. fp .. "%s*%(", -- function field(
+    "^%s*[%w_%.]*%." .. fp .. "%s*=%s*function", -- M.field = function
+    "^%s*local%s+" .. fp .. "%s*=%s*function", -- local field = function
+    "^%s*[%w_%.]*%." .. fp .. "%s*=", -- M.field = <data>
+    "^%s*local%s+" .. fp .. "%s*=", -- local field = <data>
+    "^%s*" .. fp .. "%s*=", -- field = <table entry>
   }
   for _, pat in ipairs(patterns) do
     for i, line in ipairs(lines) do
@@ -196,15 +216,17 @@ local function open_float(loc, border)
   for i = loc.srow + 1, math.min(#lines, loc.erow + 1) do
     body[#body + 1] = lines[i]
   end
-  if #body == 0 then body = { "(empty)" } end
+  if #body == 0 then
+    body = { "(empty)" }
+  end
 
   local header = string.format("%s:%d", vim.fn.fnamemodify(loc.path, ":."), loc.srow + 1)
   table.insert(body, 1, "── " .. header .. " ──")
 
   vim.lsp.util.open_floating_preview(body, "lua", {
-    border     = border or "rounded",
-    focusable  = true,
-    max_width  = math.min(120, math.max(40, vim.o.columns - 4)),
+    border = border or "rounded",
+    focusable = true,
+    max_width = math.min(120, math.max(40, vim.o.columns - 4)),
     max_height = math.min(30, math.max(8, vim.o.lines - 6)),
     close_events = { "CursorMoved", "BufHidden", "InsertEnter", "FocusLost" },
   })

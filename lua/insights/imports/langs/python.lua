@@ -8,8 +8,8 @@ local M = {}
 
 local util = require("insights.imports.langs.util")
 
-M.id         = "python"
-M.label      = "Python"
+M.id = "python"
+M.label = "Python"
 M.extensions = { "py" }
 M.rg_prefilter = "^\\s*(import|from)\\s"
 
@@ -20,7 +20,9 @@ M.rg_prefilter = "^\\s*(import|from)\\s"
 ---@return string
 local function strip_comment(line)
   local idx = line:find("#")
-  if idx then return line:sub(1, idx - 1) end
+  if idx then
+    return line:sub(1, idx - 1)
+  end
   return line
 end
 
@@ -40,14 +42,22 @@ function M.scan_source(src)
     if from_mod then
       local buf = rest
       local depth = 0
-      for _ in buf:gmatch("%(") do depth = depth + 1 end
-      for _ in buf:gmatch("%)") do depth = depth - 1 end
+      for _ in buf:gmatch("%(") do
+        depth = depth + 1
+      end
+      for _ in buf:gmatch("%)") do
+        depth = depth - 1
+      end
       while depth > 0 and i < #lines do
         i = i + 1
         local cont = strip_comment(lines[i])
         buf = buf .. " " .. cont
-        for _ in cont:gmatch("%(") do depth = depth + 1 end
-        for _ in cont:gmatch("%)") do depth = depth - 1 end
+        for _ in cont:gmatch("%(") do
+          depth = depth + 1
+        end
+        for _ in cont:gmatch("%)") do
+          depth = depth - 1
+        end
       end
       buf = buf:gsub("[%(%)\\]", "")
 
@@ -58,9 +68,9 @@ function M.scan_source(src)
           if symbol:match("^[%w_]+$") then
             result[#result + 1] = {
               module = from_mod,
-              name   = alias or symbol,
-              field  = alias and symbol or nil,
-              lnum   = lnum,
+              name = alias or symbol,
+              field = alias and symbol or nil,
+              lnum = lnum,
             }
           end
         end
@@ -91,7 +101,9 @@ end
 ---@param cwd string
 ---@return boolean external
 function M.is_external(module, cwd)
-  if module:sub(1, 1) == "." then return false end
+  if module:sub(1, 1) == "." then
+    return false
+  end
 
   local rel = (module:gsub("%.", "/"))
   local candidates = {
@@ -99,7 +111,9 @@ function M.is_external(module, cwd)
     cwd .. "/" .. rel .. "/__init__.py",
   }
   for _, p in ipairs(candidates) do
-    if vim.fn.filereadable(p) == 1 then return false end
+    if vim.fn.filereadable(p) == 1 then
+      return false
+    end
   end
   return true
 end

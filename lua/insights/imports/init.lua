@@ -15,10 +15,10 @@
 ---   :Insights imports unused           -- bound names never referenced again
 local M = {}
 
-local notify   = require("insights.util.notify").create("[insights.imports]")
-local config   = require("insights.config")
-local rg       = require("insights.scan.rg")
-local langs    = require("insights.imports.langs")
+local notify = require("insights.util.notify").create("[insights.imports]")
+local config = require("insights.config")
+local rg = require("insights.scan.rg")
+local langs = require("insights.imports.langs")
 
 ---@class ImportEntry
 ---@field module   string   the required module path, e.g. "insights.config"
@@ -56,7 +56,9 @@ end
 local function skip_path(path)
   local norm = path:gsub("\\", "/")
   for _, pat in ipairs(IGNORE) do
-    if norm:match(pat) then return true end
+    if norm:match(pat) then
+      return true
+    end
   end
   return false
 end
@@ -70,7 +72,9 @@ local function glob_files(cwd, ext)
   local files = vim.fn.globpath(cwd, "**/*." .. ext, false, true)
   local todo = {}
   for _, path in ipairs(files) do
-    if not skip_path(path) then todo[#todo + 1] = path end
+    if not skip_path(path) then
+      todo[#todo + 1] = path
+    end
   end
   return todo
 end
@@ -90,15 +94,18 @@ local function candidate_files(cwd, lang_mod)
       cmd[#cmd + 1] = "--glob"
       cmd[#cmd + 1] = "*." .. ext
     end
-    for _, excl in ipairs((cfg.symbols and cfg.symbols.indexing
-                           and cfg.symbols.indexing.exclude_patterns) or {}) do
+    for _, excl in
+      ipairs((cfg.symbols and cfg.symbols.indexing and cfg.symbols.indexing.exclude_patterns) or {})
+    do
       cmd[#cmd + 1] = "--glob"
       cmd[#cmd + 1] = "!" .. excl
     end
     cmd[#cmd + 1] = lang_mod.rg_prefilter
     cmd[#cmd + 1] = cwd
     local lines, code = rg.exec_sync(cmd)
-    if code <= 1 then return lines end
+    if code <= 1 then
+      return lines
+    end
   end
 
   local files = {}
@@ -116,19 +123,21 @@ end
 ---@param raw RawImport[]
 local function scan_file(lang_mod, path, use_ts, raw)
   local ok, src_lines = pcall(vim.fn.readfile, path)
-  if not ok or not src_lines then return end
+  if not ok or not src_lines then
+    return
+  end
   local rel = vim.fn.fnamemodify(path, ":."):gsub("\\", "/")
   local src = table.concat(src_lines, "\n")
   local scanner = (use_ts and lang_mod.ts_scan_source) or lang_mod.scan_source
   for _, e in ipairs(scanner(src)) do
     raw[#raw + 1] = {
-      module   = e.module,
-      name     = e.name,
-      field    = e.field,
+      module = e.module,
+      name = e.name,
+      field = e.field,
       external = e.external,
       filename = rel,
-      lnum     = e.lnum,
-      lang     = lang_mod.id,
+      lnum = e.lnum,
+      lang = lang_mod.id,
     }
   end
 end
@@ -137,11 +146,13 @@ end
 --- Languages enabled by `imports.languages` (default: all).
 ---@return table[]
 local function enabled_languages()
-  local cfg    = config.get()
+  local cfg = config.get()
   local wanted = (cfg.imports and cfg.imports.languages) or {}
   local out = {}
   for _, id in ipairs(langs.order) do
-    if wanted[id] ~= false then out[#out + 1] = langs.registry[id] end
+    if wanted[id] ~= false then
+      out[#out + 1] = langs.registry[id]
+    end
   end
   return out
 end
@@ -150,13 +161,19 @@ end
 --- Resolve the Lua backend from config + parser availability.
 ---@return "treesitter"|"ripgrep"
 local function lua_backend()
-  local engine  = (config.get().imports and config.get().imports.engine) or "auto"
+  local engine = (config.get().imports and config.get().imports.engine) or "auto"
   local lua_mod = langs.registry.lua
-  local ts_ok   = lua_mod.ts_available()
-  if engine == "ripgrep" then return "ripgrep" end
+  local ts_ok = lua_mod.ts_available()
+  if engine == "ripgrep" then
+    return "ripgrep"
+  end
   if engine == "treesitter" or (engine == "auto" and ts_ok) then
-    if ts_ok then return "treesitter" end
-    notify.warn("imports.engine = treesitter but the Lua parser is unavailable — falling back to ripgrep")
+    if ts_ok then
+      return "treesitter"
+    end
+    notify.warn(
+      "imports.engine = treesitter but the Lua parser is unavailable — falling back to ripgrep"
+    )
   end
   return "ripgrep"
 end
@@ -205,17 +222,22 @@ local function build_data(raw, methods, cwd)
     counts[k] = (counts[k] or 0) + 1
     lang_totals[e.lang] = (lang_totals[e.lang] or 0) + 1
     entries[#entries + 1] = {
-      module   = e.module,
-      name     = e.name,
-      field    = e.field,
+      module = e.module,
+      name = e.name,
+      field = e.field,
       filename = e.filename,
-      lnum     = e.lnum,
-      lang     = e.lang,
+      lnum = e.lnum,
+      lang = e.lang,
       external = externals[k],
     }
   end
-  return { entries = entries, counts = counts, externals = externals,
-           lang_totals = lang_totals, methods = methods }
+  return {
+    entries = entries,
+    counts = counts,
+    externals = externals,
+    lang_totals = lang_totals,
+    methods = methods,
+  }
 end
 
 --- Scan the cwd for all import/require calls (synchronous — for the Lua API).
@@ -238,9 +260,9 @@ end
 function M.scan_cwd_async(cb)
   local cwd = vim.fn.getcwd()
   local todo, methods = build_worklist(cwd)
-  local raw   = {}
+  local raw = {}
   local CHUNK = 40
-  local i     = 1
+  local i = 1
 
   local function step()
     local stop = math.min(i + CHUNK - 1, #todo)
@@ -256,7 +278,11 @@ function M.scan_cwd_async(cb)
     end
   end
 
-  if #todo == 0 then cb(build_data(raw, methods, cwd)) else step() end
+  if #todo == 0 then
+    cb(build_data(raw, methods, cwd))
+  else
+    step()
+  end
 end
 
 ---@internal
@@ -264,12 +290,14 @@ end
 ---@param filters string[]
 ---@return string[]
 local function expand_filters(filters)
-  local cfg    = config.get()
+  local cfg = config.get()
   local groups = (cfg.imports and cfg.imports.groups) or {}
-  local out    = {}
+  local out = {}
   for _, f in ipairs(filters) do
     if groups[f] then
-      for _, p in ipairs(groups[f]) do out[#out + 1] = p end
+      for _, p in ipairs(groups[f]) do
+        out[#out + 1] = p
+      end
     else
       out[#out + 1] = f
     end
@@ -283,10 +311,11 @@ end
 ---@param prefixes string[]
 ---@return boolean
 local function matches(module, prefixes)
-  if #prefixes == 0 then return true end
+  if #prefixes == 0 then
+    return true
+  end
   for _, p in ipairs(prefixes) do
-    if module == p or module:sub(1, #p + 1) == p .. "."
-       or module:sub(1, #p + 2) == p .. "::" then
+    if module == p or module:sub(1, #p + 1) == p .. "." or module:sub(1, #p + 2) == p .. "::" then
       return true
     end
   end
@@ -294,9 +323,17 @@ local function matches(module, prefixes)
 end
 
 local LANG_ALIASES = {
-  py = "python", js = "javascript", ts = "javascript",
-  jsx = "javascript", tsx = "javascript", mjs = "javascript", cjs = "javascript",
-  rs = "rust", cpp = "c", h = "c", hpp = "c",
+  py = "python",
+  js = "javascript",
+  ts = "javascript",
+  jsx = "javascript",
+  tsx = "javascript",
+  mjs = "javascript",
+  cjs = "javascript",
+  rs = "rust",
+  cpp = "c",
+  h = "c",
+  hpp = "c",
 }
 
 ---@internal
@@ -304,7 +341,9 @@ local LANG_ALIASES = {
 ---@param tok string
 ---@return string|nil
 local function resolve_lang_token(tok)
-  if langs.registry[tok] then return tok end
+  if langs.registry[tok] then
+    return tok
+  end
   return LANG_ALIASES[tok]
 end
 
@@ -318,7 +357,11 @@ local function split_filters(filters)
   local lang_sel, rest = {}, {}
   for _, f in ipairs(filters) do
     local lid = resolve_lang_token(f)
-    if lid then lang_sel[lid] = true else rest[#rest + 1] = f end
+    if lid then
+      lang_sel[lid] = true
+    else
+      rest[#rest + 1] = f
+    end
   end
   return lang_sel, rest
 end
@@ -341,9 +384,15 @@ function M.filtered_entries(data, filters)
   end
 
   table.sort(entries, function(a, b)
-    if a.lang ~= b.lang then return a.lang < b.lang end
-    if a.module ~= b.module then return a.module < b.module end
-    if a.filename ~= b.filename then return a.filename < b.filename end
+    if a.lang ~= b.lang then
+      return a.lang < b.lang
+    end
+    if a.module ~= b.module then
+      return a.module < b.module
+    end
+    if a.filename ~= b.filename then
+      return a.filename < b.filename
+    end
     return a.lnum < b.lnum
   end)
 
@@ -358,7 +407,7 @@ end
 ---@return string[] lines, table<integer, { module: string, field: string|nil, lang: string }> line_index
 function M.build_report(data, filters)
   filters = filters or {}
-  local root    = vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
+  local root = vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
   local entries = M.filtered_entries(data, filters)
 
   local counts = {}
@@ -368,9 +417,7 @@ function M.build_report(data, filters)
   end
 
   local unique = vim.tbl_count(counts)
-  local title  = (#filters > 0)
-    and string.format(" [filter: %s]", table.concat(filters, ", "))
-    or  ""
+  local title = (#filters > 0) and string.format(" [filter: %s]", table.concat(filters, ", ")) or ""
 
   local lines = {
     string.format("=== Imports — %s ===%s", root, title),
@@ -380,9 +427,13 @@ function M.build_report(data, filters)
   for _, id in ipairs(langs.order) do
     if data.lang_totals[id] then
       local lang_mod = langs.registry[id]
-      lines[#lines + 1] = string.format("  %-10s: %4d call%s   (backend: %s)",
-        lang_mod.label, data.lang_totals[id],
-        data.lang_totals[id] == 1 and "" or "s", data.methods[id] or "?")
+      lines[#lines + 1] = string.format(
+        "  %-10s: %4d call%s   (backend: %s)",
+        lang_mod.label,
+        data.lang_totals[id],
+        data.lang_totals[id] == 1 and "" or "s",
+        data.methods[id] or "?"
+      )
     end
   end
 
@@ -399,15 +450,19 @@ function M.build_report(data, filters)
     mods[#mods + 1] = { lang = lang, module = mod, count = c }
   end
   table.sort(mods, function(a, b)
-    if a.count ~= b.count then return a.count > b.count end
-    if a.module ~= b.module then return a.module < b.module end
+    if a.count ~= b.count then
+      return a.count > b.count
+    end
+    if a.module ~= b.module then
+      return a.module < b.module
+    end
     return a.lang < b.lang
   end)
 
   for _, m in ipairs(mods) do
     local tag = data.externals[ckey(m.lang, m.module)] and "  (extern)" or ""
-    lines[#lines + 1] = string.format("  %3d  [%-3s] %s%s",
-      m.count, langs.tags[m.lang] or m.lang, m.module, tag)
+    lines[#lines + 1] =
+      string.format("  %3d  [%-3s] %s%s", m.count, langs.tags[m.lang] or m.lang, m.module, tag)
     line_index[#lines] = { module = m.module, lang = m.lang }
   end
 
@@ -416,9 +471,17 @@ function M.build_report(data, filters)
 
   for _, e in ipairs(entries) do
     local imported = e.name or "?"
-    if e.field then imported = imported .. " (." .. e.field .. ")" end
-    lines[#lines + 1] = string.format("%s:%d  [%-3s] %-32s  %s",
-      e.filename, e.lnum, langs.tags[e.lang] or e.lang, e.module, imported)
+    if e.field then
+      imported = imported .. " (." .. e.field .. ")"
+    end
+    lines[#lines + 1] = string.format(
+      "%s:%d  [%-3s] %-32s  %s",
+      e.filename,
+      e.lnum,
+      langs.tags[e.lang] or e.lang,
+      e.module,
+      imported
+    )
     line_index[#lines] = { module = e.module, field = e.field, lang = e.lang }
   end
 
@@ -448,11 +511,15 @@ function M.build_reverse_report(data, query)
   local root = vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
   local entries = {}
   for _, e in ipairs(data.entries) do
-    if matches(e.module, { query }) then entries[#entries + 1] = e end
+    if matches(e.module, { query }) then
+      entries[#entries + 1] = e
+    end
   end
 
   table.sort(entries, function(a, b)
-    if a.filename ~= b.filename then return a.filename < b.filename end
+    if a.filename ~= b.filename then
+      return a.filename < b.filename
+    end
     return a.lnum < b.lnum
   end)
 
@@ -471,9 +538,11 @@ function M.build_reverse_report(data, query)
   }
   for _, e in ipairs(entries) do
     local imported = e.name or "?"
-    if e.field then imported = imported .. " (." .. e.field .. ")" end
-    lines[#lines + 1] = string.format("%s:%d  [%-3s] %s",
-      e.filename, e.lnum, langs.tags[e.lang] or e.lang, imported)
+    if e.field then
+      imported = imported .. " (." .. e.field .. ")"
+    end
+    lines[#lines + 1] =
+      string.format("%s:%d  [%-3s] %s", e.filename, e.lnum, langs.tags[e.lang] or e.lang, imported)
   end
   if #entries == 0 then
     lines[#lines + 1] = "  (no file imports '" .. query .. "')"
@@ -489,7 +558,9 @@ end
 ---@return integer
 local function count_word(text, name)
   local n = 0
-  for _ in text:gmatch("%f[%w_]" .. vim.pesc(name) .. "%f[%W]") do n = n + 1 end
+  for _ in text:gmatch("%f[%w_]" .. vim.pesc(name) .. "%f[%W]") do
+    n = n + 1
+  end
   return n
 end
 
@@ -501,7 +572,7 @@ end
 ---@return string[]
 function M.build_unused_report(data, filters)
   filters = filters or {}
-  local root    = vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
+  local root = vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
   local entries = M.filtered_entries(data, filters)
 
   local file_cache = {}
@@ -523,9 +594,7 @@ function M.build_unused_report(data, filters)
     end
   end
 
-  local title = (#filters > 0)
-    and string.format(" [filter: %s]", table.concat(filters, ", "))
-    or  ""
+  local title = (#filters > 0) and string.format(" [filter: %s]", table.concat(filters, ", ")) or ""
 
   local lines = {
     string.format("=== Imports — Unused — %s ===%s", root, title),
@@ -535,8 +604,14 @@ function M.build_unused_report(data, filters)
     "",
   }
   for _, e in ipairs(unused) do
-    lines[#lines + 1] = string.format("%s:%d  [%-3s] %-32s  %s",
-      e.filename, e.lnum, langs.tags[e.lang] or e.lang, e.module, e.name)
+    lines[#lines + 1] = string.format(
+      "%s:%d  [%-3s] %-32s  %s",
+      e.filename,
+      e.lnum,
+      langs.tags[e.lang] or e.lang,
+      e.module,
+      e.name
+    )
   end
   if #unused == 0 then
     lines[#lines + 1] = "  (none found)"
@@ -550,14 +625,20 @@ end
 ---@param out_path string
 ---@return boolean, string|nil
 function M.write_report(lines, out_path)
-  if not out_path or out_path == "" then return false, "no output_file configured" end
+  if not out_path or out_path == "" then
+    return false, "no output_file configured"
+  end
   local dir = vim.fn.fnamemodify(out_path, ":h")
   if vim.fn.isdirectory(dir) == 0 then
     local ok, err = pcall(vim.fn.mkdir, dir, "p")
-    if not ok then return false, tostring(err) end
+    if not ok then
+      return false, tostring(err)
+    end
   end
   local fh = io.open(out_path, "w")
-  if not fh then return false, "could not open file" end
+  if not fh then
+    return false, "could not open file"
+  end
   fh:write(table.concat(lines, "\n"))
   fh:close()
   return true, nil
@@ -573,9 +654,9 @@ local function to_picker_entries(entries)
   local out = {}
   for _, e in ipairs(entries) do
     out[#out + 1] = {
-      filename  = e.filename,
-      lnum      = e.lnum,
-      name      = e.module,
+      filename = e.filename,
+      lnum = e.lnum,
+      name = e.module,
       func_type = langs.tags[e.lang] or e.lang,
     }
   end
@@ -602,8 +683,11 @@ local function present(data, filters, ui)
   local out_path = cfg.imports and cfg.imports.output_file
   if out_path and out_path ~= "" then
     local ok, err = M.write_report(report, out_path)
-    if ok then notify.info("report written: " .. out_path)
-    else       notify.warn("could not write report: " .. tostring(err)) end
+    if ok then
+      notify.info("report written: " .. out_path)
+    else
+      notify.warn("could not write report: " .. tostring(err))
+    end
   end
 
   if ui == "telescope" or ui == "fzf" then
@@ -623,7 +707,7 @@ local function present(data, filters, ui)
   end
 
   local def_cfg = (cfg.imports and cfg.imports.definition) or {}
-  local maps    = def_cfg.keymaps or {}
+  local maps = def_cfg.keymaps or {}
 
   -- Resolve the import on the current report line and reveal its definition.
   ---@param view "edit"|"float"
@@ -637,24 +721,41 @@ local function present(data, filters, ui)
       notify.info("go to definition is currently Lua-only (this is a " .. entry.lang .. " import)")
       return
     end
-    require("insights.imports.definition").reveal(entry, view,
-      { border = def_cfg.border or "rounded" })
+    require("insights.imports.definition").reveal(
+      entry,
+      view,
+      { border = def_cfg.border or "rounded" }
+    )
   end
 
   ---@type ScratchKeymap[]
   local keymaps = {}
   if maps.jump ~= false then
-    keymaps[#keymaps + 1] = { "n", maps.jump or "gd", function() reveal(def_cfg.view or "edit") end,
-      desc = "insights: go to import definition" }
+    keymaps[#keymaps + 1] = {
+      "n",
+      maps.jump or "gd",
+      function()
+        reveal(def_cfg.view or "edit")
+      end,
+      desc = "insights: go to import definition",
+    }
   end
   if maps.preview ~= false then
-    keymaps[#keymaps + 1] = { "n", maps.preview or "gp", function() reveal("float") end,
-      desc = "insights: preview import definition" }
+    keymaps[#keymaps + 1] = {
+      "n",
+      maps.preview or "gp",
+      function()
+        reveal("float")
+      end,
+      desc = "insights: preview import definition",
+    }
   end
 
-  require("insights.ui.scratch").open(report,
+  require("insights.ui.scratch").open(
+    report,
     "Imports — " .. vim.fn.fnamemodify(vim.fn.getcwd(), ":t"),
-    { keymaps = keymaps })
+    { keymaps = keymaps }
+  )
 end
 
 --- Run the import analysis and open the report.

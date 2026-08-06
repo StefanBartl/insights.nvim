@@ -9,9 +9,9 @@ local M = {}
 
 local util = require("insights.imports.langs.util")
 
-M.id           = "c"
-M.label        = "C/C++"
-M.extensions   = { "c", "h", "cc", "cpp", "cxx", "hpp", "hxx", "hh" }
+M.id = "c"
+M.label = "C/C++"
+M.extensions = { "c", "h", "cc", "cpp", "cxx", "hpp", "hxx", "hh" }
 M.rg_prefilter = "#\\s*include"
 
 --- Scan C/C++ source text for #include directives.
@@ -25,7 +25,9 @@ function M.scan_source(src)
     local pos = 1
     while true do
       local s, e, path = src:find(pattern, pos)
-      if not s then break end
+      if not s then
+        break
+      end
       result[#result + 1] = { module = path, external = is_ext, lnum = util.lnum_at(starts, s) }
       pos = e + 1
     end

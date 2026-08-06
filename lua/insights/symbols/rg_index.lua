@@ -2,11 +2,11 @@
 ---@brief Ripgrep-based symbol indexer with cache support.
 local M = {}
 
-local notify   = require("insights.util.notify").create("[insights.symbols.rg_index]")
-local rg       = require("insights.scan.rg")
-local cache    = require("insights.scan.cache")
+local notify = require("insights.util.notify").create("[insights.symbols.rg_index]")
+local rg = require("insights.scan.rg")
+local cache = require("insights.scan.cache")
 local patterns = require("insights.symbols.patterns")
-local parser   = require("insights.symbols.parser")
+local parser = require("insights.symbols.parser")
 
 local ok_progress, progress_mod = pcall(require, "lib.nvim.progress")
 
@@ -25,7 +25,11 @@ local function start_progress(total, style)
     return nil
   end
   local handle = progress_mod.create({ title = "[insights]", style = style or "auto" })
-  handle:update({ text = string.format("indexing symbols (%d passes)", total), current = 0, total = total })
+  handle:update({
+    text = string.format("indexing symbols (%d passes)", total),
+    current = 0,
+    total = total,
+  })
   return handle
 end
 
@@ -38,12 +42,12 @@ function M.build(cfg)
 
   if vim.fn.executable("rg") ~= 1 then
     local msg = "ripgrep (rg) not found in PATH"
-    return {}, { msg }, { total_files=0, total_symbols=0, duration=0 }
+    return {}, { msg }, { total_files = 0, total_symbols = 0, duration = 0 }
   end
 
   local pats = patterns.get_patterns(sym_cfg.languages)
   if #pats == 0 then
-    return {}, { "no languages enabled" }, { total_files=0, total_symbols=0, duration=0 }
+    return {}, { "no languages enabled" }, { total_files = 0, total_symbols = 0, duration = 0 }
   end
 
   local idx_cfg = sym_cfg.indexing or {}
@@ -87,9 +91,12 @@ function M.build(cfg)
       local cmd = rg.build_cmd(pat.pattern, exts, {
         exclude_patterns = idx_cfg.exclude_patterns,
         max_file_size_kb = idx_cfg.max_file_size_kb,
-        follow_symlinks  = idx_cfg.follow_symlinks,
+        follow_symlinks = idx_cfg.follow_symlinks,
       })
-      local lines = rg.run(cmd, pat.language)
+      local lines, run_err = rg.run(cmd, pat.language)
+      if run_err then
+        errors[#errors + 1] = run_err
+      end
       for _, l in ipairs(lines) do
         all_lines[#all_lines + 1] = l
       end
@@ -104,18 +111,26 @@ function M.build(cfg)
   notify.debug(string.format("rg produced %d lines", #all_lines))
 
   local entries, parse_errors = parser.parse(all_lines, sym_cfg.languages)
-  for _, e in ipairs(parse_errors) do errors[#errors + 1] = e end
+  for _, e in ipairs(parse_errors) do
+    errors[#errors + 1] = e
+  end
 
   local files = {}
-  for _, e in ipairs(entries) do files[e.filename] = true end
+  for _, e in ipairs(entries) do
+    files[e.filename] = true
+  end
   local file_count = 0
-  for _ in pairs(files) do file_count = file_count + 1 end
+  for _ in pairs(files) do
+    file_count = file_count + 1
+  end
 
-  return entries, errors, {
-    total_files   = file_count,
-    total_symbols = #entries,
-    duration      = os.time() - t0,
-  }
+  return entries,
+    errors,
+    {
+      total_files = file_count,
+      total_symbols = #entries,
+      duration = os.time() - t0,
+    }
 end
 
 ---Get index (from cache or fresh build).
@@ -130,24 +145,37 @@ function M.get(cfg, force_rebuild)
     if cached then
       return cached, string.format("cache: %d symbols", #cached)
     end
-    if reason then notify.debug("cache miss: " .. reason) end
+    if reason then
+      notify.debug("cache miss: " .. reason)
+    end
   end
 
   local entries, errors, stats = M.build(cfg)
   if #errors > 0 then
-    notify.warn(string.format(
-      "built index with %d errors (%d symbols in %d files)",
-      #errors, stats.total_symbols, stats.total_files))
+    notify.warn(
+      string.format(
+        "built index with %d errors (%d symbols in %d files)",
+        #errors,
+        stats.total_symbols,
+        stats.total_files
+      )
+    )
   end
 
   if c.enabled and #entries > 0 then
     local ok, err = cache.save(c.dir, "symbols", entries)
-    if not ok then notify.warn("cache save failed: " .. tostring(err)) end
+    if not ok then
+      notify.warn("cache save failed: " .. tostring(err))
+    end
   end
 
-  return entries, string.format(
-    "indexed %d symbols in %d files (%ds)",
-    stats.total_symbols, stats.total_files, stats.duration)
+  return entries,
+    string.format(
+      "indexed %d symbols in %d files (%ds)",
+      stats.total_symbols,
+      stats.total_files,
+      stats.duration
+    )
 end
 
 ---Rebuild cache.

@@ -24,6 +24,13 @@ into a single unified command.
 
 ---
 
+## Table of contents
+
+- [Quickstart](#quickstart)
+- [Documentation](#documentation)
+
+---
+
 ## Quickstart
 
 Requires Neovim ≥ 0.9, [`lib.nvim`](https://github.com/StefanBartl/lib.nvim),

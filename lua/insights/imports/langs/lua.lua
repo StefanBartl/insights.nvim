@@ -5,9 +5,9 @@
 ---       forces `"ripgrep"`.
 local M = {}
 
-M.id           = "lua"
-M.label        = "Lua"
-M.extensions   = { "lua" }
+M.id = "lua"
+M.label = "Lua"
+M.extensions = { "lua" }
 M.rg_prefilter = "require"
 
 ---@internal
@@ -93,7 +93,9 @@ function M.is_external(module, cwd)
     cwd .. "/" .. rel .. "/init.lua",
   }
   for _, p in ipairs(candidates) do
-    if vim.fn.filereadable(p) == 1 then return false end
+    if vim.fn.filereadable(p) == 1 then
+      return false
+    end
   end
   return true
 end

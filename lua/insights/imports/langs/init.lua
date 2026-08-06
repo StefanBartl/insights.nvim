@@ -11,12 +11,12 @@ local M = {}
 
 ---@type table<string, table>
 M.registry = {
-  lua        = require("insights.imports.langs.lua"),
-  python     = require("insights.imports.langs.python"),
+  lua = require("insights.imports.langs.lua"),
+  python = require("insights.imports.langs.python"),
   javascript = require("insights.imports.langs.javascript"),
-  go         = require("insights.imports.langs.go"),
-  rust       = require("insights.imports.langs.rust"),
-  c          = require("insights.imports.langs.c"),
+  go = require("insights.imports.langs.go"),
+  rust = require("insights.imports.langs.rust"),
+  c = require("insights.imports.langs.c"),
 }
 
 --- Deterministic iteration order.
@@ -24,12 +24,12 @@ M.order = { "lua", "python", "javascript", "go", "rust", "c" }
 
 --- Short display tag for the report (`[lua ]`, `[py  ]`, …).
 M.tags = {
-  lua        = "lua",
-  python     = "py",
+  lua = "lua",
+  python = "py",
   javascript = "js",
-  go         = "go",
-  rust       = "rs",
-  c          = "c",
+  go = "go",
+  rust = "rs",
+  c = "c",
 }
 
 return M

@@ -62,7 +62,11 @@ end
 ---@param callback fun(success:boolean, msg:string, path:string|nil)|nil
 function M.write_tree(callback)
   require("insights.tree").write_tree(callback or function(ok, msg)
-    if ok then notify.info(msg) else notify.error(msg) end
+    if ok then
+      notify.info(msg)
+    else
+      notify.error(msg)
+    end
   end)
 end
 

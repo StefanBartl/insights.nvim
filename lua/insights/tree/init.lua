@@ -2,9 +2,8 @@
 ---@brief Async file tree writer, file counter, and clipboard copy.
 local M = {}
 
-local notify   = require("insights.util.notify").create("[insights.tree]")
 local platform = require("insights.util.platform")
-local config   = require("insights.config")
+local config = require("insights.config")
 
 local fn = vim.fn
 
@@ -14,10 +13,14 @@ local fn = vim.fn
 ---@return string|nil proj
 ---@return string|nil err
 local function current_project()
-  local cwd  = fn.getcwd()
-  if type(cwd) ~= "string" or cwd == "" then return nil, nil, "invalid cwd" end
+  local cwd = fn.getcwd()
+  if type(cwd) ~= "string" or cwd == "" then
+    return nil, nil, "invalid cwd"
+  end
   local proj = fn.fnamemodify(cwd, ":t")
-  if not proj or proj == "" then return nil, nil, "failed to derive project name" end
+  if not proj or proj == "" then
+    return nil, nil, "failed to derive project name"
+  end
   return cwd, proj, nil
 end
 
@@ -26,10 +29,16 @@ end
 ---@param dir string
 ---@return boolean ok, string|nil err
 local function ensure_dir(dir)
-  if fn.isdirectory(dir) == 1 then return true, nil end
+  if fn.isdirectory(dir) == 1 then
+    return true, nil
+  end
   local ok, err = pcall(fn.mkdir, dir, "p")
-  if not ok then return false, tostring(err) end
-  if fn.isdirectory(dir) ~= 1 then return false, "mkdir returned non-directory" end
+  if not ok then
+    return false, tostring(err)
+  end
+  if fn.isdirectory(dir) ~= 1 then
+    return false, "mkdir returned non-directory"
+  end
   return true, nil
 end
 
@@ -56,16 +65,18 @@ local function build_tree_cmd(cwd, exclude)
     parts[#parts + 1] = "-print"
     local escaped_cwd = cwd:gsub("([^%w_%./%-])", "%%%1")
     return table.concat(parts, " ")
-        .. " | sed -e " .. fn.shellescape("s#^" .. escaped_cwd .. "/##")
-        .. " | sort"
+      .. " | sed -e "
+      .. fn.shellescape("s#^" .. escaped_cwd .. "/##")
+      .. " | sort"
   end
 
   -- PowerShell
-  local function q(s) return "'" .. tostring(s):gsub("'", "''") .. "'" end
+  local function q(s)
+    return "'" .. tostring(s):gsub("'", "''") .. "'"
+  end
   local regexes = {}
   for _, g in ipairs(exclude) do
-    local r = g:gsub("([%^%$%(%)%%%.%[%]%+%-%?])", "%%%1")
-                :gsub("%*", ".*"):gsub("/", "[\\\\/]")
+    local r = g:gsub("([%^%$%(%)%%%.%[%]%+%-%?])", "%%%1"):gsub("%*", ".*"):gsub("/", "[\\\\/]")
     regexes[#regexes + 1] = r
   end
 
@@ -73,13 +84,15 @@ local function build_tree_cmd(cwd, exclude)
     "$ErrorActionPreference='Stop'",
     "$cwd=[IO.Path]::GetFullPath(" .. q(cwd) .. ")",
     "$files=Get-ChildItem -LiteralPath $cwd -Recurse -File -ErrorAction SilentlyContinue"
-         .. " | Select-Object -ExpandProperty FullName",
+      .. " | Select-Object -ExpandProperty FullName",
   }
   if #regexes > 0 then
     ps[#ps + 1] = "$rx=@(" .. table.concat(vim.tbl_map(q, regexes), ",") .. ")"
-    ps[#ps + 1] = "$files=$files|Where-Object{ $l=$_; foreach($r in $rx){ if($l -match $r){return $false} }; $true }"
+    ps[#ps + 1] =
+      "$files=$files|Where-Object{ $l=$_; foreach($r in $rx){ if($l -match $r){return $false} }; $true }"
   end
-  ps[#ps + 1] = "$rel=$files|ForEach-Object{ $_.Substring($cwd.Length+1) -replace '\\\\','/' }|Sort-Object"
+  ps[#ps + 1] =
+    "$rel=$files|ForEach-Object{ $_.Substring($cwd.Length+1) -replace '\\\\','/' }|Sort-Object"
   ps[#ps + 1] = "$rel"
   return table.concat(ps, "; ")
 end
@@ -90,10 +103,16 @@ end
 function M.write_tree(callback)
   local cfg = config.get().tree
   local cwd, proj, err = current_project()
-  if not cwd then callback(false, err or "cwd error", nil); return end
+  if not cwd then
+    callback(false, err or "cwd error", nil)
+    return
+  end
 
   local ok, derr = ensure_dir(cfg.outdir)
-  if not ok then callback(false, "cannot create outdir: " .. tostring(derr), nil); return end
+  if not ok then
+    callback(false, "cannot create outdir: " .. tostring(derr), nil)
+    return
+  end
 
   -- current_project() only ever returns proj alongside a truthy cwd (see its
   -- own branches above), so cwd being non-nil here guarantees proj is too.
@@ -116,14 +135,20 @@ end
 function M.count_files(callback)
   local cfg = config.get().tree
   local cwd, _, err = current_project()
-  if not cwd then callback(false, err or "cwd error", nil); return end
+  if not cwd then
+    callback(false, err or "cwd error", nil)
+    return
+  end
 
   -- Count lines of the tree listing directly in Lua rather than piping to an
   -- external `wc` — on Windows that only works by coincidence when a Unix
   -- toolchain (e.g. Git for Windows) happens to be on PATH.
   local cmd = build_tree_cmd(cwd, cfg.exclude_patterns)
   platform.run_shell(cmd, function(success, out, stderr)
-    if not success then callback(false, "count failed: " .. (stderr or ""), nil); return end
+    if not success then
+      callback(false, "count failed: " .. (stderr or ""), nil)
+      return
+    end
     local n = 0
     for _ in (out or ""):gmatch("[^\r\n]+") do
       n = n + 1
@@ -137,7 +162,10 @@ end
 ---@param callback fun(success:boolean, msg:string)
 function M.copy_to_clipboard(callback)
   local _, proj, err = current_project()
-  if not proj then callback(false, err or "cwd error"); return end
+  if not proj then
+    callback(false, err or "cwd error")
+    return
+  end
 
   local out = output_path(proj)
   if fn.filereadable(out) == 0 then

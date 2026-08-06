@@ -15,10 +15,14 @@ local notify = require("insights.util.notify").create("[insights.ui.scratch]")
 ---@return boolean
 local function is_usable_window(win)
   local wcfg = api.nvim_win_get_config(win)
-  if wcfg and wcfg.relative and wcfg.relative ~= "" then return false end  -- floating
-  local b  = api.nvim_win_get_buf(win)
+  if wcfg and wcfg.relative and wcfg.relative ~= "" then
+    return false
+  end -- floating
+  local b = api.nvim_win_get_buf(win)
   local bt = api.nvim_get_option_value("buftype", { buf = b })
-  if bt == "" then return true end
+  if bt == "" then
+    return true
+  end
   local ok, marked = pcall(api.nvim_buf_get_var, b, "insights_scratch")
   return ok and marked == true
 end
@@ -62,9 +66,9 @@ function M.open(lines, title, opts)
   local buf = api.nvim_create_buf(false, true)
   api.nvim_buf_set_lines(buf, 0, -1, false, lines)
   api.nvim_set_option_value("modifiable", false, { buf = buf })
-  api.nvim_set_option_value("buftype",    "nofile", { buf = buf })
-  api.nvim_set_option_value("bufhidden",  "wipe", { buf = buf })
-  api.nvim_set_option_value("swapfile",   false, { buf = buf })
+  api.nvim_set_option_value("buftype", "nofile", { buf = buf })
+  api.nvim_set_option_value("bufhidden", "wipe", { buf = buf })
+  api.nvim_set_option_value("swapfile", false, { buf = buf })
   api.nvim_buf_set_var(buf, "insights_scratch", true)
 
   if title then

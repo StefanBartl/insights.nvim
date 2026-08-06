@@ -3,20 +3,24 @@
 --- config-driven feature availability, one section per feature area.
 local M = {}
 
-local ok_s   = vim.health.ok    or vim.health.report_ok
-local warn_s  = vim.health.warn  or vim.health.report_warn
-local err_s   = vim.health.error or vim.health.report_error
-local info_s  = vim.health.info  or vim.health.report_info
+local ok_s = vim.health.ok or vim.health.report_ok
+local warn_s = vim.health.warn or vim.health.report_warn
+local err_s = vim.health.error or vim.health.report_error
+local info_s = vim.health.info or vim.health.report_info
 local start_s = vim.health.start or vim.health.report_start
 
 ---@internal
 ---@param bin string
 ---@return boolean
-local function exe(bin) return vim.fn.executable(bin) == 1 end
+local function exe(bin)
+  return vim.fn.executable(bin) == 1
+end
 
 ---@internal
 ---@return boolean
-local function platform_is_windows() return require("insights.util.platform").is_windows() end
+local function platform_is_windows()
+  return require("insights.util.platform").is_windows()
+end
 
 ---@internal
 local function check_lib()
@@ -29,12 +33,16 @@ local function check_lib()
   if pcall(require, "lib.nvim.ui.kit") then
     ok_s("lib.nvim.ui.kit available (dev-server prompt)")
   else
-    err_s("lib.nvim.ui.kit not found — required for the dev-server prompt; update StefanBartl/lib.nvim")
+    err_s(
+      "lib.nvim.ui.kit not found — required for the dev-server prompt; update StefanBartl/lib.nvim"
+    )
   end
   if pcall(require, "lib.nvim.usercmd.composer") then
     ok_s("lib.nvim.usercmd.composer available (:Insights command layer)")
   else
-    err_s(":Insights will fail to register — lib.nvim.usercmd.composer not found; update StefanBartl/lib.nvim")
+    err_s(
+      ":Insights will fail to register — lib.nvim.usercmd.composer not found; update StefanBartl/lib.nvim"
+    )
   end
 end
 
@@ -42,7 +50,10 @@ end
 local function check_autocmds()
   start_s("Automatic triggers")
   local ok, cfg_mod = pcall(require, "insights.config")
-  if not ok then err_s("cannot load config"); return end
+  if not ok then
+    err_s("cannot load config")
+    return
+  end
   local cfg = cfg_mod.get()
 
   local conflicts = cfg.conflicts or {}
@@ -65,14 +76,25 @@ local function check_autocmds()
 
   local dev = cfg.devserver or {}
   if dev.enable then
-    ok_s(string.format("devserver: enabled, %d pattern(s), prompt = %s",
-      #(dev.patterns or {}), tostring(dev.prompt ~= false)))
+    ok_s(
+      string.format(
+        "devserver: enabled, %d pattern(s), prompt = %s",
+        #(dev.patterns or {}),
+        tostring(dev.prompt ~= false)
+      )
+    )
     if platform_is_windows() then
-      if exe("taskkill") then ok_s("taskkill available — dev-server process tree can be killed")
-      else                    warn_s("taskkill not found — dev-server kill may not work") end
+      if exe("taskkill") then
+        ok_s("taskkill available — dev-server process tree can be killed")
+      else
+        warn_s("taskkill not found — dev-server kill may not work")
+      end
     else
-      if exe("kill") then ok_s("kill available — dev-server process group can be killed")
-      else                warn_s("kill not found — dev-server kill may not work") end
+      if exe("kill") then
+        ok_s("kill available — dev-server process group can be killed")
+      else
+        warn_s("kill not found — dev-server kill may not work")
+      end
     end
   else
     info_s("devserver disabled (devserver.enable = false)")
@@ -140,7 +162,9 @@ local function check_treesitter()
   if pcall(require, "nvim-treesitter") then
     ok_s("nvim-treesitter installed")
   else
-    info_s("nvim-treesitter not installed — TS Lua scanner unavailable (rg scanner works without it)")
+    info_s(
+      "nvim-treesitter not installed — TS Lua scanner unavailable (rg scanner works without it)"
+    )
   end
 end
 
@@ -148,13 +172,18 @@ end
 local function check_config()
   start_s("Configuration")
   local ok, cfg_mod = pcall(require, "insights.config")
-  if not ok then err_s("cannot load config"); return end
+  if not ok then
+    err_s("cannot load config")
+    return
+  end
   local cfg = cfg_mod.get()
   local sym = cfg.symbols or {}
 
   local enabled_langs = {}
   for lang, en in pairs(sym.languages or {}) do
-    if en then enabled_langs[#enabled_langs + 1] = lang end
+    if en then
+      enabled_langs[#enabled_langs + 1] = lang
+    end
   end
   info_s("symbols.default_scope = " .. (sym.default_scope or "cwd"))
   info_s("symbols.languages = " .. table.concat(enabled_langs, ", "))
@@ -169,7 +198,10 @@ end
 local function check_compress()
   start_s("Compress feature")
   local ok, cfg_mod = pcall(require, "insights.config")
-  if not ok then err_s("cannot load config"); return end
+  if not ok then
+    err_s("cannot load config")
+    return
+  end
   local cmp = cfg_mod.get().compress or {}
 
   if not cmp.enable then
@@ -186,16 +218,18 @@ local function check_compress()
       ok_s("compress.outdir exists: " .. outdir)
     else
       local can_create = pcall(vim.fn.mkdir, outdir, "p")
-      if can_create then ok_s("compress.outdir created: " .. outdir)
-      else               warn_s("compress.outdir not writable: " .. outdir) end
+      if can_create then
+        ok_s("compress.outdir created: " .. outdir)
+      else
+        warn_s("compress.outdir not writable: " .. outdir)
+      end
     end
   else
-    info_s("compress.outdir = \"\" → will write to <path>/compressed/ at runtime")
+    info_s('compress.outdir = "" → will write to <path>/compressed/ at runtime')
   end
 
-  local effective = (engine == "auto")
-    and (platform_is_windows() and "powershell" or "tar")
-    or  engine
+  local effective = (engine == "auto") and (platform_is_windows() and "powershell" or "tar")
+    or engine
 
   if effective == "powershell" then
     if platform_is_windows() then
@@ -204,11 +238,27 @@ local function check_compress()
       warn_s("engine=powershell requested but not on Windows")
     end
   elseif effective == "tar" then
-    if exe("tar") then ok_s("tar available") else warn_s("tar not found") end
-    if exe("find") then ok_s("find available") else warn_s("find not found") end
+    if exe("tar") then
+      ok_s("tar available")
+    else
+      warn_s("tar not found")
+    end
+    if exe("find") then
+      ok_s("find available")
+    else
+      warn_s("find not found")
+    end
   elseif effective == "zip" then
-    if exe("zip") then ok_s("zip available") else warn_s("zip not found") end
-    if exe("find") then ok_s("find available") else warn_s("find not found") end
+    if exe("zip") then
+      ok_s("zip available")
+    else
+      warn_s("zip not found")
+    end
+    if exe("find") then
+      ok_s("find available")
+    else
+      warn_s("find not found")
+    end
   end
 end
 
@@ -216,18 +266,30 @@ end
 local function check_cache()
   start_s("Symbol cache")
   local ok, cfg_mod = pcall(require, "insights.config")
-  if not ok then return end
+  if not ok then
+    return
+  end
   local c = cfg_mod.get().symbols.cache
-  if not c.enabled then info_s("cache disabled"); return end
+  if not c.enabled then
+    info_s("cache disabled")
+    return
+  end
 
   local ok2, cache_mod = pcall(require, "insights.scan.cache")
-  if not ok2 then err_s("cannot load cache module"); return end
+  if not ok2 then
+    err_s("cannot load cache module")
+    return
+  end
 
   local stats = cache_mod.stats(c.dir, "symbols")
   if stats then
-    ok_s(string.format("cache: %d symbols, last indexed %s",
-      stats.entry_count,
-      os.date("%Y-%m-%d %H:%M", stats.indexed_at or 0)))
+    ok_s(
+      string.format(
+        "cache: %d symbols, last indexed %s",
+        stats.entry_count,
+        os.date("%Y-%m-%d %H:%M", stats.indexed_at or 0)
+      )
+    )
     info_s("  path: " .. stats.path)
   else
     info_s("no cache for current CWD — run :Insights cache build")

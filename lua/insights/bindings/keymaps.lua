@@ -21,9 +21,13 @@ function M.setup(cfg)
     map("n", km.symbols_telescope, function()
       local symbols = require("insights.symbols")
       local entries, msg = symbols.get()
-      if msg then notify.info(msg) end
-      require("insights.ui.telescope").open(entries,
-        string.format("Symbols (cwd) — %d", #entries))
+      if msg then
+        notify.info(msg)
+      end
+      require("insights.ui.telescope").open(
+        entries,
+        string.format("Symbols (cwd) — %d", #entries)
+      )
     end, {}, "insights: symbols (telescope)")
   end
 
@@ -31,9 +35,10 @@ function M.setup(cfg)
     map("n", km.symbols_fzf, function()
       local symbols = require("insights.symbols")
       local entries, msg = symbols.get()
-      if msg then notify.info(msg) end
-      require("insights.ui.fzf").open(entries,
-        string.format("Symbols (cwd) — %d", #entries))
+      if msg then
+        notify.info(msg)
+      end
+      require("insights.ui.fzf").open(entries, string.format("Symbols (cwd) — %d", #entries))
     end, {}, "insights: symbols (fzf)")
   end
 end

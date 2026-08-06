@@ -10,9 +10,9 @@ local M = {}
 
 local util = require("insights.imports.langs.util")
 
-M.id           = "rust"
-M.label        = "Rust"
-M.extensions   = { "rs" }
+M.id = "rust"
+M.label = "Rust"
+M.extensions = { "rs" }
 M.rg_prefilter = "\\buse\\s"
 
 ---@internal
@@ -24,7 +24,9 @@ M.rg_prefilter = "\\buse\\s"
 ---@return { path: string, alias: string|nil }[]
 local function expand(prefix, clause)
   clause = clause:match("^%s*(.-)%s*$")
-  if clause == "" then return {} end
+  if clause == "" then
+    return {}
+  end
 
   local base, group = clause:match("^([%w_:]-)::{(.*)}$")
   if group then
@@ -41,7 +43,9 @@ local function expand(prefix, clause)
 
   local path, alias = clause:match("^([%w_:]+)%s+as%s+([%w_]+)$")
   path = path or clause
-  if path == "*" or path == "" then return {} end
+  if path == "*" or path == "" then
+    return {}
+  end
 
   local full = (prefix ~= "" and (prefix .. "::" .. path) or path)
   return { { path = (full:gsub("::", ".")), alias = alias } }
@@ -57,7 +61,9 @@ function M.scan_source(src)
   local pos = 1
   while true do
     local s, e, clause = src:find("%f[%w]use%s+(.-);", pos)
-    if not s then break end
+    if not s then
+      break
+    end
     local lnum = util.lnum_at(starts, s)
 
     clause = clause:gsub("%s+", " ")

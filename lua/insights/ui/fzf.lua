@@ -16,14 +16,19 @@ function M.open(entries, title)
 
   local lines = {}
   for _, e in ipairs(entries) do
-    lines[#lines + 1] = string.format("%s:%d  [%s] %s",
-      e.filename or "?", e.lnum or 0, e.func_type or "?", e.name or "?")
+    lines[#lines + 1] = string.format(
+      "%s:%d  [%s] %s",
+      e.filename or "?",
+      e.lnum or 0,
+      e.func_type or "?",
+      e.name or "?"
+    )
   end
 
   fzf.fzf_exec(lines, {
-    prompt    = (title or "Project Symbols") .. "> ",
+    prompt = (title or "Project Symbols") .. "> ",
     previewer = "builtin",
-    actions   = {
+    actions = {
       ["default"] = function(sel)
         local file, lnum = sel[1]:match("^([^:]+):(%d+)")
         if file and lnum then

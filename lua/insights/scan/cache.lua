@@ -11,7 +11,7 @@ local CACHE_VERSION = "1.0.0"
 ---@param ns  string  namespace slug (e.g. "symbols")
 ---@return string
 local function cache_path(dir, ns)
-  local cwd  = vim.fn.getcwd()
+  local cwd = vim.fn.getcwd()
   local hash = vim.fn.sha256(cwd):sub(1, 16)
   return dir .. "/" .. ns .. "_" .. hash .. ".json"
 end
@@ -32,7 +32,9 @@ end
 function M.load(dir, ns, ttl_seconds)
   local path = cache_path(dir, ns)
   local decoded, read_err = require("lib.nvim.fs.json").read(path)
-  if not decoded then return nil, read_err or "no cache file" end
+  if not decoded then
+    return nil, read_err or "no cache file"
+  end
 
   if decoded.version ~= CACHE_VERSION then
     return nil, "version mismatch"
@@ -72,17 +74,17 @@ function M.save(dir, ns, entries)
   local index_entries = {}
   for _, e in ipairs(entries) do
     index_entries[#index_entries + 1] = {
-      entry      = e,
+      entry = e,
       file_mtime = get_mtime(e.filename) or os.time(),
       indexed_at = os.time(),
     }
   end
 
   local blob = {
-    version    = CACHE_VERSION,
+    version = CACHE_VERSION,
     indexed_at = os.time(),
-    cwd        = vim.fn.getcwd(),
-    entries    = index_entries,
+    cwd = vim.fn.getcwd(),
+    entries = index_entries,
   }
 
   local path = cache_path(dir, ns)
@@ -96,7 +98,9 @@ end
 function M.clear(dir, ns)
   local path = cache_path(dir, ns)
   local ok, err = pcall(uv.fs_unlink, path)
-  if not ok then return false, tostring(err) end
+  if not ok then
+    return false, tostring(err)
+  end
   return true, nil
 end
 
@@ -107,15 +111,17 @@ end
 function M.stats(dir, ns)
   local path = cache_path(dir, ns)
   local decoded = require("lib.nvim.fs.json").read(path)
-  if not decoded then return nil end
+  if not decoded then
+    return nil
+  end
   local file_stat = uv.fs_stat(path)
   return {
-    version    = decoded.version,
+    version = decoded.version,
     indexed_at = decoded.indexed_at,
-    cwd        = decoded.cwd,
+    cwd = decoded.cwd,
     entry_count = #(decoded.entries or {}),
     size_bytes = file_stat and file_stat.size or 0,
-    path       = path,
+    path = path,
   }
 end
 

@@ -42,7 +42,8 @@ function M.list(cfg)
     return nil, "not inside a git repository"
   end
 
-  local ok, res = pcall(run, { git, "diff", "--name-only", "--diff-filter=" .. (cfg.diff_filter or "U") })
+  local ok, res =
+    pcall(run, { git, "diff", "--name-only", "--diff-filter=" .. (cfg.diff_filter or "U") })
   if not ok then
     return nil, "git diff failed: " .. tostring(res)
   end
@@ -93,8 +94,13 @@ function M.run(opts)
     vim.cmd("copen")
   end
   if cfg.notify ~= false then
-    notify.warn(("%d unresolved conflict%s:\n%s")
-      :format(#files, #files == 1 and "" or "s", table.concat(files, "\n")))
+    notify.warn(
+      ("%d unresolved conflict%s:\n%s"):format(
+        #files,
+        #files == 1 and "" or "s",
+        table.concat(files, "\n")
+      )
+    )
   end
 
   return #files

@@ -16,7 +16,9 @@ function M.line_starts(src)
   local pos = 1
   while true do
     local nl = src:find("\n", pos, true)
-    if not nl then break end
+    if not nl then
+      break
+    end
     starts[#starts + 1] = nl + 1
     pos = nl + 1
   end
@@ -31,7 +33,11 @@ function M.lnum_at(starts, pos)
   local lo, hi = 1, #starts
   while lo < hi do
     local mid = lo + math.ceil((hi - lo) / 2)
-    if starts[mid] <= pos then lo = mid else hi = mid - 1 end
+    if starts[mid] <= pos then
+      lo = mid
+    else
+      hi = mid - 1
+    end
   end
   return lo
 end
@@ -46,8 +52,12 @@ function M.split_top_level(s, sep)
   local out, depth, buf = {}, 0, {}
   for i = 1, #s do
     local c = s:sub(i, i)
-    if c == "{" then depth = depth + 1 end
-    if c == "}" then depth = depth - 1 end
+    if c == "{" then
+      depth = depth + 1
+    end
+    if c == "}" then
+      depth = depth - 1
+    end
     if c == sep and depth == 0 then
       out[#out + 1] = table.concat(buf)
       buf = {}
@@ -60,7 +70,9 @@ function M.split_top_level(s, sep)
   local trimmed = {}
   for _, t in ipairs(out) do
     local v = t:match("^%s*(.-)%s*$")
-    if v ~= "" then trimmed[#trimmed + 1] = v end
+    if v ~= "" then
+      trimmed[#trimmed + 1] = v
+    end
   end
   return trimmed
 end

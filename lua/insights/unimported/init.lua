@@ -42,7 +42,8 @@ local function is_bound(lines, name)
       return true
     end
     -- const Button = … / function Button(…) / class Button …
-    if line:match("^%s*local%s+" .. word)
+    if
+      line:match("^%s*local%s+" .. word)
       or line:match("^%s*const%s+" .. word)
       or line:match("^%s*let%s+" .. word)
       or line:match("^%s*var%s+" .. word)

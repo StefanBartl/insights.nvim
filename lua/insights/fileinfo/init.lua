@@ -2,14 +2,14 @@
 ---@brief Floating window with filesystem metadata for the current buffer.
 local M = {}
 
-local uv        = vim.uv or vim.loop
-local api       = vim.api
-local str_fmt   = string.format
-local os_date   = os.date
-local bitlib    = require("bit")
+local uv = vim.uv or vim.loop
+local api = vim.api
+local str_fmt = string.format
+local os_date = os.date
+local bitlib = require("bit")
 local make_scratch = require("lib.nvim.window.make_scratch")
 
-local active_win  = nil
+local active_win = nil
 local active_path = nil
 
 ---@internal
@@ -23,7 +23,7 @@ end
 ---@param stat table  uv.fs_stat() result
 ---@return string
 local function format_permissions(stat)
-  local mode  = stat.mode or 0
+  local mode = stat.mode or 0
   local octal = str_fmt("%o", mode)
   if require("insights.util.platform").is_windows() then
     return octal .. " (Windows / limited POSIX meaning)"
@@ -60,7 +60,8 @@ end
 local function open_hover(path, lines)
   -- Toggle: close if same path is already shown
   if active_win and api.nvim_win_is_valid(active_win) and active_path == path then
-    close_active(); return
+    close_active()
+    return
   end
   close_active()
 
@@ -77,7 +78,7 @@ local function open_hover(path, lines)
     nice_quit = { keys = close_keys },
   })
 
-  active_win  = win
+  active_win = win
   active_path = path
 end
 

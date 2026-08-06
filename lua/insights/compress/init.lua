@@ -12,7 +12,7 @@
 ---   non-empty     → <outdir>/<name>-compressed/
 
 local platform = require("insights.util.platform")
-local notify   = require("insights.util.notify").create("[insights.compress]")
+local notify = require("insights.util.notify").create("[insights.compress]")
 
 local M = {}
 
@@ -54,23 +54,35 @@ local engines = {}
 ---@param outdir string
 ---@param on_complete fun(success: boolean, message: string)
 function engines.tar(path, outdir, on_complete)
-  local name      = vim.fn.fnamemodify(path, ":t")
-  local out_path  = outdir .. "/" .. name .. ".tar.gz"
+  local name = vim.fn.fnamemodify(path, ":t")
+  local out_path = outdir .. "/" .. name .. ".tar.gz"
   local list_path = outdir .. "/file-list.txt"
-  local parent    = vim.fn.shellescape(vim.fn.fnamemodify(path, ":h"))
+  local parent = vim.fn.shellescape(vim.fn.fnamemodify(path, ":h"))
 
-  local cmd_list = "find " .. vim.fn.shellescape(path)
-                   .. " -not -path '*/.git/*' > " .. vim.fn.shellescape(list_path)
-  local cmd_arc  = "tar --exclude=" .. vim.fn.shellescape(path .. "/.git")
-                   .. " -czf " .. vim.fn.shellescape(out_path)
-                   .. " -C " .. parent
-                   .. " " .. vim.fn.shellescape(name)
+  local cmd_list = "find "
+    .. vim.fn.shellescape(path)
+    .. " -not -path '*/.git/*' > "
+    .. vim.fn.shellescape(list_path)
+  local cmd_arc = "tar --exclude="
+    .. vim.fn.shellescape(path .. "/.git")
+    .. " -czf "
+    .. vim.fn.shellescape(out_path)
+    .. " -C "
+    .. parent
+    .. " "
+    .. vim.fn.shellescape(name)
 
   platform.run_shell(cmd_list, function(ok1, _, err1)
-    if not ok1 then on_complete(false, "file listing failed: " .. err1); return end
+    if not ok1 then
+      on_complete(false, "file listing failed: " .. err1)
+      return
+    end
     platform.run_shell(cmd_arc, function(ok2, _, err2)
-      if not ok2 then on_complete(false, "tar failed: " .. err2)
-      else            on_complete(true,  "compressed → " .. out_path) end
+      if not ok2 then
+        on_complete(false, "tar failed: " .. err2)
+      else
+        on_complete(true, "compressed → " .. out_path)
+      end
     end)
   end)
 end
@@ -81,24 +93,35 @@ end
 ---@param outdir string
 ---@param on_complete fun(success: boolean, message: string)
 function engines.zip(path, outdir, on_complete)
-  local name      = vim.fn.fnamemodify(path, ":t")
-  local out_path  = outdir .. "/" .. name .. ".zip"
+  local name = vim.fn.fnamemodify(path, ":t")
+  local out_path = outdir .. "/" .. name .. ".zip"
   local list_path = outdir .. "/file-list.txt"
-  local parent    = vim.fn.shellescape(vim.fn.fnamemodify(path, ":h"))
+  local parent = vim.fn.shellescape(vim.fn.fnamemodify(path, ":h"))
 
-  local cmd_list = "find " .. vim.fn.shellescape(path)
-                   .. " -not -path '*/.git/*' > " .. vim.fn.shellescape(list_path)
+  local cmd_list = "find "
+    .. vim.fn.shellescape(path)
+    .. " -not -path '*/.git/*' > "
+    .. vim.fn.shellescape(list_path)
   -- zip --exclude uses shell-glob paths relative to the source root
-  local cmd_arc  = "cd " .. parent
-                   .. " && zip -r " .. vim.fn.shellescape(out_path)
-                   .. " " .. vim.fn.shellescape(name)
-                   .. " --exclude '*.git/*'"
+  local cmd_arc = "cd "
+    .. parent
+    .. " && zip -r "
+    .. vim.fn.shellescape(out_path)
+    .. " "
+    .. vim.fn.shellescape(name)
+    .. " --exclude '*.git/*'"
 
   platform.run_shell(cmd_list, function(ok1, _, err1)
-    if not ok1 then on_complete(false, "file listing failed: " .. err1); return end
+    if not ok1 then
+      on_complete(false, "file listing failed: " .. err1)
+      return
+    end
     platform.run_shell(cmd_arc, function(ok2, _, err2)
-      if not ok2 then on_complete(false, "zip failed: " .. err2)
-      else            on_complete(true,  "compressed → " .. out_path) end
+      if not ok2 then
+        on_complete(false, "zip failed: " .. err2)
+      else
+        on_complete(true, "compressed → " .. out_path)
+      end
     end)
   end)
 end
@@ -109,8 +132,8 @@ end
 ---@param outdir string
 ---@param on_complete fun(success: boolean, message: string)
 function engines.powershell(path, outdir, on_complete)
-  local name      = vim.fn.fnamemodify(path, ":t")
-  local out_path  = outdir .. "\\" .. name .. ".zip"
+  local name = vim.fn.fnamemodify(path, ":t")
+  local out_path = outdir .. "\\" .. name .. ".zip"
   local list_path = outdir .. "\\file-list.txt"
 
   local cmd_list = table.concat({
@@ -119,14 +142,23 @@ function engines.powershell(path, outdir, on_complete)
     "| Select-Object -ExpandProperty FullName",
     "| Out-File -FilePath '" .. list_path .. "'",
   }, " ")
-  local cmd_arc = "Compress-Archive -Path '" .. path
-                  .. "' -DestinationPath '" .. out_path .. "' -Force"
+  local cmd_arc = "Compress-Archive -Path '"
+    .. path
+    .. "' -DestinationPath '"
+    .. out_path
+    .. "' -Force"
 
   platform.run_shell(cmd_list, function(ok1, _, err1)
-    if not ok1 then on_complete(false, "file listing failed: " .. err1); return end
+    if not ok1 then
+      on_complete(false, "file listing failed: " .. err1)
+      return
+    end
     platform.run_shell(cmd_arc, function(ok2, _, err2)
-      if not ok2 then on_complete(false, "Compress-Archive failed: " .. err2)
-      else            on_complete(true,  "compressed → " .. out_path) end
+      if not ok2 then
+        on_complete(false, "Compress-Archive failed: " .. err2)
+      else
+        on_complete(true, "compressed → " .. out_path)
+      end
     end)
   end)
 end
@@ -148,8 +180,10 @@ function M.compress(path, cfg, on_complete)
 
   local runner = engines[engine]
   if not runner then
-    on_complete(false, "unknown compress engine: '" .. engine
-      .. "' — valid: auto | tar | zip | powershell")
+    on_complete(
+      false,
+      "unknown compress engine: '" .. engine .. "' — valid: auto | tar | zip | powershell"
+    )
     return
   end
 

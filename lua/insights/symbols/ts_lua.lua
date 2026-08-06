@@ -8,26 +8,34 @@
 local M = {}
 
 local notify = require("insights.util.notify").create("[insights.symbols.ts_lua]")
-local api    = vim.api
-local ts     = vim.treesitter
+local api = vim.api
+local ts = vim.treesitter
 
 ---Scan one buffer for Lua function definitions.
 ---@param bufnr integer
 ---@return { name: string, lnum: integer, col: integer, file: string|nil }[]
 function M.scan_buffer(bufnr)
-  if not api.nvim_buf_is_valid(bufnr) then return {} end
+  if not api.nvim_buf_is_valid(bufnr) then
+    return {}
+  end
 
   local ok_ft, ft = pcall(api.nvim_get_option_value, "filetype", { buf = bufnr })
-  if not ok_ft or ft ~= "lua" then return {} end
+  if not ok_ft or ft ~= "lua" then
+    return {}
+  end
 
   local ok_p, parser_obj = pcall(ts.get_parser, bufnr, "lua")
-  if not ok_p or not parser_obj then return {} end
+  if not ok_p or not parser_obj then
+    return {}
+  end
 
   local ok_t, trees = pcall(parser_obj.parse, parser_obj)
-  if not ok_t or not trees or #trees == 0 then return {} end
+  if not ok_t or not trees or #trees == 0 then
+    return {}
+  end
 
-  local root   = trees[1]:root()
-  local seen   = {}
+  local root = trees[1]:root()
+  local seen = {}
   local result = {}
 
   local function visit(node)
@@ -40,13 +48,13 @@ function M.scan_buffer(bufnr)
         if name and not seen[name] then
           seen[name] = true
           local row, col = name_nodes[1]:range()
-          result[#result + 1] = { name=name, lnum=row+1, col=col, file=nil }
+          result[#result + 1] = { name = name, lnum = row + 1, col = col, file = nil }
         end
       end
     end
 
     if t == "assignment_statement" then
-      local var_list  = node:field("left")
+      local var_list = node:field("left")
       local expr_list = node:field("right")
       if var_list and expr_list and #var_list > 0 and #expr_list > 0 then
         local vn = var_list[1]
@@ -65,7 +73,7 @@ function M.scan_buffer(bufnr)
           end
           if name and not seen[name] then
             seen[name] = true
-            result[#result + 1] = { name=name, lnum=row+1, col=col, file=nil }
+            result[#result + 1] = { name = name, lnum = row + 1, col = col, file = nil }
           end
         end
       end
@@ -80,18 +88,22 @@ function M.scan_buffer(bufnr)
           if name and not seen[name] then
             seen[name] = true
             local row, col = fn[1]:range()
-            result[#result + 1] = { name=name, lnum=row+1, col=col, file=nil }
+            result[#result + 1] = { name = name, lnum = row + 1, col = col, file = nil }
           end
         end
       end
     end
 
-    for child in node:iter_children() do visit(child) end
+    for child in node:iter_children() do
+      visit(child)
+    end
   end
 
   visit(root)
 
-  table.sort(result, function(a, b) return a.name < b.name end)
+  table.sort(result, function(a, b)
+    return a.name < b.name
+  end)
   return result
 end
 
@@ -99,7 +111,7 @@ end
 ---Returns flat list of entries with `.filename` set.
 ---@return table[]
 function M.scan_cwd()
-  local cwd   = vim.fn.getcwd()
+  local cwd = vim.fn.getcwd()
   local files = vim.fn.globpath(cwd, "**/*.lua", false, true)
 
   local ignore = { "/%.git/", "/node_modules/", "/%.cache/", "/build/", "/dist/", "/target/" }
@@ -107,9 +119,14 @@ function M.scan_cwd()
   for _, f in ipairs(files) do
     local ok = true
     for _, pat in ipairs(ignore) do
-      if f:match(pat) then ok = false; break end
+      if f:match(pat) then
+        ok = false
+        break
+      end
     end
-    if ok then filtered[#filtered + 1] = f end
+    if ok then
+      filtered[#filtered + 1] = f
+    end
   end
 
   if #filtered == 0 then

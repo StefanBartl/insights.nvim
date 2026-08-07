@@ -9,7 +9,7 @@
 ---   :Insights fileinfo
 ---   :Insights cache build|info|clear
 ---   :Insights compress [path] [outdir]
----   :Insights imports [filter/lang...] [telescope|fzf]
+---   :Insights imports [filter/lang...] [telescope|fzf|graph]
 ---   :Insights imports reverse <module>
 ---   :Insights imports unused [filter/lang...]
 ---   :Insights conflicts
@@ -129,7 +129,7 @@ local function reconstruct_metrics_tokens(ctx)
 end
 
 local IMPORT_LANG_IDS = { "lua", "python", "javascript", "go", "rust", "c" }
-local IMPORT_UIS = { "telescope", "fzf", "scratch" }
+local IMPORT_UIS = { "telescope", "fzf", "scratch", "graph" }
 
 ---@internal
 ---Completion candidates for `:Insights imports` (group names, language ids,
@@ -344,7 +344,7 @@ end
 local function split_import_args(args)
   local filters, ui = {}, nil
   for _, a in ipairs(args) do
-    if a == "telescope" or a == "fzf" or a == "scratch" then
+    if a == "telescope" or a == "fzf" or a == "scratch" or a == "graph" then
       ui = (a ~= "scratch") and a or nil
     else
       filters[#filters + 1] = a
@@ -362,6 +362,13 @@ local function handle_imports(args)
     return
   end
   local filters, ui = split_import_args(args)
+  if ui == "graph" then
+    notify.info("scanning imports…")
+    require("insights.imports").scan_cwd_async(function(data)
+      require("insights.imports.graph").show(data, filters)
+    end)
+    return
+  end
   require("insights.imports").run(filters, ui)
 end
 

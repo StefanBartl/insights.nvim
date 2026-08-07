@@ -111,6 +111,11 @@
 ---@field rust boolean
 ---@field c boolean
 
+---@class Insights.Imports.Graph
+---@field include_external boolean  show external modules as graph nodes too (default false — noisy)
+---@field outdir string             PNG output directory
+---@field layout string             Graphviz layout engine ("dot"|"neato"|"fdp"|"sfdp"|"twopi"|"circo")
+
 ---@class Insights.ImportsConfig
 ---@field enable boolean
 ---@field engine Insights.ImportsEngine
@@ -119,6 +124,7 @@
 ---@field groups table<string, string[]>
 ---@field classify_external boolean
 ---@field definition Insights.Imports.Definition
+---@field graph Insights.Imports.Graph
 
 ---@class Insights.ConflictsConfig
 ---@field enable boolean

@@ -148,6 +148,7 @@ there. `.git/` is excluded automatically.
 :Insights imports lib foo.bar      " multiple filters (OR-combined)
 :Insights imports reverse insights.config   " every file that imports a module
 :Insights imports unused           " bound names never referenced again
+:Insights imports graph            " dependency graph as a PNG, shown via images.nvim
 ```
 
 Scans source files in the cwd for import/require statements across **Lua,
@@ -266,6 +267,35 @@ A trailing `telescope`/`fzf` token opens a picker over the (filtered)
 occurrence list instead of the scratch buffer — the scratch report's own
 `output_file` is still written. Omit it (or pass `scratch`) for the default
 scratch-buffer view.
+
+#### Graph view
+
+```vim
+:Insights imports graph
+:Insights imports python graph
+```
+
+A trailing `graph` token renders the same (filtered) import data as a
+Graphviz dependency graph instead of a text report — every entry is already
+an edge (`filename` imports `module`), just never drawn as one until now.
+Nodes: importing files (filled blue) and, only with
+`imports.graph.include_external = true` (default off — a real project
+imports far more external modules than it has source files, and drawing
+them turns the graph into noise instead of showing project structure),
+external modules (dashed grey). Rendered to
+`imports.graph.outdir`/`<project>-imports.png` via the Graphviz CLI
+(`imports.graph.layout`, default `"dot"` — needs Graphviz installed, no
+pure-Lua substitute exists for laying out a graph) and shown inline through
+[images.nvim](https://github.com/StefanBartl/images.nvim) if installed,
+else just reported as a file path to open manually.
+
+Deliberately scoped to the dependency graph only — the only place in
+insights.nvim where the data is already graph-shaped (an edge list).
+Call-tree and symbol-distribution graphs (`docs/ROADMAP.md`'s original
+"CROSS-PLUGIN" idea) don't exist as data anywhere else in this plugin;
+`symbols` is a flat, uncorrelated list, and building that analysis from
+scratch is a separate, much larger feature than rendering data insights.nvim
+already collects.
 
 ### Conflicts
 

@@ -130,6 +130,13 @@ require("insights").setup({
         preview = "gp",       -- always reveal in a float; false to disable
       },
     },
+
+    -- :Insights imports graph — Graphviz dependency graph, shown via images.nvim
+    graph = {
+      include_external = false,  -- draw external modules as nodes too (default off — noisy)
+      outdir = vim.fn.stdpath("cache") .. "/insights/graph",
+      layout = "dot",            -- Graphviz layout engine on PATH: dot|neato|fdp|sfdp|twopi|circo
+    },
   },
 
   -- Quickfix-list unresolved merge conflicts

@@ -1,0 +1,36 @@
+{
+  "tools": [
+    {
+      "bin": "rg",
+      "required": false,
+      "why": "Powers the symbol index and import-graph scanners (scan/rg.lua, symbols/rg_index.lua) — without it those scans are unavailable rather than falling back to something slower.",
+      "pkg": {
+        "apt": "ripgrep",
+        "dnf": "ripgrep",
+        "pacman": "ripgrep",
+        "zypper": "ripgrep",
+        "apk": "ripgrep",
+        "brew": "ripgrep",
+        "winget": "BurntSushi.ripgrep.MSVC",
+        "scoop": "ripgrep",
+        "choco": "ripgrep"
+      }
+    },
+    {
+      "bin": "dot",
+      "required": false,
+      "why": "Lays out the import-dependency graph (imports/graph.lua) when a graph-based layout is requested, instead of the built-in layout.",
+      "pkg": {
+        "apt": "graphviz",
+        "dnf": "graphviz",
+        "pacman": "graphviz",
+        "zypper": "graphviz",
+        "apk": "graphviz",
+        "brew": "graphviz",
+        "winget": "Graphviz.Graphviz",
+        "scoop": "graphviz",
+        "choco": "graphviz"
+      }
+    }
+  ]
+}

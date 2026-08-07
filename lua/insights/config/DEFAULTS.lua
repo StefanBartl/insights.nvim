@@ -139,6 +139,15 @@ local defaults = {
         preview = "gp", -- always reveal in a floating preview; false to disable
       },
     },
+
+    -- :Insights imports graph — same scan/filters as the report, rendered as
+    -- a Graphviz dependency graph (needs `dot` on PATH) and shown inline via
+    -- images.nvim (soft dep; falls back to just reporting the PNG path).
+    graph = {
+      include_external = false, -- external modules add nodes/noise without adding structure
+      outdir = vim.fn.stdpath("cache") .. "/insights/graph",
+      layout = "dot",
+    },
   },
 
   -- Populate the quickfix list with files holding unresolved merge conflicts.

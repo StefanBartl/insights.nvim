@@ -70,7 +70,7 @@ A single dispatcher command with tab-completion at every level, built via
 | `fileinfo` | — | Toggle `fs.stat` float for current buffer |
 | `cache` | `build\|info\|clear` | Manage the symbol index cache |
 | `compress` | `[path] [outdir]` | Compress a project directory |
-| `imports` | `[filter/lang...] [telescope\|fzf]` | Import/require analysis (Lua, Python, JS/TS, Go, Rust, C/C++) |
+| `imports` | `[filter/lang...] [telescope\|fzf\|graph]` | Import/require analysis (Lua, Python, JS/TS, Go, Rust, C/C++); `graph` renders it as a Graphviz PNG via images.nvim |
 | `imports reverse` | `<module>` | List every file that imports `<module>` |
 | `imports unused` | `[filter/lang...]` | Bound import names never referenced again in their file |
 | `conflicts` | — | Quickfix unresolved git conflicts |

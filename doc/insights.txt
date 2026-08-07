@@ -340,7 +340,7 @@ vim-plug: >
 4.7 Imports                                       *insights-imports*
 
                                          *:Insights-imports*
-:Insights imports [filter/lang...] [telescope|fzf]
+:Insights imports [filter/lang...] [telescope|fzf|graph]
 
   Scan source files under the current working directory for import/require
   statements across six languages — Lua, Python, JavaScript/TypeScript, Go,
@@ -360,6 +360,8 @@ vim-plug: >
             module filters, both conditions apply (AND).
   [ui]      `telescope` or `fzf` opens a picker over the occurrence list
             instead of the scratch buffer (still writes `output_file`).
+            `graph` renders the same filtered data as a Graphviz dependency
+            graph PNG instead — see |insights-imports-graph| below.
   Tab-completion suggests configured group names, language ids, and the
   picker tokens.
 
@@ -435,6 +437,35 @@ vim-plug: >
 
   Example: >
     :Insights imports reverse insights.config
+<
+                                         *insights-imports-graph*
+:Insights imports graph [filter/lang...]
+
+  Render the same (filtered) import data as a Graphviz dependency graph
+  instead of a text report — every entry is already an edge (`filename`
+  imports `module`), just never drawn as one until this. Nodes: importing
+  files (filled blue); external modules only appear when
+  `imports.graph.include_external` is true (default false — a real project
+  imports far more external modules than it has source files, and drawing
+  them turns the graph into noise instead of showing project structure).
+
+  Needs Graphviz (the CLI named by `imports.graph.layout`, default `"dot"`)
+  on PATH — reading a dependency graph out of source text needs a real
+  layout engine, no pure-Lua substitute exists; reported as a clear error
+  rather than a silent no-op when missing. Rendered to
+  `imports.graph.outdir`/`{project}-imports.png` and shown inline through
+  images.nvim (https://github.com/StefanBartl/images.nvim) if installed,
+  else just reported as a file path to open manually.
+
+  Deliberately scoped to the dependency graph only, the one place in
+  insights.nvim where the data is already graph-shaped. Call-tree and
+  symbol-distribution graphs don't exist as data anywhere else in this
+  plugin (`symbols` is a flat, uncorrelated list) — building that analysis
+  from scratch would be a separate, much larger feature.
+
+  Example: >
+    :Insights imports graph
+    :Insights imports python graph
 <
                                          *:Insights-imports-unused*
 :Insights imports unused [filter/lang...]
@@ -785,6 +816,11 @@ All of these can be overridden per invocation with the flags documented under
       border  = "rounded",
       keymaps = { jump = "gd", preview = "gp" },
     },
+    graph = {
+      include_external = false,
+      outdir = vim.fn.stdpath("cache") .. "/insights/graph",
+      layout = "dot",         -- Graphviz layout engine on PATH
+    },
   },
 <
 `enable`
@@ -830,6 +866,15 @@ All of these can be overridden per invocation with the flags documented under
     border   Border style for the floating preview ("rounded", "single", …).
     keymaps  Buffer-local keys in the report: `jump` (default "gd") and
              `preview` (default "gp"). Set either to `false` to disable it.
+
+`graph`
+  Controls |insights-imports-graph| (`:Insights imports graph`).
+    include_external  Draw external modules as graph nodes too. Default
+                      false — usually far more noise than signal.
+    outdir            Directory the rendered PNG is written to.
+    layout             Graphviz layout engine on PATH: "dot" (default,
+                      hierarchical), "neato"/"fdp"/"sfdp" (force-directed),
+                      "twopi"/"circo" (radial/circular).
 
 ------------------------------------------------------------------------------
 6.8 conflicts                           *insights-config-conflicts*

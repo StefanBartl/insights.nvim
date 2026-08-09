@@ -42,7 +42,10 @@ declared in [`docs/install.json`](docs/install.json), parsed by lib.nvim's
 [`deps` module](https://github.com/StefanBartl/lib.nvim/blob/main/lua/lib/nvim/deps/README.md)
 — a popup explains what's missing the first time `setup()` runs after
 installing insights.nvim, `:Lib deps show insights.nvim` repeats it any
-time, and it's also folded into `:checkhealth insights`.
+time, and it's also folded into `:checkhealth insights`. Opt out with
+`vim.g.lib_nvim_deps_disable_first_run = true` (every plugin) or
+`vim.g.lib_nvim_deps_disabled_plugins = { "insights.nvim" }` (just this
+one), set anywhere in your config.
 
 ```lua
 -- lazy.nvim

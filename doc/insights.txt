@@ -694,6 +694,9 @@ All keys are optional. Unset keys use the defaults shown below.
 `output_file`
   Path where the report is written (in addition to the scratch buffer). The
   directory is created automatically. Set to `""` to skip writing a file.
+  Ending it in `.pdf` writes a PDF via pdfport.nvim
+  (github.com/StefanBartl/pdfport.nvim, optional dependency, needs pandoc +
+  a PDF engine) instead of plain text.
 
 `analyze_lua` / `analyze_misc`
   Which file groups to analyze. `analyze_misc` covers Markdown (`*.md`),

@@ -157,6 +157,23 @@ local function check_pickers()
 end
 
 ---@internal
+local function check_pdfport()
+  start_s("Optional: PDF export (metrics.output_file ending .pdf)")
+  local ok_pp, pdfport = pcall(require, "pdfport")
+  if ok_pp and type(pdfport.can_create) == "function" and pdfport.can_create("text") then
+    ok_s("pdfport.nvim — metrics.output_file ending .pdf can be written")
+  elseif ok_pp then
+    info_s(
+      "pdfport.nvim installed, but no text producer is available (needs pandoc + a PDF engine — see pdfport.nvim's :checkhealth)"
+    )
+  else
+    info_s(
+      "pdfport.nvim not installed — metrics.output_file still works for .md/plain text (https://github.com/StefanBartl/pdfport.nvim)"
+    )
+  end
+end
+
+---@internal
 local function check_treesitter()
   start_s("Tree-sitter (optional Lua scanner)")
   if pcall(require, "nvim-treesitter") then
@@ -315,6 +332,7 @@ function M.check()
   check_lib()
   check_tools()
   check_pickers()
+  check_pdfport()
   check_treesitter()
   check_config()
   check_autocmds()

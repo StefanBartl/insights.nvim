@@ -46,6 +46,9 @@ require("insights").setup({
   metrics = {
     enable             = true,
     output_file        = vim.fn.stdpath("state") .. "/insights/metrics.md",
+    -- Ending output_file in .pdf instead writes a PDF via pdfport.nvim
+    -- (https://github.com/StefanBartl/pdfport.nvim, optional dependency,
+    -- pcall-guarded — needs pandoc + a PDF engine) instead of plain text.
 
     analyze_lua        = true,   -- analyze Lua source files
     analyze_misc       = true,   -- analyze Markdown / TXT / JSON files

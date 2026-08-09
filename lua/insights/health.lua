@@ -296,6 +296,20 @@ local function check_cache()
   end
 end
 
+---@internal
+---Reports insights.nvim's own docs/install.json via lib.nvim.deps — the
+---same rg/dot checks check_tools() already probes, but with their
+---declared `why` and a pointer to `:Lib deps show`. Does nothing if
+---lib.nvim.deps is unavailable (older lib.nvim).
+local function check_lib_deps()
+  local ok, deps_health = pcall(require, "lib.nvim.deps.health")
+  if not ok then
+    return
+  end
+  start_s("Declared tools (lib.nvim.deps)")
+  deps_health.report_for("insights.nvim")
+end
+
 function M.check()
   check_neovim()
   check_lib()
@@ -306,6 +320,7 @@ function M.check()
   check_autocmds()
   check_compress()
   check_cache()
+  check_lib_deps()
 
   require("lib.nvim.usercmd.composer").checkhealth("Insights")
 end

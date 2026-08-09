@@ -23,6 +23,16 @@ function M.setup(opts)
 
   require("insights.bindings.keymaps").setup(cfg)
   require("insights.bindings.autocmds").setup(cfg)
+
+  -- One-time (persisted across restarts) popup on the first setup() after
+  -- installing this plugin: which CLI tools it wants and why
+  -- (docs/install.json). `:Lib deps show insights.nvim` thereafter.
+  -- pcall'd: an older lib.nvim without lib.nvim.deps mustn't break setup()
+  -- over an informational popup.
+  local ok_deps, deps = pcall(require, "lib.nvim.deps")
+  if ok_deps then
+    deps.show_once("insights.nvim")
+  end
 end
 
 -- Public façade for direct Lua use -----------------------------------------------

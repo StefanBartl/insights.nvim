@@ -37,6 +37,13 @@ Requires Neovim ≥ 0.9, [`lib.nvim`](https://github.com/StefanBartl/lib.nvim),
 and `rg` (ripgrep). See [Installation](docs/installation.md) for full
 requirements and other package managers.
 
+`rg` and, optionally, `dot` (graphviz, for the import-graph layout) are
+declared in [`docs/install.json`](docs/install.json), parsed by lib.nvim's
+[`deps` module](https://github.com/StefanBartl/lib.nvim/blob/main/lua/lib/nvim/deps/README.md)
+— a popup explains what's missing the first time `setup()` runs after
+installing insights.nvim, `:Lib deps show insights.nvim` repeats it any
+time, and it's also folded into `:checkhealth insights`.
+
 ```lua
 -- lazy.nvim
 {

@@ -2,8 +2,8 @@
   "tools": [
     {
       "bin": "rg",
-      "required": false,
-      "why": "Powers the symbol index and import-graph scanners (scan/rg.lua, symbols/rg_index.lua) — without it those scans are unavailable rather than falling back to something slower.",
+      "required": true,
+      "why": "Powers the symbol index and import-graph scanners (scan/rg.lua, symbols/rg_index.lua) — health.lua itself treats a missing rg as an error, not a warning: symbol indexing does not work at all without it.",
       "pkg": {
         "apt": "ripgrep",
         "dnf": "ripgrep",

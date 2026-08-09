@@ -159,5 +159,6 @@
 ---@field unimported Insights.UnimportedConfig
 ---@field devserver Insights.DevserverConfig
 ---@field commands boolean  false = register no user commands at all
+---@field deps_popup? boolean  lib.nvim.deps "declared tools" popup once, ever, on first setup() after install (default true; needs lib.nvim.deps — a no-op without it)
 
 return {}

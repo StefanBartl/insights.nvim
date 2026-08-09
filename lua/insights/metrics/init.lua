@@ -276,19 +276,64 @@ function M.write_report(lines, out_path)
   return true, nil
 end
 
+---Write report lines to a PDF via pdfport.nvim (github.com/StefanBartl/
+---pdfport.nvim, optional dependency, soft-required). Byte-for-byte the same
+---lines write_report() would write as plain text, handed to pdfport as
+---`from = "text"` instead. Asynchronous, unlike write_report().
+---@param lines string[]
+---@param out_path string
+---@param callback fun(ok: boolean, err: string?)
+---@return nil
+function M.write_report_pdf(lines, out_path, callback)
+  local ok_pp, pdfport = pcall(require, "pdfport")
+  if not ok_pp or type(pdfport.create) ~= "function" then
+    callback(false, "pdfport.nvim not installed -- PDF export unavailable")
+    return
+  end
+  if type(pdfport.can_create) ~= "function" or not pdfport.can_create("text") then
+    callback(false, "pdfport.nvim has no available text producer (needs pandoc + a PDF engine)")
+    return
+  end
+
+  pdfport.create({
+    text = table.concat(lines, "\n"),
+    from = "text",
+    output = vim.fn.expand(out_path),
+    on_conflict = "overwrite",
+    __callback = function(result)
+      if result.status == "ok" then
+        callback(true, nil)
+      else
+        callback(false, result.error or "pdfport export failed")
+      end
+    end,
+  })
+end
+
 ---@internal
---- Display the report in a scratch buffer and write it to the output file.
+--- Display the report in a scratch buffer and write it to the output file
+--- (PDF via pdfport.nvim, optional dependency, when `output_file` ends `.pdf`).
 ---@param lines string[]
 ---@param title string
 ---@param cfg table
 local function present(lines, title, cfg)
   local out_path = cfg.output_file
   if out_path and out_path ~= "" then
-    local ok, err = M.write_report(lines, out_path)
-    if ok then
-      notify.info("report written: " .. out_path)
+    if out_path:sub(-4):lower() == ".pdf" then
+      M.write_report_pdf(lines, out_path, function(ok, err)
+        if ok then
+          notify.info("report written: " .. out_path)
+        else
+          notify.warn("could not write report: " .. tostring(err))
+        end
+      end)
     else
-      notify.warn("could not write report: " .. tostring(err))
+      local ok, err = M.write_report(lines, out_path)
+      if ok then
+        notify.info("report written: " .. out_path)
+      else
+        notify.warn("could not write report: " .. tostring(err))
+      end
     end
   end
   require("insights.ui.scratch").open(lines, title)

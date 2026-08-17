@@ -18,16 +18,40 @@
 ![Lua](https://img.shields.io/badge/language-Lua-yellow.svg)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)
 
-A project-analysis plugin for Neovim. Combines ripgrep-based symbol indexing,
-Tree-sitter Lua scanning, code metrics, file tree utilities, and buffer info
-into a single unified command.
+A project-analysis plugin for Neovim. Combines ripgrep/Tree-sitter symbol
+indexing, multi-language import/require analysis (usage reports, reverse
+lookup, unused-import detection, dependency graphs), Lua code metrics, file
+tree utilities, directory compression, buffer file info, and automatic
+checks for git conflicts, unused imports, and dev servers — into a single
+unified command.
 
 ---
 
 ## Table of contents
 
+- [Capabilities](#capabilities)
 - [Quickstart](#quickstart)
 - [Documentation](#documentation)
+
+---
+
+## Capabilities
+
+| Capability | What it does | Details |
+|---|---|---|
+| `:Insights symbols` | ripgrep/Tree-sitter symbol index + picker (functions, Lua tables, string literals) | [Commands](docs/commands.md#symbol-index) |
+| `:Insights metrics` | Lua code metrics report | [Commands](docs/commands.md#code-metrics) |
+| `:Insights imports` | Import/require usage report across Lua, Python, JS/TS, Go, Rust, C/C++ | [Commands](docs/commands.md#imports) |
+| `:Insights imports reverse <module>` | List every file that imports a given module | [Commands](docs/commands.md#reverse-view) |
+| `:Insights imports unused` | Bound import names never referenced again in their file | [Commands](docs/commands.md#unused-imports) |
+| `:Insights imports graph` | Render the dependency graph as a PNG (via images.nvim) | [Commands](docs/commands.md#graph-view) |
+| `:Insights tree` / `count` / `clipboard` | Write, count, or clipboard-copy the project file tree | [Commands](docs/commands.md#file-tree) |
+| `:Insights fileinfo` | Toggle an `fs.stat` float for the current buffer | [Commands](docs/commands.md#buffer-file-info) |
+| `:Insights cache build` / `info` / `clear` | Rebuild, inspect, or clear the symbol cache | [Commands](docs/commands.md#symbol-cache) |
+| `:Insights compress [path] [outdir]` | Archive a directory (tar/zip/PowerShell, engine auto-detected) | [Commands](docs/commands.md#compress) |
+| `:Insights conflicts` | Quickfix unresolved git conflicts (also runs automatically on `VimEnter`) | [Automatic triggers](docs/automatic-triggers.md) |
+| `:Insights unimported` | Flag used-but-unimported components in the current buffer | [Commands](docs/commands.md#unimported) |
+| `:Insights devserver list` / `kill` | List or kill dev servers started from Neovim | [Commands](docs/commands.md#devserver) |
 
 ---
 
@@ -68,8 +92,11 @@ work, for turning it off without touching any plugin's config.
 ```vim
 :Insights symbols     " open the symbol picker for the current project
 :Insights metrics     " Lua code metrics report
+:Insights imports     " import/require usage report (multi-language)
 :Insights tree        " write the project file tree to a file
 ```
+
+See [Capabilities](#capabilities) for the full command surface.
 
 ---
 

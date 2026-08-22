@@ -43,8 +43,11 @@ local function setup_conflicts(cfg)
   if not (cfg and cfg.enable) then
     return
   end
+  -- `run_async`, not `run`: nobody asked for this scan, so it must not hold up
+  -- the editor. The blocking version does two git spawns with `:wait()`, which
+  -- on the default VimEnter event cost ~120ms of main-loop block on Windows.
   autocmd.create(norm_events(cfg.events, { "VimEnter" }), function()
-    require("insights.conflicts").run({ silent = true })
+    require("insights.conflicts").run_async({ silent = true })
   end, {
     group = grp,
     desc = "Insights: quickfix unresolved git conflicts",

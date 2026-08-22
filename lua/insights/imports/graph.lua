@@ -107,33 +107,46 @@ function M.available(layout)
 end
 
 ---Render `dot_source` to `out_png` via the Graphviz CLI.
+---
+---Asynchronous: the result arrives through `on_done`, never as a return value.
+---Laying out a dependency graph is genuinely expensive -- `dot` is doing real
+---work proportional to the node and edge count, and on a large project that is
+---seconds. It used to run through `vim.system(...):wait()`, so the editor was
+---frozen for all of it with nothing on screen.
 ---@param dot_source string
 ---@param out_png string
 ---@param layout string|nil defaults to "dot"
----@return string|nil out_png
----@return string|nil err
-function M.render(dot_source, out_png, layout)
+---@param on_done fun(out_png: string|nil, err: string|nil)
+---@return nil
+function M.render(dot_source, out_png, layout, on_done)
   layout = layout or "dot"
   if not M.available(layout) then
-    return nil, ("Graphviz layout '%s' not found (`%s` not on PATH)"):format(layout, layout)
+    return on_done(nil, ("Graphviz layout '%s' not found (`%s` not on PATH)"):format(layout, layout))
   end
 
   local dir = vim.fn.fnamemodify(out_png, ":h")
   if vim.fn.isdirectory(dir) == 0 then
     local ok, err = pcall(vim.fn.mkdir, dir, "p")
     if not ok then
-      return nil, "cannot create output dir: " .. tostring(err)
+      return on_done(nil, "cannot create output dir: " .. tostring(err))
     end
   end
 
-  local result = vim.system({ layout, "-Tpng", "-o", out_png }, { stdin = dot_source, text = true }):wait()
-  if result.code ~= 0 then
-    return nil, "graphviz failed: " .. vim.trim(result.stderr or "")
-  end
-  if vim.fn.filereadable(out_png) == 0 then
-    return nil, "graphviz produced no output file"
-  end
-  return out_png
+  vim.system({ layout, "-Tpng", "-o", out_png }, { stdin = dot_source, text = true }, function(result)
+    -- vim.system callbacks run off the main loop; the caller notifies and
+    -- hands the PNG to images.nvim, which draws into the terminal.
+    vim.schedule(function()
+      if result.code ~= 0 then
+        on_done(nil, "graphviz failed: " .. vim.trim(result.stderr or ""))
+        return
+      end
+      if vim.fn.filereadable(out_png) == 0 then
+        on_done(nil, "graphviz produced no output file")
+        return
+      end
+      on_done(out_png, nil)
+    end)
+  end)
 end
 
 ---Build, render and show the dependency graph for `data` (already scanned
@@ -164,19 +177,24 @@ function M.show(data, filters)
   local proj = vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
   local out_png = (cfg.outdir or vim.fn.stdpath("cache") .. "/insights/graph") .. "/" .. proj .. "-imports.png"
 
-  local png, err = M.render(dot_source, out_png, cfg.layout)
-  if not png then
-    notify.error(err or "graph render failed")
-    return false
-  end
+  -- M.render is asynchronous now, so everything downstream of the layout moved
+  -- into its callback. `true` here means "layout started" -- failures are
+  -- reported through notify, which is where every failure below already went.
+  M.render(dot_source, out_png, cfg.layout, function(png, err)
+    if not png then
+      notify.error(err or "graph render failed")
+      return
+    end
 
-  local ok_images, images = pcall(require, "images")
-  if not (ok_images and images.show) then
-    notify.info("graph written: " .. png .. " (install images.nvim to view it inline)")
-    return true
-  end
+    local ok_images, images = pcall(require, "images")
+    if not (ok_images and images.show) then
+      notify.info("graph written: " .. png .. " (install images.nvim to view it inline)")
+      return
+    end
 
-  images.show(png)
+    images.show(png)
+  end)
+
   return true
 end
 

@@ -19,12 +19,24 @@ buffer-scoped.
 picker: `<Enter>` jumps to definition, `<C-p>` toggles preview (telescope),
 `gf` follows `path:line` in the scratch view.
 
-- **Module:** `symbols/init.lua`, `symbols/rg_index.lua`,
+- **Module:** `symbols/open.lua` (the single dispatch both the command and
+  the keymaps go through -- scope/type/UI resolution, the empty-result guard,
+  and the token lists that drive completion *and* keymap-config validation),
+  `symbols/init.lua`, `symbols/rg_index.lua`,
   `symbols/ts_lua.lua`, `symbols/ts_lua_tables.lua`,
   `symbols/ts_lua_strings.lua`, `symbols/parser.lua`, `symbols/patterns.lua`
 - **Usercmds:** `:Insights symbols [cwd|buffer] [functions|tables|strings]
   [telescope|fzf|scratch|rebuild]`
-- **Keymaps:** `<leader>ps` (telescope), `<leader>pS` (fzf-lua)
+- **Keymaps:** `<leader>ps` (telescope), `<leader>pS` (fzf-lua). Each accepts
+  either a plain lhs string or `{ lhs, scope?, type?, rebuild? }`, so a
+  mapping can ask for something other than the cwd/functions default. Added
+  2026-08-24, closing the flag/option audit's entry: before this the two
+  mappings hardcoded cwd + functions and scanned and opened a picker
+  themselves, which is how they had come to be missing the empty-result guard
+  and `rebuild` that the command path has. Both now dispatch through
+  `symbols/open.lua`, so that cannot drift again. Side effect: the picker
+  title from a keymap now names the type as well (`Symbols (cwd functions)`),
+  matching what the command has always shown.
 - **Config:** `opts.symbols.enable` (default `true`),
   `opts.symbols.languages.*` (11 languages, all default `true`),
   `opts.symbols.use_treesitter_for_lua` (default `false`),

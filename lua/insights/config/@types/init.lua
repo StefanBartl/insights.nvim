@@ -81,9 +81,19 @@
 ---@field enable boolean
 ---@field keymap string|false
 
+---A `symbols_*` keymap. A bare string is the lhs, with the historical
+---defaults (cwd, functions). The table form additionally picks what the
+---mapping actually asks for, so `<leader>ps` can be "tables in this buffer".
+---The UI is not a field: it is fixed by which key this is.
+---@class Insights.SymbolsKeymap
+---@field lhs string
+---@field scope? "cwd"|"buffer"        default "cwd"
+---@field type? "functions"|"tables"|"strings"  default "functions"
+---@field rebuild? boolean             force a cache rebuild first; "functions" only
+
 ---@class Insights.KeymapsConfig
----@field symbols_telescope string|false
----@field symbols_fzf string|false
+---@field symbols_telescope string|false|Insights.SymbolsKeymap
+---@field symbols_fzf string|false|Insights.SymbolsKeymap
 
 ---@class Insights.UIConfig
 ---@field close_keys string[]  buffer-local keys that close a scratch buffer / fileinfo float

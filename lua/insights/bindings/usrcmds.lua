@@ -28,37 +28,19 @@ local expand_path = require("lib.nvim.cross.fs.expand_path")
 
 local M = {}
 
-local SYMBOL_SCOPES = { "cwd", "buffer" }
-local SYMBOL_UIS = { "telescope", "fzf", "scratch", "rebuild" }
-local SYMBOL_TYPES = { "functions", "tables", "strings" }
+-- Scope/type/UI live in `insights.symbols.open`, which both this command and
+-- the `symbols_*` keymaps dispatch through. Kept there rather than here
+-- because they drive completion *and* keymap-config validation, and two
+-- copies of "which scopes exist" go stale on one side only. `rebuild` is a
+-- flag, not a UI -- it rides along in the completion union below because
+-- `:Insights symbols` takes its tokens in any order.
+local symbols_open = require("insights.symbols.open")
+local SYMBOL_SCOPES = symbols_open.SCOPES
+local SYMBOL_UIS = symbols_open.UIS
+local SYMBOL_TYPES = symbols_open.TYPES
+local SYMBOL_FLAGS = { "rebuild" }
 
 local notify = require("insights.util.notify").create("[insights]")
-
----@internal
----Open symbol picker in the requested UI.
----@param entries table[]
----@param ui      string  "telescope"|"fzf"|"scratch"
----@param scope   string
-local function open_symbol_picker(entries, ui, scope)
-  local title = string.format("Symbols (%s) — %d found", scope, #entries)
-  if ui == "fzf" then
-    require("insights.ui.fzf").open(entries, title)
-  elseif ui == "scratch" then
-    local lines = {}
-    for _, e in ipairs(entries) do
-      lines[#lines + 1] = string.format(
-        "%s:%d  [%s] %s",
-        e.filename or "?",
-        e.lnum or 0,
-        e.func_type or "?",
-        e.name or "?"
-      )
-    end
-    require("insights.ui.scratch").open(lines, title)
-  else
-    require("insights.ui.telescope").open(entries, title)
-  end
-end
 
 local METRICS_BOOL_FLAGS = {
   "reverse",
@@ -152,19 +134,6 @@ local function import_tokens(arglead)
 end
 
 ---@internal
----Choose best available picker.
----@return string
-local function default_ui()
-  if pcall(require, "telescope") then
-    return "telescope"
-  end
-  if pcall(require, "fzf-lua") then
-    return "fzf"
-  end
-  return "scratch"
-end
-
----@internal
 ---Dispatch `:Insights symbols` — parses order-independent scope/ui/rebuild/type
 ---tokens, runs the matching symbol scan, and opens the resulting picker.
 ---@param args string[]
@@ -186,32 +155,7 @@ local function handle_symbols(args)
     end
   end
 
-  ui = ui or default_ui()
-
-  local symbols = require("insights.symbols")
-  local entries, msg
-
-  if sym_type == "tables" then
-    notify.info("scanning Lua tables…")
-    entries, msg = symbols.get_tables(scope)
-  elseif sym_type == "strings" then
-    notify.info("scanning Lua strings…")
-    entries, msg = symbols.get_strings(scope)
-  else
-    notify.info("scanning symbols…")
-    entries, msg = symbols.get(scope, rebuild)
-  end
-
-  if msg then
-    notify.info(msg)
-  end
-
-  if not entries or #entries == 0 then
-    notify.warn("nothing found")
-    return
-  end
-
-  open_symbol_picker(entries, ui, scope .. " " .. sym_type)
+  symbols_open.open({ scope = scope, type = sym_type, ui = ui, rebuild = rebuild })
 end
 
 ---@internal
@@ -516,6 +460,7 @@ local SYMBOL_TOKENS = {}
 vim.list_extend(SYMBOL_TOKENS, SYMBOL_SCOPES)
 vim.list_extend(SYMBOL_TOKENS, SYMBOL_TYPES)
 vim.list_extend(SYMBOL_TOKENS, SYMBOL_UIS)
+vim.list_extend(SYMBOL_TOKENS, SYMBOL_FLAGS)
 
 composer.register_type("INSIGHTS_SYMBOLS_TOKEN", {
   validate = function(raw)

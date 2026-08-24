@@ -18,6 +18,23 @@ integration needed.
 | `<leader>ps` | n | `keymaps.symbols_telescope` | Open symbol picker (telescope) |
 | `<leader>pS` | n | `keymaps.symbols_fzf` | Open symbol picker (fzf-lua) |
 
+The two `symbols_*` keys accept either a plain lhs string, or a table that
+also picks what the mapping asks for:
+
+```lua
+keymaps = {
+  symbols_telescope = { lhs = "<leader>ps", scope = "buffer", type = "tables" },
+  symbols_fzf       = "<leader>pS",   -- string form: cwd, functions
+}
+```
+
+`scope` is `cwd`|`buffer`, `type` is `functions`|`tables`|`strings`, and
+`rebuild = true` forces a cache rebuild first. There is no `ui` field: the
+UI is what distinguishes the two keys. An unknown scope or type is reported
+and the default used, rather than passed down to a scanner that would answer
+with a confusing "nothing found". The `desc` reflects the resolved choice, so
+which-key shows `insights: symbols (telescope, buffer tables)`.
+
 ### Buffer-local — scratch report buffer
 
 Registered on every `insights://…` scratch buffer (metrics, symbols,

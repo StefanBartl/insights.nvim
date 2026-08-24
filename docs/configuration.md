@@ -84,8 +84,16 @@ require("insights").setup({
 
   -- Optional keymaps (false to disable)
   keymaps = {
-    symbols_telescope = "<leader>ps",
+    -- Either a plain lhs string (cwd + functions, as before) ...
     symbols_fzf       = "<leader>pS",
+    -- ... or a table that also picks scope/type/rebuild. No `ui` field:
+    -- the UI is which key this is.
+    symbols_telescope = {
+      lhs     = "<leader>ps",
+      scope   = "cwd",        -- "cwd" | "buffer"
+      type    = "functions",  -- "functions" | "tables" | "strings"
+      rebuild = false,        -- force a cache rebuild first ("functions" only)
+    },
   },
 
   -- Buffer-local keymaps on scratch reports and the fileinfo float

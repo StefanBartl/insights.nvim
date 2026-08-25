@@ -20,7 +20,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           version: 2.5.2
-          args: --check lua plugin
+          args: --check lua plugin TESTS
 
   luacheck:
     name: luacheck (lint)
@@ -36,4 +36,30 @@ jobs:
           luaVersion: "5.4"
       - uses: leafo/gh-actions-luarocks@v4
       - run: luarocks install luacheck
-      - run: luacheck lua plugin
+      - run: luacheck lua plugin TESTS
+
+  tests:
+    name: tests (headless)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: insights.nvim
+
+      # lib.nvim is a real runtime dependency -- several modules require it at
+      # module load -- so the suite cannot run without it. Checked out as a
+      # sibling, which is the layout TESTS/run.lua's own resolver looks for
+      # first after $LIB_NVIM_PATH.
+      - uses: actions/checkout@v4
+        with:
+          repository: StefanBartl/lib.nvim
+          path: lib.nvim
+
+      - uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+
+      - name: Run TESTS/run.lua
+        working-directory: insights.nvim
+        run: nvim --headless -u NONE -c "set rtp+=." -l TESTS/run.lua

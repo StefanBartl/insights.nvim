@@ -73,15 +73,20 @@ function M.build_dot(entries, opts)
   local files = vim.tbl_keys(file_nodes)
   table.sort(files)
   for _, f in ipairs(files) do
-    lines[#lines + 1] = ("  %s [style=filled, fillcolor=%s];"):format(dot_quote(f), dot_quote("#cfe8ff"))
+    lines[#lines + 1] = ("  %s [style=filled, fillcolor=%s];"):format(
+      dot_quote(f),
+      dot_quote("#cfe8ff")
+    )
   end
 
   local modules = vim.tbl_keys(module_nodes)
   table.sort(modules)
   for _, m in ipairs(modules) do
     if module_nodes[m] then
-      lines[#lines + 1] =
-        ('  %s [style="filled,dashed", fillcolor=%s];'):format(dot_quote(m), dot_quote("#eeeeee"))
+      lines[#lines + 1] = ('  %s [style="filled,dashed", fillcolor=%s];'):format(
+        dot_quote(m),
+        dot_quote("#eeeeee")
+      )
     end
   end
 
@@ -121,7 +126,10 @@ end
 function M.render(dot_source, out_png, layout, on_done)
   layout = layout or "dot"
   if not M.available(layout) then
-    return on_done(nil, ("Graphviz layout '%s' not found (`%s` not on PATH)"):format(layout, layout))
+    return on_done(
+      nil,
+      ("Graphviz layout '%s' not found (`%s` not on PATH)"):format(layout, layout)
+    )
   end
 
   local dir = vim.fn.fnamemodify(out_png, ":h")
@@ -132,21 +140,25 @@ function M.render(dot_source, out_png, layout, on_done)
     end
   end
 
-  vim.system({ layout, "-Tpng", "-o", out_png }, { stdin = dot_source, text = true }, function(result)
-    -- vim.system callbacks run off the main loop; the caller notifies and
-    -- hands the PNG to images.nvim, which draws into the terminal.
-    vim.schedule(function()
-      if result.code ~= 0 then
-        on_done(nil, "graphviz failed: " .. vim.trim(result.stderr or ""))
-        return
-      end
-      if vim.fn.filereadable(out_png) == 0 then
-        on_done(nil, "graphviz produced no output file")
-        return
-      end
-      on_done(out_png, nil)
-    end)
-  end)
+  vim.system(
+    { layout, "-Tpng", "-o", out_png },
+    { stdin = dot_source, text = true },
+    function(result)
+      -- vim.system callbacks run off the main loop; the caller notifies and
+      -- hands the PNG to images.nvim, which draws into the terminal.
+      vim.schedule(function()
+        if result.code ~= 0 then
+          on_done(nil, "graphviz failed: " .. vim.trim(result.stderr or ""))
+          return
+        end
+        if vim.fn.filereadable(out_png) == 0 then
+          on_done(nil, "graphviz produced no output file")
+          return
+        end
+        on_done(out_png, nil)
+      end)
+    end
+  )
 end
 
 ---Build, render and show the dependency graph for `data` (already scanned
@@ -175,7 +187,10 @@ function M.show(data, filters)
   local dot_source = M.build_dot(entries, { include_external = cfg.include_external })
 
   local proj = vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
-  local out_png = (cfg.outdir or vim.fn.stdpath("cache") .. "/insights/graph") .. "/" .. proj .. "-imports.png"
+  local out_png = (cfg.outdir or vim.fn.stdpath("cache") .. "/insights/graph")
+    .. "/"
+    .. proj
+    .. "-imports.png"
 
   -- M.render is asynchronous now, so everything downstream of the layout moved
   -- into its callback. `true` here means "layout started" -- failures are

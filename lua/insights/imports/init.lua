@@ -19,6 +19,7 @@ local notify = require("insights.util.notify").create("[insights.imports]")
 local config = require("insights.config")
 local rg = require("insights.scan.rg")
 local langs = require("insights.imports.langs")
+local globbable = require("lib.nvim.fs.globbable")
 
 ---@class ImportEntry
 ---@field module   string   the required module path, e.g. "insights.config"
@@ -69,7 +70,7 @@ end
 ---@param ext string
 ---@return string[]
 local function glob_files(cwd, ext)
-  local files = vim.fn.globpath(cwd, "**/*." .. ext, false, true)
+  local files = vim.fn.globpath(globbable(cwd), "**/*." .. ext, false, true)
   local todo = {}
   for _, path in ipairs(files) do
     if not skip_path(path) then

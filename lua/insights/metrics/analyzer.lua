@@ -2,6 +2,8 @@
 ---@brief Per-file Lua code metrics: lines, comments, annotations, words.
 local M = {}
 
+local globbable = require("lib.nvim.fs.globbable")
+
 ---@type table<string, boolean>  ignored directory names (matched per segment)
 local IGNORE_DIRS = {
   [".git"] = true,
@@ -36,11 +38,18 @@ end
 ---Find files matching `pattern` under `dir` (respects IGNORE_DIRS). Returns
 ---forward-slash paths. `dir` should be normalized (absolute, forward slashes,
 ---no trailing slash) so the ignore check runs against paths relative to it.
+---
+---`dir` is rebound to its glob-safe spelling before either use, not just at
+---the glob: the ignore check below strips `#dir` bytes off each result to get
+---a relative path, so the two must agree on how the root is spelled. Under an
+---8.3 short root they would not, and every relative path would come out
+---shifted.
 ---@param dir string
 ---@param pattern string   glob leaf, e.g. "*.lua", "*.md"
 ---@return string[]
 function M.list_files(dir, pattern)
   local files = {}
+  dir = globbable(dir)
   local found = vim.fn.glob(dir .. "/**/" .. pattern, false, true)
   for _, f in ipairs(found) do
     f = f:gsub("\\", "/")

@@ -6,6 +6,7 @@
 local M = {}
 
 local notify = require("insights.util.notify").create("[insights.symbols.ts_lua_tables]")
+local globbable = require("lib.nvim.fs.globbable")
 local api = vim.api
 local ts = vim.treesitter
 
@@ -146,7 +147,7 @@ end
 ---@return table[]
 function M.scan_cwd()
   local cwd = vim.fn.getcwd()
-  local files = vim.fn.globpath(cwd, "**/*.lua", false, true)
+  local files = vim.fn.globpath(globbable(cwd), "**/*.lua", false, true)
 
   local ignore = { "/%.git/", "/node_modules/", "/%.cache/", "/build/", "/dist/", "/target/" }
   local filtered = {}

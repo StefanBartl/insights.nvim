@@ -1,76 +1,75 @@
-# Analyse: insights.nvim ↔ documentation.nvim ↔ runtime-analysis.nvim
+# Analysis: insights.nvim ↔ documentation.nvim ↔ runtime-analysis.nvim
 
-**Befund vorweg:** Aktuell gibt es **null Querverweise** zwischen insights.nvim und den beiden anderen — weder im Code noch in der Doku. documentation.nvim und runtime-analysis.nvim dagegen sind bereits eng verzahnt, mit einem eigenen Architektur-Dokument dafür ([`documentation.nvim/docs/ROADMAP/FEATURES/ECOSYSTEM.md`](C:\repos\documentation.nvim\docs\ROADMAP\FEATURES\ECOSYSTEM.md)) und einem Ideen-Backlog nur für die Schnittstelle zwischen den beiden ([`runtime-analysis.nvim/docs/IDEAS.md`](C:\repos\runtime-analysis.nvim\docs\IDEAS.md)). insights.nvim ist dort mit keiner Silbe erwähnt. Das ist der Ausgangspunkt der Analyse.
+**The finding up front:** at present there are **zero cross-references** between insights.nvim and the other two — neither in the code nor in the documentation. documentation.nvim and runtime-analysis.nvim, by contrast, are already closely interlocked, with an architecture document of their own for it ([`documentation.nvim/docs/ROADMAP/FEATURES/ECOSYSTEM.md`](C:\repos\documentation.nvim\docs\ROADMAP\FEATURES\ECOSYSTEM.md)) and an ideas backlog just for the interface between the two ([`runtime-analysis.nvim/docs/IDEAS.md`](C:\repos\runtime-analysis.nvim\docs\IDEAS.md)). insights.nvim is not mentioned there with a single word. That is the starting point of this analysis.
 
 ## Table of content
 
-  - [1. Was die drei Plugins tatsächlich sind](#1-was-die-drei-plugins-tatschlich-sind)
-  - [2. Echte Überschneidungen (Duplizierungsrisiko)](#2-echte-berschneidungen-duplizierungsrisiko)
-  - [3. Konkrete Synergie-Chancen, nach Aufwand/Nutzen sortiert](#3-konkrete-synergie-chancen-nach-aufwandnutzen-sortiert)
-  - [4. Was bewusst **nicht** sinnvoll ist](#4-was-bewusst-nicht-sinnvoll-ist)
-  - [Kurzfazit](#kurzfazit)
+  - [1. What the three plugins actually are](#1-what-the-three-plugins-actually-are)
+  - [2. Real overlaps (duplication risk)](#2-real-overlaps-duplication-risk)
+  - [3. Concrete synergy opportunities, ordered by effort/benefit](#3-concrete-synergy-opportunities-ordered-by-effortbenefit)
+  - [4. What deliberately does **not** make sense](#4-what-deliberately-does-not-make-sense)
+  - [In short](#in-short)
 
 ---
 
-## 1. Was die drei Plugins tatsächlich sind
+## 1. What the three plugins actually are
 
-| Plugin | Kernidee | Reichweite | Datenbasis |
+| Plugin | Core idea | Reach | Data basis |
 |---|---|---|---|
-| **documentation.nvim** | Statische Wahrheit: was existiert, was ist dokumentiert, wie hängt es zusammen | **Lua-only**, nur `---@module`-annotierte Bäume | Persistiertes, byte-deterministisches IR (`module_map.json`), CI-geprüft |
-| **runtime-analysis.nvim** | Laufzeit-Wahrheit: was tatsächlich ausgeführt wurde | Lua/Neovim-Plugins (Telemetry), plus HTTP-Request-Runner | Live-Zähler im Prozess, persistiert im Cache |
-| **insights.nvim** | Ad-hoc-Projektanalyse: Symbole, Metriken, Imports/Deps, Baum, Komprimierung | **11 Sprachen** (Symbole), **6 Sprachen** (Imports) — ausdrücklich nicht nur Lua/Neovim | ripgrep + punktuelles Tree-sitter, kein persistiertes IR, kein CI-Gate |
+| **documentation.nvim** | Static truth: what exists, what is documented, how it hangs together | **Lua only**, only `---@module`-annotated trees | Persisted, byte-deterministic IR (`module_map.json`), CI-checked |
+| **runtime-analysis.nvim** | Runtime truth: what was actually executed | Lua/Neovim plugins (telemetry), plus an HTTP request runner | Live counters in the process, persisted in the cache |
+| **insights.nvim** | Ad-hoc project analysis: symbols, metrics, imports/deps, tree, compression | **11 languages** (symbols), **6 languages** (imports) — expressly not just Lua/Neovim | ripgrep plus selective tree-sitter, no persisted IR, no CI gate |
 
-Die beiden etablierten Plugins organisieren sich entlang einer klaren Naht ("Seam A: static vs. runtime", [ECOSYSTEM.md](C:\repos\documentation.nvim\docs\ROADMAP\FEATURES\ECOSYSTEM.md):87-92). insights.nvim liegt komplett auf der statischen Seite — aber auf einer **anderen Achse**, die in deren Dokumenten so nicht benannt ist:
+The two established plugins organize themselves along a clear seam ("Seam A: static vs. runtime", [ECOSYSTEM.md](C:\repos\documentation.nvim\docs\ROADMAP\FEATURES\ECOSYSTEM.md):87-92). insights.nvim lies entirely on the static side — but on a **different axis**, one their documents do not name as such:
 
-> **Tief & eng vs. breit & flach.** documentation.nvim ist tief (persistiertes IR, Call-Graphen, Drift-Checks, CI-gated) aber eng (nur Lua, nur annotierter Code). insights.nvim ist breit (6–11 Sprachen) aber flach (Textscan/Regex, keine Historie, kein Determinismus-Anspruch).
+> **Deep and narrow vs. broad and shallow.** documentation.nvim is deep (persisted IR, call graphs, drift checks, CI-gated) but narrow (Lua only, annotated code only). insights.nvim is broad (6–11 languages) but shallow (text scan/regex, no history, no claim to determinism).
 
-Das ist keine Konkurrenzsituation, sondern eine echte Arbeitsteilung — vorausgesetzt, man macht sie sichtbar.
-
----
-
-## 2. Echte Überschneidungen (Duplizierungsrisiko)
-
-Zwei Stellen, an denen insights.nvim bereits **das baut, was documentation.nvim sich für später vorgenommen hat**:
-
-- **`:Insights imports unused`** ([commands.md:249-259](C:\repos\insights.nvim\docs\commands.md)) — gebundene Import-Namen, die nie wieder referenziert werden. documentation.nvim listet exakt das als offene Idee: *"Unused requires … cheap: the IR already has both the require edges and the symbol references"* ([documentation.nvim IDEAS.md §2.5](C:\repos\documentation.nvim\docs\ROADMAP\IDEAS\IDEAS.md):244-249). Würde das dort gebaut, entstünde eine Zweitimplementierung derselben Funktion — nur enger (Lua-only) und ohne die anderen 5 Sprachen, die insights.nvim schon abdeckt.
-- **`:Insights symbols`** — ripgrep-basierter Symbolindex über 11 Sprachen mit Telescope/fzf-Picker. documentation.nvim hat "Workspace symbols from the IR" bewusst verworfen: *"Whether this is worth building depends entirely on whether it beats lua-language-server … Probably not"* ([IDEAS.md §6.5](C:\repos\documentation.nvim\docs\ROADMAP\IDEAS\IDEAS.md):445-451) — aber genau für Lua, wo LSP ohnehin gut ist. Für die anderen 10 Sprachen in insights.nvim, wo kein/schlechteres LSP-Workspace-Symbol existiert, füllt insights.nvim eine Lücke, die documentation.nvim strukturell nie schließen wird (Lua-only per Design).
-
-**Konsequenz:** Bevor documentation.nvim `IDEAS.md §2.5` angeht, lohnt ein Blick auf insights.nvim — evtl. reicht ein Verweis statt Neubau.
+That is not a competition but a real division of labour — provided one makes it visible.
 
 ---
 
-## 3. Konkrete Synergie-Chancen, nach Aufwand/Nutzen sortiert
+## 2. Real overlaps (duplication risk)
 
-**a) READMEs gegenseitig verlinken (trivial, sofort sinnvoll)**
-insights.nvim pairt aktuell nur mit `buffer-ctx.nvim` ([README.md:11-13](C:\repos\insights.nvim\README.md)). Ein ehrlicher Hinweis in beide Richtungen — *"für reines Lua/Neovim-Plugin-Dokumentieren mit IR/CI-Gate: documentation.nvim; für schnelle Ad-hoc-Analyse über mehrere Sprachen hinweg: insights.nvim"* — verhindert genau die Duplizierung aus Punkt 2 und hilft Nutzern bei der Werkzeugwahl.
+Two places where insights.nvim already **builds what documentation.nvim has set itself for later**:
 
-**b) insights.nvim mit `runtime-analysis.telemetry` selbst instrumentieren**
-runtime-analysis.nvim bietet genau dafür einen generischen Helfer: `telemetry.auto({ namespace, main, deep })` — "new+wrap+start in einem Call", soft-dependency, No-op ohne das Plugin ([telemetry/README.md:206-233](C:\repos\runtime-analysis.nvim\lua\runtime-analysis\telemetry\README.md)). documentation.nvim macht das bereits mit sich selbst (`telemetry_self`, [ECOSYSTEM.md:704-724](C:\repos\documentation.nvim\docs\ROADMAP\FEATURES\ECOSYSTEM.md)) — exakt dasselbe Muster wie der schon vorhandene `deps_popup`-Opt-out in [DEFAULTS.lua:192-198](C:\repos\insights.nvim\lua\insights\config\DEFAULTS.lua). Ein `opts.telemetry = true`-Default (No-op ohne runtime-analysis.nvim) würde beantworten: *Welche `:Insights`-Subcommands werden überhaupt benutzt?* — relevant z. B. für die Frage, ob `compress` oder `devserver` das Gewicht im Plugin wert sind.
+- **`:Insights imports unused`** ([commands.md:249-259](C:\repos\insights.nvim\docs\commands.md)) — bound import names that are never referenced again. documentation.nvim lists exactly that as an open idea: *"Unused requires … cheap: the IR already has both the require edges and the symbol references"* ([documentation.nvim IDEAS.md §2.5](C:\repos\documentation.nvim\docs\ROADMAP\IDEAS\IDEAS.md):244-249). Were that built there, a second implementation of the same function would come into being — only narrower (Lua only) and without the other 5 languages insights.nvim already covers.
+- **`:Insights symbols`** — a ripgrep-based symbol index over 11 languages with a Telescope/fzf picker. documentation.nvim deliberately discarded "Workspace symbols from the IR": *"Whether this is worth building depends entirely on whether it beats lua-language-server … Probably not"* ([IDEAS.md §6.5](C:\repos\documentation.nvim\docs\ROADMAP\IDEAS\IDEAS.md):445-451) — but precisely for Lua, where LSP is good anyway. For the other 10 languages in insights.nvim, where no or a worse LSP workspace symbol exists, insights.nvim fills a gap documentation.nvim will structurally never close (Lua only by design).
 
-**c) insights.nvim dev-only mit documentation.nvim mappen**
-Sowohl documentation.nvim als auch runtime-analysis.nvim generieren ihre eigene `docs/map/` und veröffentlichen sie (READMEs, jeweils "This repository maps itself with the same tool"). insights.nvim pflegt [`docs/architecture.md`](C:\repos\insights.nvim\docs\architecture.md) dagegen **von Hand** — genau die Art Dokument, die documentation.nvim ersetzen soll (Drift zwischen Doku und Code automatisch erkennen, statt sie manuell synchron zu halten). Kostet nur `dev-dependency` + `scripts/gen_map.lua`, kein Laufzeit-Impact.
-
-**d) Metrics-Report optional um documentation.nvim-Kennzahlen erweitern**
-`:Insights metrics` schreibt bereits nach Datei/PDF ([commands.md:59-99](C:\repos\insights.nvim\docs\commands.md), PDF-Export kam gerade erst dazu, siehe letzter Commit). Falls im Projekt ein `docs/map/module_map.json` existiert (rein lesend, `pcall`, kein Hard-Dependency), könnte der Report eine zusätzliche Sektion mit documentation.nvim's Strukturkennzahlen (Zyklomatische Komplexität, Fan-in/out, Duplikate, Doc-Coverage) übernehmen — statt sie neu zu berechnen. insights.nvim liefert dann Text-/Wort-Statistik, documentation.nvim liefert Struktur — ein gemeinsamer Report ohne Codeverdopplung.
-
-**e) Polyglotter Imports-Graph als dokumentierter Fallback**
-`:Insights imports graph` zeichnet bereits Abhängigkeitsgraphen für Python/Go/Rust/C/C++ ([commands.md:273-301](C:\repos\insights.nvim\docs\commands.md)) — Sprachen, die documentation.nvim's Backend laut eigenem [`docs/ROADMAP/MULTILANG.md`](C:\repos\documentation.nvim\docs\ROADMAP) noch gar nicht erreicht. Ein Verweis dort auf insights.nvim würde verhindern, dass jemand diese Sprachunterstützung in documentation.nvim von Grund auf neu baut, obwohl sie – wenn auch schlanker – schon existiert.
+**Consequence:** before documentation.nvim tackles `IDEAS.md §2.5`, a look at insights.nvim is worth it — a pointer may well be enough instead of a rebuild.
 
 ---
 
-## 4. Was bewusst **nicht** sinnvoll ist
+## 3. Concrete synergy opportunities, ordered by effort/benefit
 
-In derselben Ehrlichkeits-Konvention, die die anderen beiden Repos für sich selbst anwenden ("Deliberately not", [IDEAS.md §7](C:\repos\runtime-analysis.nvim\docs\IDEAS.md):415-424):
+**a) Cross-link the READMEs (trivial, immediately worthwhile)**
+insights.nvim currently pairs only with `buffer-ctx.nvim` ([README.md:11-13](C:\repos\insights.nvim\README.md)). An honest pointer in both directions — *"for documenting pure Lua/Neovim plugins with an IR and a CI gate: documentation.nvim; for quick ad-hoc analysis across several languages: insights.nvim"* — prevents exactly the duplication from point 2 and helps users choose their tool.
 
-- **Kein Merge/keine Übernahme von Modulen.** documentation.nvim's Wert liegt gerade in Enge + Determinismus (CI-Byte-Vergleich); insights.nvim's Wert liegt in Breite + Interaktivität. Eine Verschmelzung würde beides verwässern.
-- **insights.nvim sollte nicht hart von den beiden anderen abhängen** — dieselbe Regel, die documentation.nvim sich selbst für runtime-analysis.nvim auferlegt (nie Hard-Dependency eines statischen/Ad-hoc-Analysetools auf ein optionales Laufzeit-Plugin).
-- **`tree`, `fileinfo`, `compress`, `conflicts`, `unimported`, `devserver`** haben keine sinnvolle Berührung mit den anderen beiden — reine Editor-Workflow-Automatisierung, orthogonal zum Doku-/Runtime-Thema. Hier künstlich eine Verbindung zu suchen wäre Kraft in die falsche Richtung.
+**b) Instrument insights.nvim itself with `runtime-analysis.telemetry`**
+runtime-analysis.nvim offers a generic helper for exactly that: `telemetry.auto({ namespace, main, deep })` — "new+wrap+start in one call", a soft dependency, a no-op without the plugin ([telemetry/README.md:206-233](C:\repos\runtime-analysis.nvim\lua\runtime-analysis\telemetry\README.md)). documentation.nvim already does this with itself (`telemetry_self`, [ECOSYSTEM.md:704-724](C:\repos\documentation.nvim\docs\ROADMAP\FEATURES\ECOSYSTEM.md)) — exactly the same pattern as the `deps_popup` opt-out already present in [DEFAULTS.lua:192-198](C:\repos\insights.nvim\lua\insights\config\DEFAULTS.lua). An `opts.telemetry = true` default (a no-op without runtime-analysis.nvim) would answer: *which `:Insights` subcommands are actually used?* — relevant, for instance, to the question of whether `compress` or `devserver` are worth their weight in the plugin.
+
+**c) Map insights.nvim with documentation.nvim, dev-only**
+Both documentation.nvim and runtime-analysis.nvim generate their own `docs/map/` and publish it (READMEs, each saying "This repository maps itself with the same tool"). insights.nvim, by contrast, maintains [`docs/architecture.md`](C:\repos\insights.nvim\docs\architecture.md) **by hand** — exactly the kind of document documentation.nvim is meant to replace (detect drift between documentation and code automatically instead of keeping them in sync manually). Costs only a `dev-dependency` plus `scripts/gen_map.lua`, with no runtime impact.
+
+**d) Optionally extend the metrics report with documentation.nvim figures**
+`:Insights metrics` already writes to a file or PDF ([commands.md:59-99](C:\repos\insights.nvim\docs\commands.md); PDF export was only just added, see the last commit). If a `docs/map/module_map.json` exists in the project (read-only, `pcall`, no hard dependency), the report could take over an additional section with documentation.nvim's structural figures (cyclomatic complexity, fan-in/out, duplicates, doc coverage) — instead of recomputing them. insights.nvim then delivers text/word statistics and documentation.nvim delivers structure — a joint report without duplicated code.
+
+**e) The polyglot imports graph as a documented fallback**
+`:Insights imports graph` already draws dependency graphs for Python/Go/Rust/C/C++ ([commands.md:273-301](C:\repos\insights.nvim\docs\commands.md)) — languages that documentation.nvim's backend, per its own [`docs/ROADMAP/MULTILANG.md`](C:\repos\documentation.nvim\docs\ROADMAP), has not reached at all yet. A pointer there to insights.nvim would keep somebody from building that language support in documentation.nvim from scratch, even though it already exists — leaner, but it exists.
 
 ---
 
-## Kurzfazit
+## 4. What deliberately does **not** make sense
 
-insights.nvim ist kein fehlendes Puzzleteil des dokumentierten documentation.nvim/runtime-analysis.nvim-Ökosystems, sondern ein **drittes, orthogonales Werkzeug** mit echtem Alleinstellungsmerkmal (Polyglot, ad hoc, kein IR/CI-Anspruch). Der größte Sofort-Nutzen liegt nicht in tiefer Code-Integration, sondern darin, das explizit zu machen: READMEs verlinken (a) und die beiden konkreten Redundanz-Kandidaten (`imports unused`, Workspace-Symbole, Punkt 2) im jeweils anderen Backlog vermerken, bevor dort etwas doppelt gebaut wird. Danach lohnt sich am ehesten (b) Telemetrie-Selbstinstrumentierung — billig, nutzt existierende Infrastruktur, liefert echte Nutzungsdaten für insights.nvim's eigene Roadmap-Entscheidungen.
+In the same convention of honesty the other two repos apply to themselves ("Deliberately not", [IDEAS.md §7](C:\repos\runtime-analysis.nvim\docs\IDEAS.md):415-424):
+
+- **No merge, no adoption of modules.** documentation.nvim's value lies precisely in narrowness plus determinism (the CI byte comparison); insights.nvim's value lies in breadth plus interactivity. Merging them would dilute both.
+- **insights.nvim should not depend hard on the other two** — the same rule documentation.nvim imposes on itself regarding runtime-analysis.nvim (never a hard dependency of a static/ad-hoc analysis tool on an optional runtime plugin).
+- **`tree`, `fileinfo`, `compress`, `conflicts`, `unimported`, `devserver`** have no meaningful contact with the other two — pure editor-workflow automation, orthogonal to the documentation/runtime theme. Looking for a connection here artificially would be effort in the wrong direction.
 
 ---
 
+## In short
+
+insights.nvim is not a missing puzzle piece of the documented documentation.nvim/runtime-analysis.nvim ecosystem, but a **third, orthogonal tool** with a real distinguishing feature (polyglot, ad hoc, no IR/CI claim). The greatest immediate benefit lies not in deep code integration but in making that explicit: cross-link the READMEs (a) and note the two concrete redundancy candidates (`imports unused`, workspace symbols, point 2) in the other backlog, before something gets built twice there. After that, (b) telemetry self-instrumentation is the most worthwhile — cheap, uses existing infrastructure, and delivers real usage data for insights.nvim's own roadmap decisions.
+
+---

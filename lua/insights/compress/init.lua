@@ -136,11 +136,16 @@ function engines.powershell(path, outdir, on_complete)
   local out_path = outdir .. "\\" .. name .. ".zip"
   local list_path = outdir .. "\\file-list.txt"
 
+  -- The listing is written from Lua rather than piped into Out-File. Out-File
+  -- defaults to UTF-16LE with a BOM in Windows PowerShell -- verified, not
+  -- assumed -- so file-list.txt came out as wide characters while the Unix
+  -- engines, redirecting through sh, wrote plain UTF-8 for the same listing.
+  -- `-Encoding utf8` would only trade that for a UTF-8 BOM; writing it here
+  -- gives all three engines byte-identical output.
   local cmd_list = table.concat({
     "Get-ChildItem -Recurse -Path '" .. path .. "'",
     "| Where-Object { $_.FullName -notlike '*\\.git\\*' }",
     "| Select-Object -ExpandProperty FullName",
-    "| Out-File -FilePath '" .. list_path .. "'",
   }, " ")
   local cmd_arc = "Compress-Archive -Path '"
     .. path
@@ -148,9 +153,19 @@ function engines.powershell(path, outdir, on_complete)
     .. out_path
     .. "' -Force"
 
-  platform.run_shell(cmd_list, function(ok1, _, err1)
+  platform.run_shell(cmd_list, function(ok1, listing, err1)
     if not ok1 then
       on_complete(false, "file listing failed: " .. err1)
+      return
+    end
+
+    local lines = {}
+    for line in (listing or ""):gmatch("[^\r\n]+") do
+      lines[#lines + 1] = line
+    end
+
+    if vim.fn.writefile(lines, list_path) ~= 0 then
+      on_complete(false, "file listing failed: cannot write " .. list_path)
       return
     end
     platform.run_shell(cmd_arc, function(ok2, _, err2)

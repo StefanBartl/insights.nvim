@@ -118,14 +118,34 @@ function M.write_tree(callback)
   -- own branches above), so cwd being non-nil here guarantees proj is too.
   ---@cast proj string
   local out = output_path(proj)
-  local cmd = build_tree_cmd(cwd, cfg.exclude_patterns) .. " > " .. fn.shellescape(out)
 
-  platform.run_shell(cmd, function(success, _, stderr)
-    if success then
-      callback(true, "tree written: " .. out, out)
-    else
+  -- The listing is captured and written from Lua rather than redirected with
+  -- `> file` in the shell, for the same reason count_files does its own
+  -- counting: the redirect is not the same operation on both platforms. On
+  -- Windows the shell is `powershell -Command` (see lib.nvim.cross.run.shell),
+  -- where `>` is an alias for Out-File and writes **UTF-16LE with a BOM** --
+  -- verified, not assumed. The tree file came out as wide characters, which is
+  -- not what anything downstream reads. Writing it here is one encoding on
+  -- every platform, and it drops a shellescape that was quoting for cmd.exe
+  -- while the command around it was quoting for PowerShell.
+  local cmd = build_tree_cmd(cwd, cfg.exclude_patterns)
+
+  platform.run_shell(cmd, function(success, listing, stderr)
+    if not success then
       callback(false, "tree write failed: " .. (stderr or ""), out)
+      return
     end
+
+    local lines = {}
+    for line in (listing or ""):gmatch("[^\r\n]+") do
+      lines[#lines + 1] = line
+    end
+
+    if fn.writefile(lines, out) ~= 0 then
+      callback(false, "tree write failed: cannot write " .. out, out)
+      return
+    end
+    callback(true, "tree written: " .. out, out)
   end)
 end
 

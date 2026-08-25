@@ -17,13 +17,22 @@ end
 
 ---Run a shell command asynchronously.
 ---Callback receives (success: boolean, stdout: string, stderr: string).
+---
+---`cb` runs on the main loop, so `vim.fn.*`, `vim.api.*` and `vim.notify` are
+---all safe inside it. `vim.system` delivers its own callback in a fast event
+---context, where those raise "must not be called in a fast event context" --
+---and every consumer here ends in a notify, which is exactly that. Scheduling
+---once in the one place beats each caller remembering.
 ---@param cmd string
 ---@param cb fun(success: boolean, stdout: string, stderr: string)
 function M.run_shell(cmd, cb)
   -- This module's own shell-selection (powershell on Windows, sh -c
   -- elsewhere) duplicated lib.nvim.cross.run.shell()/run() exactly.
   require("lib.nvim.cross.run").run(cmd, function(ok, res)
-    cb(ok, res.stdout or "", res.stderr or "")
+    local stdout, stderr = res.stdout or "", res.stderr or ""
+    vim.schedule(function()
+      cb(ok, stdout, stderr)
+    end)
   end)
 end
 

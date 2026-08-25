@@ -83,9 +83,7 @@ work, for turning it off without touching any plugin's config.
     { "<leader>ps", desc = "Project symbols (telescope)" },
     { "<leader>pS", desc = "Project symbols (fzf)" },
   },
-  config = function()
-    require("insights").setup()
-  end,
+  opts = {},
 }
 ```
 

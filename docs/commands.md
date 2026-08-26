@@ -6,7 +6,7 @@
 :Insights <subcommand> [args]
 ```
 
-Tab-completion works at every level. Built via `lib.nvim.usercmd.composer`:
+Tab-completion works at every level. Built via `lib.nvim.bindings.usercmd.composer`:
 the route tree in `lua/insights/bindings/usrcmds.lua` drives dispatch
 and `<Tab>` completion from one source, forwarding to the same handler
 functions as before (byte-for-byte unchanged dispatch/parsing). Two

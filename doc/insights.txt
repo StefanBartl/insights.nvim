@@ -128,7 +128,7 @@ vim-plug: >
 
   Tab-completion is available at every argument position.
 
-  Built via `lib.nvim.usercmd.composer` — dispatch and completion are driven
+  Built via `lib.nvim.bindings.usercmd.composer` — dispatch and completion are driven
   from one route tree, forwarding to the same handler functions as before
   this migration. An unknown {subcommand} now reports composer's own usage
   block (every registered command, one per line). `metrics`' flags only

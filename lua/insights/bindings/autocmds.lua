@@ -9,7 +9,7 @@
 --- Each is gated by its `enable` key and registers nothing when disabled.
 local M = {}
 
-local autocmd = require("lib.nvim.autocmd")
+local autocmd = require("lib.nvim.bindings.autocmd")
 
 ---@internal
 ---Claim (and clear) a group. Clearing on every setup() makes re-running it

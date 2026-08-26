@@ -37,11 +37,11 @@ local function check_lib()
       "lib.nvim.ui.kit not found — required for the dev-server prompt; update StefanBartl/lib.nvim"
     )
   end
-  if pcall(require, "lib.nvim.usercmd.composer") then
-    ok_s("lib.nvim.usercmd.composer available (:Insights command layer)")
+  if pcall(require, "lib.nvim.bindings.usercmd.composer") then
+    ok_s("lib.nvim.bindings.usercmd.composer available (:Insights command layer)")
   else
     err_s(
-      ":Insights will fail to register — lib.nvim.usercmd.composer not found; update StefanBartl/lib.nvim"
+      ":Insights will fail to register — lib.nvim.bindings.usercmd.composer not found; update StefanBartl/lib.nvim"
     )
   end
 end
@@ -340,7 +340,7 @@ function M.check()
   check_cache()
   check_lib_deps()
 
-  require("lib.nvim.usercmd.composer").checkhealth("Insights")
+  require("lib.nvim.bindings.usercmd.composer").checkhealth("Insights")
 end
 
 return M

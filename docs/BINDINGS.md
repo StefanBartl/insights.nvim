@@ -71,7 +71,7 @@ Configurable under `ui.close_keys` (list), shared with the scratch buffer.
 ## User commands
 
 A single dispatcher command with tab-completion at every level, built via
-`lib.nvim.usercmd.composer`:
+`lib.nvim.bindings.usercmd.composer`:
 
 ```vim
 :Insights <subcommand> [args]

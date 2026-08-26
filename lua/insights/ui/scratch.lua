@@ -3,7 +3,7 @@
 local M = {}
 
 local api = vim.api
-local map = require("lib.nvim.map")
+local map = require("lib.nvim.bindings.keymap")
 local window = require("lib.nvim.window")
 local notify = require("insights.util.notify").create("[insights.ui.scratch]")
 

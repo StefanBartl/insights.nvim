@@ -4,7 +4,7 @@
 --- discovers them automatically.
 local M = {}
 
-local map = require("lib.nvim.map")
+local map = require("lib.nvim.bindings.keymap")
 local symbols_open = require("insights.symbols.open")
 
 ---@internal

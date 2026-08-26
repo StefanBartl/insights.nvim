@@ -1,5 +1,5 @@
 ---@module 'insights.bindings.usrcmds'
----@brief Unified :Insights command, built via lib.nvim.usercmd.composer.
+---@brief Unified :Insights command, built via lib.nvim.bindings.usercmd.composer.
 ---
 ---   :Insights symbols [cwd|buffer] [telescope|fzf|scratch] [functions|tables|strings] [rebuild]
 ---   :Insights metrics [flags...] [dir]
@@ -23,7 +23,7 @@
 --- docs: a route with N declared optional slots of the same custom type
 --- reproduces "same completion candidates at every position", which is what
 --- these three subcommands need (unlike a fixed positional grammar).
-local composer = require("lib.nvim.usercmd.composer")
+local composer = require("lib.nvim.bindings.usercmd.composer")
 local expand_path = require("lib.nvim.cross.fs.expand_path")
 
 local M = {}

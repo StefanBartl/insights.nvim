@@ -69,6 +69,29 @@ account for. If you regularly start dev servers outside Neovim, this
 feature simply won't track them; that's not a bug to work around, it's the
 deliberate boundary of what "this plugin owns" means here.
 
+## The `symbols_*` keymaps can ask for more than functions in the cwd
+
+Both keys used to bind exactly one question — cwd plus functions — with tables,
+strings and buffer scope reachable only by typing `:Insights symbols`. They now
+take either a plain lhs string, as before, or a table carrying a named `lhs`:
+
+```lua
+keymaps = {
+  symbols_telescope = { lhs = "<leader>ps", scope = "buffer", type = "tables" },
+  symbols_fzf       = { lhs = "<leader>pS", rebuild = true },
+}
+```
+
+A table without an `lhs` string is reported rather than silently ignored.
+
+There is deliberately **no `ui` field**: the UI is which of the two keys this
+is, which is what their names already mean. An unknown scope or type is
+reported and the default used, rather than passed down to a scanner that would
+answer with a confusing "nothing found".
+
+Worth setting once per config rather than per invocation: the point is to make
+the question you ask most often a keypress, and leave the command for the rest.
+
 ## `:checkhealth insights` before debugging "why didn't rg find X"
 
 Most silent-failure reports for the symbol/imports/metrics commands trace

@@ -28,6 +28,10 @@ require("insights").setup({
       },
       max_file_size_kb = 1024,
       follow_symlinks  = false,
+      -- Ceiling for a single rg invocation. Only a guard against a wedged
+      -- process: raise it on a very large tree, lower it if you would rather
+      -- hear about a stuck scan quickly.
+      timeout_ms       = 120000,
     },
 
     cache = {

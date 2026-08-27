@@ -45,6 +45,7 @@ imports reports, …). Configurable under `ui.close_keys` (list) and
 |-----|------------|--------|
 | `q`, `<Esc>` | `ui.close_keys` | Close scratch buffer |
 | `gf` | `ui.follow_key` | Follow `path:line` on the current line |
+| `?` | — (always on) | Show a cheatsheet of the keys actually bound on this buffer (close/follow/any caller-supplied keymaps) |
 
 ### Buffer-local — imports report
 

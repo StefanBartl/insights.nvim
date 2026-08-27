@@ -43,7 +43,20 @@ end
 ---How long a single rg invocation may take before it is given up on. A scan of
 ---a very large tree can legitimately take a while; this only exists so a wedged
 ---process can't hang the editor forever.
-local TIMEOUT_MS = 120000
+---
+---The default is deliberately generous, and configurable because "generous"
+---depends on the tree: two minutes is tight on a monorepo and pointless on a
+---small repo where a wedged rg should be noticed in seconds.
+---@return integer
+local function timeout_ms()
+  local ok, config = pcall(require, "insights.config")
+  if not ok then
+    return 120000
+  end
+  local sym = config.get and config.get().symbols or {}
+  local n = (sym.indexing or {}).timeout_ms
+  return type(n) == "number" and n > 0 and n or 120000
+end
 
 ---Execute rg and wait for it; returns (lines, exit_code).
 ---
@@ -67,7 +80,7 @@ function M.exec_sync(cmd)
     result = res
   end)
 
-  local completed = vim.wait(TIMEOUT_MS, function()
+  local completed = vim.wait(timeout_ms(), function()
     return result ~= nil
   end, 10)
   if not completed or not result then

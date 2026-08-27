@@ -35,6 +35,10 @@ local defaults = {
       },
       max_file_size_kb = 1024,
       follow_symlinks = false,
+      -- How long one rg invocation may run before it is given up on. Only a
+      -- guard against a wedged process -- raise it on a very large tree,
+      -- lower it if you would rather hear about a stuck scan quickly.
+      timeout_ms = 120000,
     },
     cache = {
       enabled = true,

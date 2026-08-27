@@ -30,6 +30,7 @@
 ---@field exclude_patterns string[]
 ---@field max_file_size_kb integer
 ---@field follow_symlinks boolean
+---@field timeout_ms integer  per-rg-invocation timeout in ms (default 120000)
 
 ---@class Insights.Symbols.Cache
 ---@field enabled boolean

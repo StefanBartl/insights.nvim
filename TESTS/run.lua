@@ -45,6 +45,7 @@ local specs = {
   "lua_imports_spec.lua",
   "devserver_spec.lua",
   "config_spec.lua",
+  "smells_spec.lua",
 }
 
 local failed = 0

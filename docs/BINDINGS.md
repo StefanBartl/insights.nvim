@@ -82,6 +82,7 @@ A single dispatcher command with tab-completion at every level, built via
 |---|---|---|
 | `symbols` | `[cwd\|buffer] [functions\|tables\|strings] [telescope\|fzf\|scratch\|rebuild]` | Symbol index / picker |
 | `metrics` | `[--flags...] [dir]` | Lua code metrics report |
+| `smells` | `[--magic-numbers-only\|--constants-only] [dir]` | Magic numbers + unconfigured behaviour constants |
 | `tree` | — | Write project file tree to configured output file |
 | `count` | — | Count project files |
 | `clipboard` | — | Copy tree file content to system clipboard |

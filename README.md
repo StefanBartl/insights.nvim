@@ -41,6 +41,7 @@ unified command.
 |---|---|---|
 | `:Insights symbols` | ripgrep/Tree-sitter symbol index + picker (functions, Lua tables, string literals) | [Commands](docs/commands.md#symbol-index) |
 | `:Insights metrics` | Lua code metrics report | [Commands](docs/commands.md#code-metrics) |
+| `:Insights smells` | Magic numbers + unconfigured behaviour constants | [Commands](docs/commands.md#code-smells) |
 | `:Insights imports` | Import/require usage report across Lua, Python, JS/TS, Go, Rust, C/C++ | [Commands](docs/commands.md#imports) |
 | `:Insights imports reverse <module>` | List every file that imports a given module | [Commands](docs/commands.md#reverse-view) |
 | `:Insights imports unused` | Bound import names never referenced again in their file | [Commands](docs/commands.md#unused-imports) |

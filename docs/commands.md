@@ -98,6 +98,36 @@ Flags: `--ratios`/`--no-ratios`, `--deviations`, `--lua-only`, `--misc-only`,
 `--top-files-words-only`, `--percent-only`, `--numbers-only`, `--reverse`,
 `--topn=N`, `--colwidth=N`, `--file=PATH`, `--current`.
 
+### Code smells
+
+```vim
+:Insights smells                        " both scans, cwd
+:Insights smells /path/to/dir           " analyze a specific directory
+:Insights smells --magic-numbers-only   " skip the hardcoded-constants scan
+:Insights smells --constants-only       " skip the magic-numbers scan
+```
+
+Two scans, distinct from `metrics`'s size/ratio analysis — candidates, not
+verdicts, for both:
+
+- **Magic numbers**: a number written straight into a call with no name to
+  hold a config key against — `vim.defer_fn(fn, 3000)`, `vim.wait(500)`,
+  `timer:start(N, N)`, `timeout = N`, `vim.o.columns * 0.N`,
+  `vim.o.lines * 0.N`. A `defer`/`wait`/`timer` value of 50 or under is
+  "get off the current tick", not a preference, and is never flagged.
+- **Hardcoded constants**: a module-level `local NAME = VALUE` whose name
+  describes behaviour (timeout, delay, limit, width, count, …) and whose
+  value is either `SCREAMING_CASE` or a plain integer other than `0`/`1`,
+  but which never made it into the project's own config surface (any file
+  under `config/`/`@types/`, or named `*defaults*`/`config/init.lua`) —
+  checked by name, with a leading underscore and a `default_` prefix
+  stripped before the lookup.
+
+Promoted from two throwaway Python scripts
+(`docs/ROADMAP/tools/magic_numbers.py` / `hardcoded_constants.py` in
+nvim-config) that walked every sibling `.nvim` repo at once; this scans one
+project — the same `cwd`/directory scope `metrics` already uses.
+
 ### File tree
 
 ```vim

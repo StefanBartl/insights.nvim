@@ -3,6 +3,7 @@
 ---
 ---   :Insights symbols [cwd|buffer] [telescope|fzf|scratch] [functions|tables|strings] [rebuild]
 ---   :Insights metrics [flags...] [dir]
+---   :Insights smells [--magic-numbers-only|--constants-only] [dir]
 ---   :Insights tree
 ---   :Insights count
 ---   :Insights clipboard
@@ -254,6 +255,19 @@ end
 ---@internal
 local function handle_fileinfo()
   require("insights.fileinfo").show()
+end
+
+---@internal
+---@param ctx table  composer route ctx: ctx.flags["magic-numbers-only"|"constants-only"], ctx.pos[1] = dir
+local function handle_smells(ctx)
+  local opts = { root = ctx.pos[1] }
+  if ctx.flags["magic-numbers-only"] then
+    opts.hardcoded_constants = false
+  end
+  if ctx.flags["constants-only"] then
+    opts.magic_numbers = false
+  end
+  require("insights.smells").run(opts)
 end
 
 ---@internal
@@ -556,6 +570,16 @@ function M.setup()
       run = function(ctx)
         handle_metrics(reconstruct_metrics_tokens(ctx))
       end,
+    },
+    {
+      path = { "smells" },
+      args = { { name = "root", type = "INSIGHTS_DIR_SOFT", optional = true } },
+      flags = {
+        { name = "magic-numbers-only", bool = true },
+        { name = "constants-only", bool = true },
+      },
+      desc = "Magic numbers + unconfigured behaviour constants (flags + optional directory)",
+      run = handle_smells,
     },
     no_arg_route({ "tree" }, "Write project file tree", handle_tree),
     no_arg_route({ "count" }, "Count project files", handle_count),

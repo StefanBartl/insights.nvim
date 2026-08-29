@@ -323,8 +323,7 @@ else just reported as a file path to open manually.
 
 Deliberately scoped to the dependency graph only — the only place in
 insights.nvim where the data is already graph-shaped (an edge list).
-Call-tree and symbol-distribution graphs (`docs/ROADMAP.md`'s original
-"CROSS-PLUGIN" idea) don't exist as data anywhere else in this plugin;
+Call-tree and symbol-distribution graphs (the original cross-plugin idea) don't exist as data anywhere else in this plugin;
 `symbols` is a flat, uncorrelated list, and building that analysis from
 scratch is a separate, much larger feature than rendering data insights.nvim
 already collects.

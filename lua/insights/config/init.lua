@@ -31,7 +31,7 @@ local function expand_paths(cfg)
   end
 end
 
----@param opts InsightsConfig|nil
+---@param opts InsightsOpts|nil
 function M.setup(opts)
   current = vim.tbl_deep_extend("force", defaults, opts or {})
   expand_paths(current)

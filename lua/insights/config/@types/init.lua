@@ -172,4 +172,102 @@
 ---@field commands boolean  false = register no user commands at all
 ---@field deps_popup? boolean  lib.nvim.deps "declared tools" popup once, ever, on first setup() after install (default true; needs lib.nvim.deps — a no-op without it)
 
+--- What `setup()` accepts: the shape of `InsightsConfig` with every field
+--- optional, nested tables included. The resolved `InsightsConfig` stays
+--- strict, so a partial call is legal without every read of
+--- `cfg.conflicts.open_qf` becoming a nil check.
+---@class InsightsOpts
+---@field symbols?    Insights.SymbolsOpts
+---@field metrics?    Insights.MetricsOpts
+---@field tree?       Insights.TreeOpts
+---@field fileinfo?   Insights.FileinfoOpts
+---@field keymaps?    Insights.KeymapsOpts
+---@field ui?         Insights.UIOpts
+---@field compress?   Insights.CompressOpts
+---@field imports?    Insights.ImportsOpts
+---@field conflicts?  Insights.ConflictsOpts
+---@field unimported? Insights.UnimportedOpts
+---@field devserver?  Insights.DevserverOpts
+---@field commands?   boolean  false = register no user commands at all
+---@field deps_popup? boolean  lib.nvim.deps "declared tools" popup once, ever, on first setup() after install (default true; needs lib.nvim.deps — a no-op without it)
+
+---@class Insights.SymbolsOpts
+---@field enable?                 boolean
+---@field default_scope?          Insights.SymbolScope
+---@field languages?              Insights.Symbols.Languages
+---@field use_treesitter_for_lua? boolean
+---@field indexing?               Insights.Symbols.Indexing
+---@field cache?                  Insights.Symbols.Cache
+---@field progress_style?         Insights.ProgressStyle  Indicator while the cwd symbol index is built; needs lib.nvim, no-op without it
+
+---@class Insights.MetricsOpts
+---@field enable?             boolean
+---@field output_file?        string
+---@field analyze_lua?        boolean          analyze Lua source files
+---@field analyze_misc?       boolean         analyze Markdown / TXT / JSON files
+---@field show_file_tables?   boolean     detailed per-file table
+---@field show_folder_tables? boolean   per-folder aggregate table
+---@field show_total_summary? boolean   grand-total row
+---@field show_ratios?        boolean          folder ratio analysis
+---@field show_deviations?    boolean      deviations from global averages
+---@field show_top_lists?     boolean       top-N files by lines/words
+---@field show_misc_detailed? boolean   per-file listing for misc files
+---@field percent_mode?       "both"|"percent"|"numbers"  value display mode
+---@field reverse_order?      boolean        summary first (vs. files first)
+---@field top_n?              integer                items in top-N lists
+---@field col_width?          integer            data column width in tables
+---@field exclude_type_files? boolean   exclude @types files from ratio analysis
+
+---@class Insights.TreeOpts
+---@field enable?           boolean
+---@field exclude_patterns? string[]
+---@field outdir?           string
+---@field outfile_fmt?      string  "%s" expands to the project name
+
+---@class Insights.FileinfoOpts
+---@field enable? boolean
+---@field keymap? string|false
+
+---@class Insights.KeymapsOpts
+---@field symbols_telescope? string|false|Insights.SymbolsKeymap
+---@field symbols_fzf?       string|false|Insights.SymbolsKeymap
+
+---@class Insights.UIOpts
+---@field close_keys? string[]  buffer-local keys that close a scratch buffer / fileinfo float
+---@field follow_key? string    buffer-local key that follows path:line in a scratch buffer
+
+---@class Insights.CompressOpts
+---@field enable? boolean
+---@field engine? Insights.CompressEngine
+---@field outdir? string  "" = compressed/ next to the source directory
+
+---@class Insights.ImportsOpts
+---@field enable?            boolean
+---@field engine?            Insights.ImportsEngine
+---@field output_file?       string
+---@field languages?         Insights.Imports.Languages
+---@field groups?            table<string, string[]>
+---@field classify_external? boolean
+---@field definition?        Insights.Imports.Definition
+---@field graph?             Insights.Imports.Graph
+
+---@class Insights.ConflictsOpts
+---@field enable?      boolean
+---@field events?      string[]      autocmd events that trigger the scan; {} = manual only
+---@field git_cmd?     string
+---@field diff_filter? string   git --diff-filter value; "U" = unmerged
+---@field open_qf?     boolean      :copen after populating the quickfix list
+---@field notify?      boolean       notify with the conflicting file names
+
+---@class Insights.UnimportedOpts
+---@field enable?    boolean
+---@field events?    string[]      autocmd events that trigger the check
+---@field filetypes? string[]   filetypes the check applies to
+---@field ignore?    string[]      component names to never report
+
+---@class Insights.DevserverOpts
+---@field enable?       boolean
+---@field prompt?       boolean       ask via lib.nvim ui.kit; false = apply kill_on_exit silently
+---@field kill_on_exit? boolean the answer used when prompt = false
+---@field patterns?     string[]    plain substrings matched case-insensitively against the terminal command
 return {}

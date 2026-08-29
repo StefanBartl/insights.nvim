@@ -11,7 +11,7 @@ local M = {}
 
 local notify = require("insights.util.notify").create("[insights]")
 
----@param opts InsightsConfig|nil
+---@param opts InsightsOpts|nil
 function M.setup(opts)
   require("insights.config").setup(opts or {})
 

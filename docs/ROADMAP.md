@@ -25,7 +25,6 @@ way it is.
 
 | Document | What it is |
 | --- | --- |
-| [`NEOTREE_FEATURES.md`](ROADMAP/NEOTREE_FEATURES.md) | Which of this plugin's features are worth porting into filetree.nvim. |
 | [`SYNERGIE_DocMap_RTTelemetry.md`](ROADMAP/SYNERGIE_DocMap_RTTelemetry.md) | Where insights.nvim, documentation.nvim and runtime-analysis.nvim overlap, and who should own what. |
 
 The audits share a convention: **✅ good · 🟡 partial · ❌ gap**.

@@ -10,10 +10,9 @@ local notify = require("insights.util.notify").create("[insights.conflicts]")
 -- call costs milliseconds. This is on the VimEnter path, so it is worth the
 -- indirection -- and lib.nvim.cross is already used elsewhere in this plugin.
 local executable = require("lib.nvim.cross.executable")
+local list = require("lib.nvim.ui.list")
 
 local M = {}
-
-local fn = vim.fn
 
 ---@internal
 ---Run a git command and return its stdout only.
@@ -102,12 +101,12 @@ local function report(files, err, cfg, opts)
   for i, file in ipairs(files) do
     qf[i] = { filename = file, lnum = 1, col = 1, text = "Git conflict" }
   end
-  fn.setqflist(qf, "r")
-  fn.setqflist({}, "a", { title = "Insights: git conflicts" })
-
-  if cfg.open_qf ~= false then
-    vim.cmd("copen")
-  end
+  list.qf(qf, "Insights: git conflicts", {
+    -- Replaces rather than pushes: a re-scan is an update of this report, not
+    -- a second one to page back through.
+    action = "r",
+    open = cfg.open_qf ~= false,
+  })
   if cfg.notify ~= false then
     notify.warn(
       ("%d unresolved conflict%s:\n%s"):format(

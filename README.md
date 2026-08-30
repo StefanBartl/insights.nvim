@@ -110,3 +110,7 @@ See [Capabilities](#capabilities) for the full command surface.
 - [Configuration](docs/configuration.md) — full `setup()` reference with defaults.
 - [Architecture](docs/architecture.md) — source tree layout and module responsibilities.
 - [Bindings reference](docs/BINDINGS.md) — every keymap, user command, and autocmd registered by the plugin.
+
+## License
+
+MIT — see [LICENSE](LICENSE).

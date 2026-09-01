@@ -21,6 +21,9 @@ return function(H)
   local changed = (type(original) == "boolean") and not original
     or (type(original) == "number") and (original + 1)
     or (tostring(original) .. "-changed")
+  -- `changed` is deliberately of the wrong type for whichever key this round
+  -- picked -- that a user value of any shape wins is the point of the case.
+  ---@diagnostic disable-next-line: assign-type-mismatch
   config.setup({ [key] = changed })
   H.eq(config.get()[key], changed, "a user value wins")
   H.eq(DEFAULTS[key], original, "DEFAULTS itself was not mutated")

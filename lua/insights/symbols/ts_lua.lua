@@ -12,9 +12,25 @@ local globbable = require("lib.nvim.fs.globbable")
 local api = vim.api
 local ts = vim.treesitter
 
+---One symbol a scanner found. The scanners see a buffer, not a path, so
+---`filename` is stamped afterwards by whoever knows which file it was --
+---`symbols/init.lua` and `ts_lua.scan_files` both do it.
+---
+---Written out once here because all three Lua scanners return it and named it
+---differently: this one declared `file` (a field nothing reads and nothing
+---sets -- the literals assigned `file = nil`, which in Lua stores no key at
+---all), the string and table scanners `filename`, which is what every consumer
+---actually reads.
+---@class Insights.Symbols.Match
+---@field name string Declared name, dotted for `M.foo`.
+---@field lnum integer 1-based line of the definition.
+---@field col integer 0-based column.
+---@field filename string? Path of the file it was found in, stamped after the scan.
+---@field func_type string? Which shape the definition had; the string and table scanners set it, this one does not (the picker shows "?" for those).
+
 ---Scan one buffer for Lua function definitions.
 ---@param bufnr integer
----@return { name: string, lnum: integer, col: integer, file: string|nil }[]
+---@return Insights.Symbols.Match[]
 function M.scan_buffer(bufnr)
   if not api.nvim_buf_is_valid(bufnr) then
     return {}
@@ -49,7 +65,7 @@ function M.scan_buffer(bufnr)
         if name and not seen[name] then
           seen[name] = true
           local row, col = name_nodes[1]:range()
-          result[#result + 1] = { name = name, lnum = row + 1, col = col, file = nil }
+          result[#result + 1] = { name = name, lnum = row + 1, col = col }
         end
       end
     end
@@ -74,7 +90,7 @@ function M.scan_buffer(bufnr)
           end
           if name and not seen[name] then
             seen[name] = true
-            result[#result + 1] = { name = name, lnum = row + 1, col = col, file = nil }
+            result[#result + 1] = { name = name, lnum = row + 1, col = col }
           end
         end
       end
@@ -89,7 +105,7 @@ function M.scan_buffer(bufnr)
           if name and not seen[name] then
             seen[name] = true
             local row, col = fn[1]:range()
-            result[#result + 1] = { name = name, lnum = row + 1, col = col, file = nil }
+            result[#result + 1] = { name = name, lnum = row + 1, col = col }
           end
         end
       end

@@ -26,8 +26,12 @@ return function(H)
   -- Non-matches ---------------------------------------------------------------
   H.eq(devserver.match("git status", patterns), nil, "an unrelated command does not match")
   H.eq(devserver.match("", patterns), nil, "an empty command matches nothing")
+  -- Both calls hand it the wrong type on purpose: refusing those is the
+  -- behaviour under test.
+  ---@diagnostic disable-next-line: param-type-mismatch
   H.eq(devserver.match(nil, patterns), nil, "and neither does a nil one")
   H.eq(devserver.match("npm run dev", {}), nil, "an empty pattern list matches nothing")
+  ---@diagnostic disable-next-line: param-type-mismatch
   H.eq(devserver.match("npm run dev", nil), nil, "nor a nil one")
 
   -- Matching is literal, not a Lua pattern ------------------------------------

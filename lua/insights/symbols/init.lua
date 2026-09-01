@@ -15,7 +15,8 @@ local config = require("insights.config")
 ---Get all symbols for cwd (or current buffer if scope == "buffer").
 ---@param scope "cwd"|"buffer"|nil    defaults to config.symbols.default_scope
 ---@param force_rebuild boolean|nil
----@return table[], string|nil   entries, status_message
+---@return Insights.Symbols.Match[] entries
+---@return string|nil status_message A line for the picker's footer, or nil.
 function M.get(scope, force_rebuild)
   local cfg = config.get()
   scope = scope or cfg.symbols.default_scope or "cwd"

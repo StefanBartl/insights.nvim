@@ -136,7 +136,8 @@ end
 ---Get index (from cache or fresh build).
 ---@param cfg           InsightsConfig
 ---@param force_rebuild boolean|nil
----@return table[], string|nil   entries, status_message
+---@return table[] entries
+---@return string|nil status_message A line for the picker's footer, or nil.
 function M.get(cfg, force_rebuild)
   local c = cfg.symbols.cache
 

@@ -36,7 +36,12 @@ local function build_table_path(node, bufnr)
       table.insert(parts, 1, ts.get_node_text(current, bufnr))
       break
     else
-      current = current:parent()
+      -- `parent()` is nil at the root, and that is where the climb ends.
+      local up = current:parent()
+      if not up then
+        break
+      end
+      current = up
     end
   end
 
@@ -45,7 +50,7 @@ end
 
 ---Scan one buffer for Lua table definitions.
 ---@param bufnr integer
----@return { name: string, lnum: integer, col: integer, filename: string|nil, func_type: string }[]
+---@return Insights.Symbols.Match[]
 function M.scan_buffer(bufnr)
   if not api.nvim_buf_is_valid(bufnr) then
     return {}

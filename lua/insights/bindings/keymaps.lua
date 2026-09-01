@@ -35,7 +35,8 @@ local M = {}
 ---@param value string|false|table|nil
 ---@param key string
 ---@param ui string
----@return fun(): nil, string
+---@return fun() action The handler the keymap binds.
+---@return string desc The description shown in `:map` and which-key.
 local function symbols_action(value, key, ui)
   local spec = symbols_open.normalize_keymap(value, key) or {}
 

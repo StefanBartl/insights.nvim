@@ -112,7 +112,8 @@ end
 ---Parse rg output lines into structured entries.
 ---@param lines              string[]
 ---@param enabled_languages  table<string, boolean>
----@return table[], string[]  entries, errors
+---@return table[] entries
+---@return string[] errors One line per rg line that could not be read.
 function M.parse(lines, enabled_languages)
   if type(lines) ~= "table" then
     return {}, { "expected table of strings" }

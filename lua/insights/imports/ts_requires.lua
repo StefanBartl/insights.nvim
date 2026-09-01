@@ -35,9 +35,9 @@ end
 --- Trailing field access on a require call, e.g. "create" in
 --- `require("x").create(...)` or "bar" in `require("x").bar`.
 ---@param call TSNode
----@param bufnr integer
+---@param src integer|string  buffer handle or source string for get_node_text
 ---@return string|nil
-local function trailing_field(call, bufnr)
+local function trailing_field(call, src)
   local p = call:parent()
   if not p then
     return nil
@@ -46,7 +46,7 @@ local function trailing_field(call, bufnr)
   if t == "dot_index_expression" or t == "method_index_expression" then
     local f = p:field("field")[1] or p:field("method")[1]
     if f then
-      return ts.get_node_text(f, bufnr)
+      return ts.get_node_text(f, src)
     end
   end
   return nil
@@ -59,7 +59,8 @@ end
 ---@return TSNode|nil
 local function child_of_type(node, type_name)
   for i = 0, node:named_child_count() - 1 do
-    local ch = node:named_child(i)
+    -- `assert` rather than a guard: an index below the count names a child.
+    local ch = assert(node:named_child(i))
     if ch:type() == type_name then
       return ch
     end
@@ -142,7 +143,7 @@ local function scan_tree(root, src)
       -- node = string < arguments < function_call
       local call = node:parent() and node:parent():parent()
       local fn = call and call:field("name")[1]
-      if fn and ts.get_node_text(fn, src) == "require" then
+      if call and fn and ts.get_node_text(fn, src) == "require" then
         local module = strip_quotes(ts.get_node_text(node, src))
         if module ~= "" then
           local row = node:range()

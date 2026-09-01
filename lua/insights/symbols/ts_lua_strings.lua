@@ -12,7 +12,7 @@ local ts = vim.treesitter
 
 ---Scan one buffer for Lua string literals.
 ---@param bufnr integer
----@return { name: string, lnum: integer, col: integer, filename: string|nil, func_type: string }[]
+---@return Insights.Symbols.Match[]
 function M.scan_buffer(bufnr)
   if not api.nvim_buf_is_valid(bufnr) then
     return {}

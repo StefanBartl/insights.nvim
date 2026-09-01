@@ -55,7 +55,8 @@ end
 ---@return TSNode|nil
 local function child_of_type(node, type_name)
   for i = 0, node:named_child_count() - 1 do
-    local ch = node:named_child(i)
+    -- `assert` rather than a guard: an index below the count names a child.
+    local ch = assert(node:named_child(i))
     if ch:type() == type_name then
       return ch
     end
@@ -114,7 +115,7 @@ local function ts_find(src, field)
       return
     end
     for i = 0, node:named_child_count() - 1 do
-      visit(node:named_child(i))
+      visit(assert(node:named_child(i)))
     end
   end
 

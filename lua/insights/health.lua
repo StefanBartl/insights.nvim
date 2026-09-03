@@ -125,11 +125,13 @@ local function check_tools()
   else
     err_s("rg not found — install ripgrep; symbol indexing will not work")
   end
-  if exe("fd") or exe("fdfind") then
-    ok_s("fd / fdfind — optional; not used currently")
-  else
-    info_s("fd not found (not required)")
-  end
+  -- No fd probe here. It used to report one, admitting in the same breath
+  -- that it is "not used currently" — and nothing in this plugin has ever
+  -- called it. A health check that reports on a tool the code never reaches
+  -- teaches the reader that its lines are not to be trusted, and it cannot
+  -- move into docs/install.json either: `why` is a mandatory field there,
+  -- and there is no honest sentence to put in it. If a scanner ever grows
+  -- an fd path, that is the moment to declare it.
   if platform_is_windows() then
     ok_s("PowerShell — used for file tree on Windows")
   else

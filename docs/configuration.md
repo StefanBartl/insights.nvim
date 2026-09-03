@@ -183,6 +183,13 @@ require("insights").setup({
     },
   },
 
+  -- Tell hover.nvim who imports the module under the cursor, when it is
+  -- installed. false = register nothing. Soft in both directions: without
+  -- hover.nvim nothing is registered, and a cold import index means the
+  -- preview says nothing rather than starting a scan from a cursor movement.
+  -- See docs/hover.md.
+  hover = true,
+
   -- false = register no user commands at all
   commands = true,
 })

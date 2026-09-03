@@ -55,6 +55,7 @@ unified command.
 | `:Insights conflicts` | Quickfix unresolved git conflicts (also runs automatically on `VimEnter`) | [Automatic triggers](docs/automatic-triggers.md) |
 | `:Insights unimported` | Flag used-but-unimported components in the current buffer | [Commands](docs/commands.md#unimported) |
 | `:Insights devserver list` / `kill` | List or kill dev servers started from Neovim | [Commands](docs/commands.md#devserver) |
+| *(no command)* | Who imports the module under the cursor, in [hover.nvim](https://github.com/StefanBartl/hover.nvim)'s float — out of a scan that already ran, never starting one | [Hover](docs/hover.md) |
 
 ---
 
@@ -110,6 +111,7 @@ See [Capabilities](#capabilities) for the full command surface.
 - [Configuration](docs/configuration.md) — full `setup()` reference with defaults.
 - [Architecture](docs/architecture.md) — source tree layout and module responsibilities.
 - [Bindings reference](docs/BINDINGS.md) — every keymap, user command, and autocmd registered by the plugin.
+- [Hover](docs/hover.md) — the hover.nvim contribution: why a cold index says nothing, and why a module nobody imports is silence rather than a zero.
 
 ## License
 

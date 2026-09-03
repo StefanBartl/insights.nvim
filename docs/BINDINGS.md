@@ -112,3 +112,11 @@ for the full config knobs (`events` overrides, patterns, prompts).
 | `BufWritePost` (default; `unimported.events`) | `unimported.enable` | Check used-but-unimported components in the written buffer |
 | `TermOpen`, `TermRequest` | `devserver.enable` | Detect a dev server started in a terminal |
 | `VimLeavePre` | `devserver.enable` | Kill tracked dev servers on exit |
+
+One more, from elsewhere: `imports/index.lua` creates a `BufWritePost` autocmd
+(augroup `InsightsImportIndex`) the first time a scan is remembered, and not
+before. It has no config gate because it does nothing you would want to turn
+off — it marks the remembered import index **stale**, so the
+[hover contribution](hover.md) can say "a file was written since this was
+scanned" instead of looking current, and `:Insights imports reverse` knows to
+re-scan. Without a scan in this session it does not exist.

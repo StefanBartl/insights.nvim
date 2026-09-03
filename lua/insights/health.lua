@@ -280,6 +280,46 @@ local function check_compress()
 end
 
 ---@internal
+---@internal
+--- The hover contribution, and the one state that makes it look broken.
+---
+--- A cold import index means the preview says nothing at all -- deliberately,
+--- because building one from a cursor movement would cost the 631 ms to 1.9 s
+--- a full scan takes. From outside the float that is indistinguishable from a
+--- feature that does not work, so it is said here instead.
+---@return nil
+local function check_hover()
+  start_s("Hover contribution")
+
+  local ok_cfg, cfg_mod = pcall(require, "insights.config")
+  if ok_cfg and cfg_mod.get().hover == false then
+    info_s("hover = false -- nothing registered")
+    return
+  end
+
+  if not pcall(require, "hover.registry") then
+    info_s("hover.nvim not installed -- nothing registered, nothing missing")
+    return
+  end
+
+  local ok_idx, index = pcall(require, "insights.imports.index")
+  if not ok_idx then
+    err_s("cannot load insights.imports.index")
+    return
+  end
+
+  local entry = index.get()
+  if not entry then
+    info_s("import index is cold -- the hover says nothing until `:Insights imports` has run once")
+    return
+  end
+  if entry.stale then
+    info_s("import index is stale (a file was written since); the hover says so in the float")
+    return
+  end
+  ok_s("import index is warm -- the hover can answer")
+end
+
 local function check_cache()
   start_s("Symbol cache")
   local ok, cfg_mod = pcall(require, "insights.config")
@@ -338,6 +378,7 @@ function M.check()
   check_autocmds()
   check_compress()
   check_cache()
+  check_hover()
   check_lib_deps()
 
   require("lib.nvim.bindings.usercmd.composer").checkhealth("Insights")

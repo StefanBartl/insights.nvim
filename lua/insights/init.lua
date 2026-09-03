@@ -31,6 +31,12 @@ function M.setup(opts)
   -- config/DEFAULTS.lua) disables it for this plugin specifically.
   -- pcall'd: an older lib.nvim without lib.nvim.deps mustn't break setup()
   -- over an informational popup.
+  -- Tell hover.nvim who imports the module under the cursor. Soft: without
+  -- hover.nvim this does nothing. `hover = false` turns it off.
+  if cfg.hover ~= false then
+    require("insights.hover").setup()
+  end
+
   if cfg.deps_popup ~= false then
     local ok_deps, deps = pcall(require, "lib.nvim.deps")
     if ok_deps then

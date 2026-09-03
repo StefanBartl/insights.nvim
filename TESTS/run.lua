@@ -43,6 +43,7 @@ local H = dofile(dir .. "harness.lua")
 local specs = {
   "import_util_spec.lua",
   "import_index_spec.lua",
+  "hover_spec.lua",
   "lua_imports_spec.lua",
   "devserver_spec.lua",
   "config_spec.lua",

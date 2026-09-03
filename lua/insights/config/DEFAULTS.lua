@@ -200,6 +200,12 @@ local defaults = {
   -- this plugin specifically, right here in the spec passed to setup() —
   -- no vim.g needed. See README.
   deps_popup = true,
+
+  --- Tell hover.nvim who imports the module under the cursor, when it is
+  --- installed. Soft in both directions: without hover.nvim nothing is
+  --- registered, and a cold import index means the preview says nothing
+  --- rather than starting a scan from a cursor movement.
+  hover = true,
 }
 
 return defaults

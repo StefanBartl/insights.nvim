@@ -42,6 +42,7 @@ local H = dofile(dir .. "harness.lua")
 -- Ordered so a failure points at the smallest layer first.
 local specs = {
   "import_util_spec.lua",
+  "import_index_spec.lua",
   "lua_imports_spec.lua",
   "devserver_spec.lua",
   "config_spec.lua",

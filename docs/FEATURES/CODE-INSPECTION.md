@@ -101,6 +101,42 @@ graph rendered inline via images.nvim.
 :Insights imports graph            " Graphviz PNG via images.nvim (needs `dot`)
 ```
 
+#### The scan is remembered, and that is what makes a passive reader possible
+
+A full scan walks the working directory, reads every source file it finds and
+parses each one. Measured on 2026-09-03: **631 ms** for hover.nvim, 715 ms for
+this repository, **1.9 s** for documentation.nvim. That is fine for a report
+someone asked for and is waiting on. It rules out anything that wants to answer
+*while* you read — a statusline, a hover, a preview — because there was nothing
+to consult: every query re-scanned.
+
+So a scan now leaves its result behind, and `insights.imports.reverse_lookup`
+reads it:
+
+```lua
+local hit = require("insights.imports").reverse_lookup("hover.registry")
+-- nil, or { files = {...}, entries = {...}, built_at = <os.time>, stale = <bool> }
+```
+
+Measured on the same tree: 622 ms for the scan, **28 µs** for the lookup
+afterwards.
+
+Three properties are deliberate:
+
+- **Nothing scans for the index.** It is a by-product of the scans that already
+  happen, so having it costs nothing and a cold index is a normal state rather
+  than a failure.
+- **A cold index answers `nil`, never a scan.** A consumer that could trigger a
+  700 ms walk from a cursor movement is exactly what this exists to prevent.
+  What to do about cold belongs to the caller: `:Insights imports reverse`
+  re-scans, a passive reader stays quiet.
+- **Staleness is reported, not guessed at.** A write marks the index stale and
+  the flag comes back with the answer. An import list from before your last
+  save is usually still right; pretending it is current would be the one thing
+  worse than saying nothing. `:Insights imports reverse` therefore uses the
+  index only while it is fresh — an explicit report is where waiting is the
+  honest choice.
+
 On the Lua-only scratch report, `gd` reveals the definition behind the
 `require()` on the current line (jump or float, per
 `imports.definition.view`), `gp` always previews it.

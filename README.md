@@ -104,6 +104,9 @@ See [Capabilities](#capabilities) for the full command surface.
 
 ## Documentation
 
+Start at [docs/README.md](docs/README.md), which says what is where and which
+question each page answers.
+
 - [Features](docs/FEATURES/README.md) — overview of every module and what it does.
 - [Installation](docs/installation.md) — requirements, package-manager setup, health check.
 - [Commands](docs/commands.md) — full `:Insights` subcommand reference, flags, and symbol types.
@@ -112,6 +115,7 @@ See [Capabilities](#capabilities) for the full command surface.
 - [Architecture](docs/architecture.md) — source tree layout and module responsibilities.
 - [Bindings reference](docs/BINDINGS.md) — every keymap, user command, and autocmd registered by the plugin.
 - [Hover](docs/hover.md) — the hover.nvim contribution: why a cold index says nothing, and why a module nobody imports is silence rather than a zero.
+- [Workflow](docs/WORKFLOW.md) — which feature answers which everyday question about a codebase, rather than what each one does.
 
 ## License
 

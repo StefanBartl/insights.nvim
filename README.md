@@ -104,7 +104,7 @@ See [Capabilities](#capabilities) for the full command surface.
 
 ## Documentation
 
-- [Features](docs/features.md) — overview of every module and what it does.
+- [Features](docs/FEATURES/README.md) — overview of every module and what it does.
 - [Installation](docs/installation.md) — requirements, package-manager setup, health check.
 - [Commands](docs/commands.md) — full `:Insights` subcommand reference, flags, and symbol types.
 - [Automatic triggers](docs/automatic-triggers.md) — the `conflicts`, `unimported`, and `devserver` autocmds, and how dev-server tracking works.

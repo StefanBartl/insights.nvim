@@ -109,6 +109,7 @@ question each page answers.
 
 - [Features](docs/FEATURES/README.md) — overview of every module and what it does.
 - [Installation](docs/installation.md) — requirements, package-manager setup, health check.
+- [Health](docs/health.md) — the twelve `:checkhealth insights` sections, and which findings are actually problems.
 - [Commands](docs/commands.md) — full `:Insights` subcommand reference, flags, and symbol types.
 - [Automatic triggers](docs/automatic-triggers.md) — the `conflicts`, `unimported`, and `devserver` autocmds, and how dev-server tracking works.
 - [Configuration](docs/configuration.md) — full `setup()` reference with defaults.

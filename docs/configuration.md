@@ -192,5 +192,10 @@ require("insights").setup({
 
   -- false = register no user commands at all
   commands = true,
+
+  -- One-time "which CLI tools does this plugin want, and why" popup on first
+  -- setup() after install (via lib.nvim.deps). false disables it here, in the
+  -- spec passed to setup() — no vim.g needed. See the root README.
+  deps_popup = true,
 })
 ```

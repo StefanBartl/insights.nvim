@@ -20,18 +20,26 @@ local M = {}
 ---`vim.system` rather than `systemlist`, because the latter folds stderr into
 ---its result: git's "LF will be replaced by CRLF" warnings would then be
 ---parsed as conflicting file names.
+---
+---`cwd` is passed explicitly (snapshotted once by the caller) rather than
+---left to `vim.system`'s own default of the editor's current directory: `run`
+---is called twice per scan (`rev-parse` then `diff`), and pinning the value
+---once keeps both calls scoped to the same repo even if something changes
+---the global cwd in between.
 ---@param cmd string[]
+---@param cwd string
 ---@return table  # { code, stdout, stderr }
-local function run(cmd)
-  return vim.system(cmd, { text = true }):wait()
+local function run(cmd, cwd)
+  return vim.system(cmd, { text = true, cwd = cwd }):wait()
 end
 
 ---@internal
 ---Is the cwd inside a git work tree?
 ---@param git_cmd string
+---@param cwd string
 ---@return boolean
-local function in_git_repo(git_cmd)
-  local ok, res = pcall(run, { git_cmd, "rev-parse", "--is-inside-work-tree" })
+local function in_git_repo(git_cmd, cwd)
+  local ok, res = pcall(run, { git_cmd, "rev-parse", "--is-inside-work-tree" }, cwd)
   return ok and res.code == 0
 end
 
@@ -55,15 +63,19 @@ end
 ---@return string[]|nil files, string|nil err
 function M.list(cfg)
   local git = cfg.git_cmd or "git"
+  local cwd = vim.fn.getcwd()
   if not executable.exists(git) then
     return nil, "git not executable: " .. git
   end
-  if not in_git_repo(git) then
+  if not in_git_repo(git, cwd) then
     return nil, "not inside a git repository"
   end
 
-  local ok, res =
-    pcall(run, { git, "diff", "--name-only", "--diff-filter=" .. (cfg.diff_filter or "U") })
+  local ok, res = pcall(
+    run,
+    { git, "diff", "--name-only", "--diff-filter=" .. (cfg.diff_filter or "U") },
+    cwd
+  )
   if not ok then
     return nil, "git diff failed: " .. tostring(res)
   end
@@ -148,6 +160,11 @@ function M.run_async(opts, on_done)
   opts = opts or {}
   local cfg = require("insights.config").get().conflicts or {}
   local git = cfg.git_cmd or "git"
+  -- Snapshotted once: the two spawns below are separated by a scheduled
+  -- callback (a full event-loop turn), so without this the rev-parse and the
+  -- diff could end up scoped to different directories if something else
+  -- changes the global cwd in between.
+  local cwd = vim.fn.getcwd()
 
   local function finish(files, err)
     local count = report(files, err, cfg, opts)
@@ -163,7 +180,7 @@ function M.run_async(opts, on_done)
   ---@param cmd string[]
   ---@param cb fun(res: table)
   local function spawn(cmd, cb)
-    local ok = pcall(vim.system, cmd, { text = true }, function(res)
+    local ok = pcall(vim.system, cmd, { text = true, cwd = cwd }, function(res)
       vim.schedule(function()
         cb(res)
       end)

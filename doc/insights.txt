@@ -1,4 +1,5 @@
 *insights.txt*  Project analysis: symbols, metrics, tree, fileinfo.
+                                                               *insights.nvim*
 
 ==============================================================================
 CONTENTS                                          *insights-contents*

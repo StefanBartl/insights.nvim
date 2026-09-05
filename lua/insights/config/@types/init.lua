@@ -171,6 +171,7 @@
 ---@field devserver Insights.DevserverConfig
 ---@field commands boolean  false = register no user commands at all
 ---@field deps_popup? boolean  lib.nvim.deps "declared tools" popup once, ever, on first setup() after install (default true; needs lib.nvim.deps — a no-op without it)
+---@field hover? boolean  Tell hover.nvim who imports the module under the cursor. Soft: without hover.nvim this does nothing. Default true.
 
 --- What `setup()` accepts: the shape of `InsightsConfig` with every field
 --- optional, nested tables included. The resolved `InsightsConfig` stays
@@ -190,6 +191,7 @@
 ---@field devserver?  Insights.DevserverOpts
 ---@field commands?   boolean  false = register no user commands at all
 ---@field deps_popup? boolean  lib.nvim.deps "declared tools" popup once, ever, on first setup() after install (default true; needs lib.nvim.deps — a no-op without it)
+---@field hover?      boolean  Tell hover.nvim who imports the module under the cursor. Soft: without hover.nvim this does nothing. Default true.
 
 ---@class Insights.SymbolsOpts
 ---@field enable?                 boolean

@@ -40,6 +40,14 @@ function M.build(cfg)
   local sym_cfg = cfg.symbols
   local t0 = os.time()
 
+  -- Snapshot once, up front: `M.build` runs several rg passes in sequence
+  -- (`rg.exec_sync`'s `vim.wait` pumps the event loop between them, see the
+  -- note above), so without an explicit `cwd` per pass a `:cd`/`:lcd` fired by
+  -- some other autocmd mid-build would make later passes scan a different
+  -- tree than the first one silently. Same reasoning as the buffer-scope path
+  -- in `insights.symbols.get_buffer`, which already passes `cwd` explicitly.
+  local cwd = vim.fn.getcwd()
+
   if vim.fn.executable("rg") ~= 1 then
     local msg = "ripgrep (rg) not found in PATH"
     return {}, { msg }, { total_files = 0, total_symbols = 0, duration = 0 }
@@ -92,6 +100,7 @@ function M.build(cfg)
         exclude_patterns = idx_cfg.exclude_patterns,
         max_file_size_kb = idx_cfg.max_file_size_kb,
         follow_symlinks = idx_cfg.follow_symlinks,
+        cwd = cwd,
       })
       local lines, run_err = rg.run(cmd, pat.language)
       if run_err then

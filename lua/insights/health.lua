@@ -28,20 +28,22 @@ local function check_lib()
   if pcall(require, "lib.nvim.notify") then
     ok_s("lib.nvim installed (notify + cross-platform helpers)")
   else
-    err_s("lib.nvim not found — required dependency, install StefanBartl/lib.nvim")
+    err_s("lib.nvim not found", { "Install StefanBartl/lib.nvim as a dependency" })
   end
   if pcall(require, "lib.nvim.ui.kit") then
     ok_s("lib.nvim.ui.kit available (dev-server prompt)")
   else
     err_s(
-      "lib.nvim.ui.kit not found — required for the dev-server prompt; update StefanBartl/lib.nvim"
+      "lib.nvim.ui.kit not found — required for the dev-server prompt",
+      { "Update StefanBartl/lib.nvim" }
     )
   end
   if pcall(require, "lib.nvim.bindings.usercmd.composer") then
     ok_s("lib.nvim.bindings.usercmd.composer available (:Insights command layer)")
   else
     err_s(
-      ":Insights will fail to register — lib.nvim.bindings.usercmd.composer not found; update StefanBartl/lib.nvim"
+      ":Insights will fail to register — lib.nvim.bindings.usercmd.composer not found",
+      { "Update StefanBartl/lib.nvim" }
     )
   end
 end
@@ -51,7 +53,7 @@ local function check_autocmds()
   start_s("Automatic triggers")
   local ok, cfg_mod = pcall(require, "insights.config")
   if not ok then
-    err_s("cannot load config")
+    err_s("cannot load config", { "Call require('insights').setup() in your config" })
     return
   end
   local cfg = cfg_mod.get()
@@ -61,7 +63,9 @@ local function check_autocmds()
     if exe(conflicts.git_cmd or "git") then
       ok_s("conflicts: enabled on " .. table.concat(conflicts.events or {}, ", "))
     else
-      warn_s("conflicts enabled but git not executable: " .. (conflicts.git_cmd or "git"))
+      warn_s("conflicts enabled but git not executable: " .. (conflicts.git_cmd or "git"), {
+        "Install git, or set conflicts.enable = false",
+      })
     end
   else
     info_s("conflicts disabled (conflicts.enable = false)")
@@ -87,13 +91,17 @@ local function check_autocmds()
       if exe("taskkill") then
         ok_s("taskkill available — dev-server process tree can be killed")
       else
-        warn_s("taskkill not found — dev-server kill may not work")
+        warn_s("taskkill not found — dev-server kill may not work", {
+          "taskkill ships with Windows; check that it is on $PATH",
+        })
       end
     else
       if exe("kill") then
         ok_s("kill available — dev-server process group can be killed")
       else
-        warn_s("kill not found — dev-server kill may not work")
+        warn_s("kill not found — dev-server kill may not work", {
+          "Install procps (Linux) or the base utilities providing kill(1)",
+        })
       end
     end
   else
@@ -108,12 +116,17 @@ local function check_neovim()
   if v.major > 0 or v.minor >= 9 then
     ok_s(string.format("Neovim %d.%d.%d (>= 0.9 required)", v.major, v.minor, v.patch))
   else
-    err_s(string.format("Neovim %d.%d.%d — insights requires 0.9+", v.major, v.minor, v.patch))
+    err_s(
+      string.format("Neovim %d.%d.%d — insights requires 0.9+", v.major, v.minor, v.patch),
+      { "Upgrade Neovim to 0.9+" }
+    )
   end
   if v.major > 0 or v.minor >= 10 then
     ok_s("vim.system available (Neovim 0.10+)")
   else
-    warn_s("Neovim < 0.10 — vim.system not available; async tree/count may not work")
+    warn_s("Neovim < 0.10 — vim.system not available; async tree/count may not work", {
+      "Upgrade Neovim to 0.10+",
+    })
   end
 end
 
@@ -123,7 +136,9 @@ local function check_tools()
   if exe("rg") then
     ok_s("rg (ripgrep) — symbol indexer ready")
   else
-    err_s("rg not found — install ripgrep; symbol indexing will not work")
+    err_s("rg not found — symbol indexing will not work", {
+      "Install ripgrep (https://github.com/BurntSushi/ripgrep)",
+    })
   end
   -- No fd probe here. It used to report one, admitting in the same breath
   -- that it is "not used currently" — and nothing in this plugin has ever
@@ -138,7 +153,9 @@ local function check_tools()
     if exe("find") and exe("sed") then
       ok_s("find + sed — used for file tree on Unix")
     else
-      warn_s("find or sed not found — file tree / count may fail on this system")
+      warn_s("find or sed not found — file tree / count may fail on this system", {
+        "Install findutils and sed",
+      })
     end
   end
 end
@@ -192,7 +209,7 @@ local function check_config()
   start_s("Configuration")
   local ok, cfg_mod = pcall(require, "insights.config")
   if not ok then
-    err_s("cannot load config")
+    err_s("cannot load config", { "Call require('insights').setup() in your config" })
     return
   end
   local cfg = cfg_mod.get()
@@ -218,7 +235,7 @@ local function check_compress()
   start_s("Compress feature")
   local ok, cfg_mod = pcall(require, "insights.config")
   if not ok then
-    err_s("cannot load config")
+    err_s("cannot load config", { "Call require('insights').setup() in your config" })
     return
   end
   local cmp = cfg_mod.get().compress or {}
@@ -240,7 +257,9 @@ local function check_compress()
       if can_create then
         ok_s("compress.outdir created: " .. outdir)
       else
-        warn_s("compress.outdir not writable: " .. outdir)
+        warn_s("compress.outdir not writable: " .. outdir, {
+          "Point compress.outdir at a writable directory",
+        })
       end
     end
   else
@@ -254,29 +273,31 @@ local function check_compress()
     if platform_is_windows() then
       ok_s("engine=powershell — PowerShell Compress-Archive available")
     else
-      warn_s("engine=powershell requested but not on Windows")
+      warn_s("engine=powershell requested but not on Windows", {
+        "Set compress.engine to 'tar', 'zip' or 'auto' on this platform",
+      })
     end
   elseif effective == "tar" then
     if exe("tar") then
       ok_s("tar available")
     else
-      warn_s("tar not found")
+      warn_s("tar not found", { "Install tar, or set compress.engine to another value" })
     end
     if exe("find") then
       ok_s("find available")
     else
-      warn_s("find not found")
+      warn_s("find not found", { "Install findutils" })
     end
   elseif effective == "zip" then
     if exe("zip") then
       ok_s("zip available")
     else
-      warn_s("zip not found")
+      warn_s("zip not found", { "Install zip, or set compress.engine to another value" })
     end
     if exe("find") then
       ok_s("find available")
     else
-      warn_s("find not found")
+      warn_s("find not found", { "Install findutils" })
     end
   end
 end
@@ -306,7 +327,7 @@ local function check_hover()
 
   local ok_idx, index = pcall(require, "insights.imports.index")
   if not ok_idx then
-    err_s("cannot load insights.imports.index")
+    err_s("cannot load insights.imports.index", { "Reinstall insights.nvim" })
     return
   end
 
@@ -336,7 +357,7 @@ local function check_cache()
 
   local ok2, cache_mod = pcall(require, "insights.scan.cache")
   if not ok2 then
-    err_s("cannot load cache module")
+    err_s("cannot load cache module", { "Reinstall insights.nvim" })
     return
   end
 

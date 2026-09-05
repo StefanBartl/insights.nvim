@@ -24,6 +24,7 @@ lua/insights/
     ts_lua_tables.lua   Tree-sitter Lua table constructor scanner
     ts_lua_strings.lua  Tree-sitter Lua string literal scanner
     init.lua            unified entry: rg + optional TS merge; get_tables/get_strings
+    open.lua            the one place a symbol picker gets opened (scan + scope + UI, shared by :Insights symbols and the symbols_* keymaps)
   metrics/
     analyzer.lua        per-file line/word stats, ratios, percentages, formatting
     report.lua          ASCII tables (file/folder/total/ratios/top-N/guidelines)
@@ -36,11 +37,14 @@ lua/insights/
     fzf.lua             fzf-lua picker
     scratch.lua         read-only scratch buffer display
   compress/init.lua     async compression — engine dispatch (tar / zip / powershell)
+  hover.lua             insights' hover.nvim contribution: who imports the module under the cursor
   imports/
     init.lua            multi-language import analysis — dispatch, counts, report
     ts_requires.lua     Tree-sitter require() scanner (AST-accurate, Lua)
     resolve.lua         module path → file resolution (no require side-effects, Lua)
     definition.lua      locate + jump/preview the definition behind a Lua import
+    index.lua           caches the last full import scan, so a lookup doesn't repeat it
+    graph.lua           render the import/require graph as a Graphviz PNG
     langs/
       init.lua          language registry (id → scanner module)
       util.lua          shared regex-scan helpers (line offsets, comma/brace splitting)

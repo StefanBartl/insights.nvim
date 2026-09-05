@@ -9,6 +9,7 @@ is the short version of all of it.
 | --- | --- |
 | [installation.md](installation.md) | What has to be there first, and a spec per plugin manager |
 | [configuration.md](configuration.md) | Every option, with the full defaults printed out |
+| [health.md](health.md) | The twelve `:checkhealth insights` sections, and which findings are actually problems |
 
 ## Using it
 

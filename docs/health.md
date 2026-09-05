@@ -1,0 +1,30 @@
+# Health
+
+```vim
+:checkhealth insights
+```
+
+Twelve sections. Most degrade gracefully — a missing optional tool is
+`info`, not `warn`; only a missing **required** piece (`lib.nvim`, an
+unsatisfiable Neovim version) is `error`.
+
+| Section | Checks |
+|---|---|
+| `lib.nvim` | The hard dependency itself, plus `lib.nvim.ui.kit` (dev-server prompts) and `lib.nvim.bindings.usercmd.composer` (the `:Insights` command layer) |
+| Automatic triggers | Whether `conflicts` (needs `git` executable), `unimported`, and `devserver` are enabled, and whether each one's own tool (`git`, `taskkill`/`kill` for killing a dev-server process tree) is actually present |
+| Neovim version | `>= 0.9` required (`error` below it); separately notes whether `vim.system` (0.10+) is available, since async tree/count paths need it |
+| External tools | `rg` (ripgrep — required for the symbol indexer, `error` if missing); PowerShell on Windows / `find`+`sed` on Unix for the file tree |
+| Optional pickers | telescope.nvim / fzf-lua — `info` either way, since the scratch-buffer fallback always works |
+| Optional: PDF export | pdfport.nvim, only relevant when `metrics.output_file` ends in `.pdf` |
+| Tree-sitter | nvim-treesitter, the optional Lua scanner backend |
+| Configuration | Dumps the active config summary: `symbols.default_scope`, `symbols.languages`, `symbols.cache.enabled`, `metrics.output_file`, `tree.outdir`, `imports.enable`, `imports.engine` |
+| Compress feature | Skipped (`info`) if `compress.enable = false`; otherwise checks the configured `engine`'s actual tool (PowerShell `Compress-Archive` / `tar` / `zip` / `find`) and whether `compress.outdir` exists or can be created |
+| Hover contribution | Whether insights registers anything into hover.nvim, and separately the import-index freshness the hover reads from (cold / stale / warm) |
+| Symbol cache | Whether a cache exists for the current cwd, its path, and (implicitly) whether `:Insights cache build` has ever run there |
+| Declared tools (`lib.nvim.deps`) | Cross-check against [install.json](install.json) — the same list `:Lib deps show insights.nvim` reads |
+
+The "Hover contribution" section is worth reading literally: `hover = false`
+and "hover.nvim not installed" are both reported as `info`, not `warn` —
+neither is a problem, they're two different reasons nothing is registered.
+A cold import index is likewise `info`: the hover simply says nothing until
+`:Insights imports` has populated it once.

@@ -71,11 +71,8 @@ function M.list(cfg)
     return nil, "not inside a git repository"
   end
 
-  local ok, res = pcall(
-    run,
-    { git, "diff", "--name-only", "--diff-filter=" .. (cfg.diff_filter or "U") },
-    cwd
-  )
+  local ok, res =
+    pcall(run, { git, "diff", "--name-only", "--diff-filter=" .. (cfg.diff_filter or "U") }, cwd)
   if not ok then
     return nil, "git diff failed: " .. tostring(res)
   end

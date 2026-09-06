@@ -33,7 +33,15 @@ end
 
 ---@param opts InsightsOpts|nil
 function M.setup(opts)
-  current = vim.tbl_deep_extend("force", defaults, opts or {})
+  -- `vim.tbl_deep_extend` only recurses into keys present on *both* sides;
+  -- a sub-table `opts` never touches (e.g. `metrics` when only `symbols` was
+  -- passed) is carried into the result by reference, not by value. Merging
+  -- against a deep copy of `defaults` instead of `defaults` itself means
+  -- `expand_paths` below -- which mutates fields of exactly those untouched
+  -- sub-tables in place -- can never leak into the shared DEFAULTS module,
+  -- even though the effect is currently masked by expand_path being a no-op
+  -- on the stdpath()-based absolute defaults.
+  current = vim.tbl_deep_extend("force", vim.deepcopy(defaults), opts or {})
   expand_paths(current)
 end
 

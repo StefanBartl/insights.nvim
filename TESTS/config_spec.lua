@@ -30,4 +30,25 @@ return function(H)
 
   config.setup({})
   H.eq(config.get()[key], original, "setup({}) restores the defaults")
+
+  -- `vim.tbl_deep_extend("force", defaults, opts)` shares references for any
+  -- sub-table `opts` never mentions -- a nested subtree of `current` that
+  -- setup() (via expand_paths) or any later caller writes into would then
+  -- silently mutate DEFAULTS itself. Cover this with a top-level table that
+  -- `setup({ symbols = ... })` never touches, and mutate a leaf directly the
+  -- way expand_paths does.
+  config.setup({ symbols = { enable = not DEFAULTS.symbols.enable } })
+  local metrics_before = DEFAULTS.metrics.output_file
+  H.ok(
+    config.get().metrics ~= DEFAULTS.metrics,
+    "an untouched sub-table is a copy, not a reference into DEFAULTS"
+  )
+  config.get().metrics.output_file = "LEAK-CHECK"
+  H.eq(
+    DEFAULTS.metrics.output_file,
+    metrics_before,
+    "mutating current's copy left DEFAULTS untouched"
+  )
+
+  config.setup({})
 end

@@ -18,6 +18,7 @@ CONTENTS                                          *insights-contents*
      4.8 Conflicts ................ |insights-conflicts|
      4.9 Unimported ............... |insights-unimported|
      4.10 Devserver ............... |insights-devserver|
+     4.11 Smells ................... |insights-smells|
   5. Automatic triggers ........... |insights-autocmds|
   6. Configuration ................ |insights-config|
      6.1 symbols .................. |insights-config-symbols|
@@ -41,17 +42,23 @@ CONTENTS                                          *insights-contents*
 ==============================================================================
 1. INTRODUCTION                                     *insights-intro*
 
-insights.nvim is a project-analysis plugin that combines five
+insights.nvim is a project-analysis plugin that combines several
 previously separate tools into a single unified interface:
 
   • Symbol index   — ripgrep-based function/method finder across 11 languages,
                      with optional Tree-sitter Lua scanner and persistent cache.
   • Code metrics   — Lua file statistics: lines, comments, annotations, word
                      counts, and ratio analysis per file and folder.
+  • Code smells    — magic-number and hardcoded-(unconfigured)-constant scans.
+  • Imports        — multi-language import/require usage report, reverse
+                     lookup, unused-import detection, dependency graph.
   • File tree      — Async project file tree writer, file counter, and
                      clipboard copy.
   • File info      — Floating window with filesystem metadata (`fs.stat`)
                      for the current buffer.
+  • Compress       — Archive a project directory (tar/zip/PowerShell).
+  • Automatic checks — git conflicts, unused imports, and dev servers, each
+                     switched off independently.
 
 All subcommands are exposed under a single unified command:
 >
@@ -124,8 +131,8 @@ vim-plug: >
 :Insights {subcommand} [args]
 
   Unified dispatcher. {subcommand} is one of:
-  symbols, metrics, tree, count, clipboard, fileinfo, cache, compress, imports,
-  conflicts, unimported, devserver.
+  symbols, metrics, smells, tree, count, clipboard, fileinfo, cache, compress,
+  imports, conflicts, unimported, devserver.
 
   Tab-completion is available at every argument position.
 
@@ -532,6 +539,39 @@ vim-plug: >
   Tracking itself is automatic — see |insights-autocmds|. Configure
   under `devserver` (|insights-config-devserver|).
 
+------------------------------------------------------------------------------
+4.11 Smells                                       *insights-smells*
+
+                                         *:Insights-smells*
+:Insights smells [--magic-numbers-only|--constants-only] [dir]
+
+  Two scans over a project's Lua source, distinct from |insights-metrics|'s
+  size/ratio analysis — candidates, not verdicts, for both. [dir] defaults to
+  the current working directory; tab-completion suggests directories.
+
+  Magic numbers   A number written straight into a call with no name to hold
+                  a config key against: `vim.defer_fn(fn, 3000)`,
+                  `vim.wait(500)`, `timer:start(N, N)`, `timeout = N`,
+                  `vim.o.columns * 0.N`, `vim.o.lines * 0.N`. A
+                  defer/wait/timer value of 50 or under is "get off the
+                  current tick", not a preference, and is never flagged.
+  Hardcoded       A module-level `local NAME = VALUE` whose name describes
+  constants       behaviour (timeout, delay, limit, width, count, …) and
+                  whose value is `SCREAMING_CASE` or a plain integer other
+                  than 0/1, but which never made it into the project's own
+                  config surface (any file under `config/`/`@types/`, or
+                  named `*defaults*`/`config/init.lua`).
+
+  --magic-numbers-only   Skip the hardcoded-constants scan.
+  --constants-only       Skip the magic-numbers scan.
+
+  Opens the report in a scratch buffer. Has no `setup()` config of its own —
+  each run is scoped by its flags/directory argument only.
+
+  Example: >
+    :Insights smells
+    :Insights smells --magic-numbers-only
+<
 ==============================================================================
 5. AUTOMATIC TRIGGERS                            *insights-autocmds*
 
@@ -1168,14 +1208,21 @@ After calling `setup()`, the following functions are available:
 Reports:
 
   Neovim version      Requires ≥ 0.9; notes vim.system availability (0.10+).
-  External tools      rg (required), fd (optional), find/sed (Unix tree).
+  External tools      rg (required); PowerShell (Windows) or find/sed (Unix)
+                      for the file tree.
   Optional pickers    telescope.nvim, fzf-lua.
+  Optional PDF export pdfport.nvim, only relevant when metrics.output_file
+                      ends in .pdf.
   Tree-sitter         nvim-treesitter installation status.
   Configuration       Active language list, scope, cache settings.
   Automatic triggers  conflicts / unimported / devserver status, plus the
                       tools they need (git, taskkill or kill).
   Compress            Engine availability (tar/find/zip/powershell), outdir writability.
+  Hover contribution  Whether insights registers into hover.nvim, and the
+                      import-index freshness (cold/stale/warm) it reads from.
   Cache               Symbol count, last-indexed timestamp, file path.
+  Declared tools      Cross-check against docs/install.json
+  (lib.nvim.deps)     (`:Lib deps show insights.nvim`).
 
 ==============================================================================
 11. TROUBLESHOOTING                       *insights-troubleshooting*

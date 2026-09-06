@@ -21,6 +21,8 @@
 --- data anywhere in insights.nvim today (symbols.lua is a flat list), and
 --- inventing that analysis is a separate, much bigger feature than
 --- rendering data insights.nvim already collects.
+--- CDX: "CROSS-PLUGIN.md" is not a file in this repo (likely an nvim-config
+--- planning doc) — verify the reference still resolves, or drop it.
 
 local M = {}
 

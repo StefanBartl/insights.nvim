@@ -1,30 +1,10 @@
 ---@module 'insights.imports.index'
----@brief The last full import scan, kept so a lookup does not have to repeat it.
----@description
---- **The problem this exists for.** `scan_cwd` walks the working directory,
---- reads every source file it finds and parses each one. Measured on
---- 2026-09-03: 631 ms for hover.nvim, 715 ms for this repository, 1.9 s for
---- documentation.nvim. That is fine for `:Insights imports reverse`, which is
---- a report someone asked for and waits on. It rules out every *passive*
---- consumer -- a statusline, a hover, anything that answers while the reader
---- is reading -- because there was nothing to consult: each query re-scanned.
----
---- So a scan now leaves its result behind. Nothing scans *for* the index; it
---- is a by-product of the scans that already happen, which is why turning it
---- on costs nothing and why a cold index is a normal state rather than a
---- failure.
----
---- **A cold index is answered with `nil`, not with a scan.** A consumer that
---- would trigger a 700 ms walk from a cursor movement is exactly what this
---- was built to avoid, so `get` never builds. Deciding what to do about cold
---- belongs to the caller: a report re-scans, a passive reader declines.
----
---- **Staleness is reported, not guessed at.** A write marks every entry
---- stale, and `get` hands that flag back with the answer rather than throwing
---- it away: an import list from before the last save is usually still the
---- right answer, and pretending it is current is the one thing that would be
---- worse than saying nothing. The same stance `documentation.nvim`'s map
---- preview takes for the same reason.
+---@brief The last full import scan, kept so a lookup does not have to repeat
+--- it. Nothing scans *for* the index -- it is a by-product of scans that
+--- already happen. `get` never builds and never scans (a cold index answers
+--- `nil`); `put` marks it fresh, a write marks it `stale` rather than dropping
+--- it. See docs/FEATURES/CODE-INSPECTION.md ("the scan is remembered...") for
+--- the scan-cost benchmarks and the full rationale.
 
 local M = {}
 

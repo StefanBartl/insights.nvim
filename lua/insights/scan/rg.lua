@@ -2,8 +2,10 @@
 ---@brief Ripgrep command builder and executor.
 ---
 --- Low-level scan utility: reports status only, never notifies the user
---- directly — callers decide whether/how to surface an error (see
---- Refactoring..md "fail late / report at the boundary").
+--- directly — callers decide whether/how to surface an error ("fail late /
+--- report at the boundary").
+--- CDX: the doc this rationale name-dropped ("Refactoring..md") is not a file
+--- in this repo (likely stale, or an nvim-config planning doc) — verify or drop.
 local M = {}
 
 ---Build rg --vimgrep command arguments.

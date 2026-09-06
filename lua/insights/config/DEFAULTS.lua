@@ -108,6 +108,10 @@ local defaults = {
 
   imports = {
     enable = true,
+    -- Indicator style for the parts of :Insights imports that read files:
+    -- the async cwd scan and `unused`'s per-file re-read pass. Same values as
+    -- symbols.progress_style; provided by lib.nvim's lib.nvim.progress.
+    progress_style = "auto",
     -- "auto"       use Tree-sitter when the Lua parser is available, else rg
     -- "treesitter" force AST scan (falls back to rg if parser missing)
     -- "ripgrep"    force the line/regex scan

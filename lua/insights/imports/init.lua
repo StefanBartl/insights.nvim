@@ -21,6 +21,25 @@ local rg = require("insights.scan.rg")
 local langs = require("insights.imports.langs")
 local globbable = require("lib.nvim.fs.globbable")
 
+-- Optional: the async cwd scan and `unused`'s re-read pass both walk every
+-- source file — a multi-second job on a big tree. `symbols/rg_index.lua`
+-- already reports through this; mirror it here. No-op without lib.nvim.
+local ok_progress, progress_mod = pcall(require, "lib.nvim.progress")
+
+---@internal
+---@param text string
+---@param total integer
+---@return table|nil
+local function new_progress(text, total)
+  if not ok_progress then
+    return nil
+  end
+  local style = (config.get().imports and config.get().imports.progress_style) or "auto"
+  local handle = progress_mod.create({ title = "[insights]", style = style })
+  handle:update({ text = text, current = 0, total = total })
+  return handle
+end
+
 ---@class ImportEntry
 ---@field module   string   the required module path, e.g. "insights.config"
 ---@field name     string|nil   local variable / bound name the import assigns
@@ -266,6 +285,7 @@ function M.scan_cwd_async(cb)
   local raw = {}
   local CHUNK = 40
   local i = 1
+  local h = (#todo > CHUNK) and new_progress("scanning imports…", #todo) or nil
 
   -- Both exits build the same thing and both leave it behind: a scan that
   -- forgets its result is what made every passive consumer impossible, and
@@ -273,6 +293,9 @@ function M.scan_cwd_async(cb)
   local function finish()
     local data = build_data(raw, methods, cwd)
     require("insights.imports.index").put(cwd, data)
+    if h then
+      h:finish(string.format("%d import(s) in %d file(s)", #data.entries, #todo))
+    end
     return data
   end
 
@@ -283,6 +306,9 @@ function M.scan_cwd_async(cb)
       scan_file(item.lang_mod, item.path, item.use_ts, raw)
     end
     i = stop + 1
+    if h then
+      h:update({ text = "scanning imports…", current = math.min(i - 1, #todo), total = #todo })
+    end
     if i > #todo then
       cb(finish())
     else
@@ -596,10 +622,17 @@ end
 --- Build a report of bound import names that never appear again in their
 --- file. Crude textual check, not a reference analysis: re-exports via
 --- string, reflection, and shadowed names can produce false positives.
+---
+--- The heuristic re-reads each importing file (the AST scan kept only the
+--- import lines, not the whole source). When `on_done` is given and the
+--- filtered set is large, that re-read runs in chunks across `vim.schedule`
+--- with a `[insights]` indicator, and the report arrives through `on_done`.
+--- Callers passing no callback (and tests) keep the synchronous return.
 ---@param data ImportData
 ---@param filters string[]
+---@param on_done? fun(lines: string[])
 ---@return string[]
-function M.build_unused_report(data, filters)
+function M.build_unused_report(data, filters, on_done)
   filters = filters or {}
   local root = vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
   local entries = M.filtered_entries(data, filters)
@@ -613,8 +646,9 @@ function M.build_unused_report(data, filters)
     return file_cache[path] or nil
   end
 
-  local unused = {}
-  for _, e in ipairs(entries) do
+  ---@param e ImportEntry
+  ---@param unused ImportEntry[]
+  local function check_one(e, unused)
     if e.name and e.name ~= "_" and e.name ~= "*" then
       local text = file_text(e.filename)
       if text and count_word(text, e.name) <= 1 then
@@ -623,30 +657,76 @@ function M.build_unused_report(data, filters)
     end
   end
 
-  local title = (#filters > 0) and string.format(" [filter: %s]", table.concat(filters, ", ")) or ""
-
-  local lines = {
-    string.format("=== Imports — Unused — %s ===%s", root, title),
-    string.format("possibly-unused imports : %d", #unused),
-    "(heuristic: bound name never appears again in its file — re-exports,",
-    " reflection, or shadowed names can be false positives)",
-    "",
-  }
-  for _, e in ipairs(unused) do
-    lines[#lines + 1] = string.format(
-      "%s:%d  [%-3s] %-32s  %s",
-      e.filename,
-      e.lnum,
-      langs.tags[e.lang] or e.lang,
-      e.module,
-      e.name
-    )
+  ---@param unused ImportEntry[]
+  ---@return string[]
+  local function build_lines(unused)
+    local title = (#filters > 0) and string.format(" [filter: %s]", table.concat(filters, ", "))
+      or ""
+    local lines = {
+      string.format("=== Imports — Unused — %s ===%s", root, title),
+      string.format("possibly-unused imports : %d", #unused),
+      "(heuristic: bound name never appears again in its file — re-exports,",
+      " reflection, or shadowed names can be false positives)",
+      "",
+    }
+    for _, e in ipairs(unused) do
+      lines[#lines + 1] = string.format(
+        "%s:%d  [%-3s] %-32s  %s",
+        e.filename,
+        e.lnum,
+        langs.tags[e.lang] or e.lang,
+        e.module,
+        e.name
+      )
+    end
+    if #unused == 0 then
+      lines[#lines + 1] = "  (none found)"
+    end
+    return lines
   end
-  if #unused == 0 then
-    lines[#lines + 1] = "  (none found)"
+
+  local CHUNK = 100
+
+  if type(on_done) ~= "function" or #entries <= CHUNK then
+    local unused = {}
+    for _, e in ipairs(entries) do
+      check_one(e, unused)
+    end
+    local lines = build_lines(unused)
+    if on_done then
+      on_done(lines)
+    end
+    return lines
   end
 
-  return lines
+  local unused = {}
+  local h = new_progress("checking for unused imports…", #entries)
+  local i = 1
+  local function step()
+    local stop = math.min(i + CHUNK - 1, #entries)
+    for k = i, stop do
+      check_one(entries[k], unused)
+    end
+    i = stop + 1
+    if h then
+      h:update({
+        text = "checking for unused imports…",
+        current = math.min(i - 1, #entries),
+        total = #entries,
+      })
+    end
+    if i > #entries then
+      if h then
+        h:finish(string.format("%d possibly-unused import(s)", #unused))
+      end
+      on_done(build_lines(unused))
+    else
+      vim.schedule(step)
+    end
+  end
+  step()
+
+  return build_lines(unused) -- best-effort snapshot; async callers use on_done
 end
 
 --- Write report lines to a file (directory created as needed).
@@ -864,8 +944,9 @@ function M.run_unused(filters)
   filters = filters or {}
   notify.info("scanning imports…")
   M.scan_cwd_async(function(data)
-    local lines = M.build_unused_report(data, filters)
-    require("insights.ui.scratch").open(lines, "Imports Unused")
+    M.build_unused_report(data, filters, function(lines)
+      require("insights.ui.scratch").open(lines, "Imports Unused")
+    end)
   end)
 end
 

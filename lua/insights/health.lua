@@ -303,13 +303,9 @@ local function check_compress()
 end
 
 ---@internal
----@internal
---- The hover contribution, and the one state that makes it look broken.
----
---- A cold import index means the preview says nothing at all -- deliberately,
---- because building one from a cursor movement would cost the 631 ms to 1.9 s
---- a full scan takes. From outside the float that is indistinguishable from a
---- feature that does not work, so it is said here instead.
+--- The hover contribution. A cold import index means the preview says nothing
+--- at all, deliberately — see docs/hover.md for why "quiet" and "broken" look
+--- identical from outside, and the scan-cost benchmarks behind that choice.
 ---@return nil
 local function check_hover()
   start_s("Hover contribution")

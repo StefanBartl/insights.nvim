@@ -28,9 +28,12 @@ misleading failures.
 | | |
 | --- | --- |
 | `import_util_spec.lua` | byte-offset to line-number mapping, and the depth-aware splitter the grouped-import forms need |
+| `import_index_spec.lua` | the remembered import scan: cold answers nil, a warm index answers, staleness after a write, and the chunked `build_unused_report` re-read pass |
+| `hover_spec.lua` | the hover.nvim contribution: dotted-name detection, cold/warm/stale answers, and graceful decline without hover.nvim |
 | `lua_imports_spec.lua` | which `require` calls the Lua scanner reports, internal vs external, and what a dynamic require currently does |
 | `devserver_spec.lua` | the pattern match that decides whether a terminal job is a dev server, and the tracking ledger |
 | `config_spec.lua` | the merge, and that `DEFAULTS` survives it unmutated |
+| `smells_spec.lua` | magic-number and hardcoded-constant detection, and that `run()` tolerates an empty config surface |
 
 Adding one: write `TESTS/<name>_spec.lua` returning `function(H) ... end`, then
 list it in `run.lua`. `H` is the harness — `eq`, `ok`, `falsy`, `contains`,

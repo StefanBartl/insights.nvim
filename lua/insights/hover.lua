@@ -1,39 +1,12 @@
 ---@module 'insights.hover'
----@brief Who imports the module under the cursor.
----@description
---- You are reading a module header, or a `require` in someone else's file, and
---- the question is who depends on this. `:Insights imports reverse` answers it
---- in a scratch buffer. This puts the same answer in
---- [hover.nvim](https://github.com/StefanBartl/hover.nvim)'s float, for the
---- dotted name the cursor is on.
+---@brief Who imports the module under the cursor, shown in
+--- [hover.nvim](https://github.com/StefanBartl/hover.nvim)'s float for the
+--- dotted name under the cursor.
 ---
---- **It answers out of the remembered scan and never starts one.** A full walk
---- of the working directory was measured on 2026-09-03 at 631 ms for
---- hover.nvim and 1.9 s for documentation.nvim; a hover that could set that
---- off from a cursor movement is the exact shape of thing hover.nvim's opt-in
---- model exists to prevent. So `imports.reverse_lookup` answers from
---- `imports.index` or answers `nil`, and a cold index means this contribution
---- says nothing at all. `:checkhealth insights` reports the cold state,
---- because "quiet" and "broken" look identical from a float that never opens.
----
---- **A module nobody imports is silence, not a zero.** Every dotted name in
---- prose looks like a module -- `a.b.c`, `read.write.execute` -- and answering
---- "0 files import this" for each of them would be the noise the position kind
---- was built to avoid. The importer count *is* the gate: something imports it,
---- or there is nothing worth interrupting a reader for.
----
---- **A stale index says so rather than looking current.** A write marks the
---- index stale and the flag comes back with the answer. An import list from
---- before your last save is usually still right, and hiding that it might not
---- be is the one thing worse than saying nothing -- the same stance
---- documentation.nvim's map preview takes for the same reason.
----
---- **On sharing the float with documentation.nvim.** Both answer for a dotted
---- name, and both are right: one says what the module is, this one says who
---- uses it. hover.nvim steps between them with `<M-n>` / `:Hover next`, so the
---- second answer is a page rather than a casualty. Before that existed the
---- first plugin to register won and the other was invisible.
----
+--- Answers out of the remembered `:Insights imports` scan and never starts one
+--- itself — a cold index means silence, not a zero. See docs/hover.md for the
+--- full rationale, the scan-cost benchmarks behind that choice, staleness
+--- handling, and how the float is shared with documentation.nvim.
 ---@see insights.imports.index
 
 local M = {}

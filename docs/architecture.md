@@ -6,10 +6,11 @@ lua/insights/
   config/
     init.lua            merges user opts over DEFAULTS
     DEFAULTS.lua         plugin-side default configuration
+    @types/init.lua      LuaLS type definitions for the setup() options table
   bindings/
     usrcmds.lua         :Insights dispatcher + tab-completion
     keymaps.lua         optional global keymaps (which-key discoverable)
-    autocmds.lua        no-op — insights registers no autocmds
+    autocmds.lua        conflicts/unimported/devserver autocmds, each gated by its own `enable` key
   util/
     notify.lua          re-exports lib.nvim's notify factory
     platform.lua        is_windows() (via lib.nvim), run_shell(), copy_to_clipboard()
@@ -30,8 +31,12 @@ lua/insights/
     report.lua          ASCII tables (file/folder/total/ratios/top-N/guidelines)
     misc.lua            Markdown/TXT/JSON documentation-file analysis
     init.lua            scan, option resolution, report assembly, file output
+  smells/init.lua       magic-number + hardcoded-constant scans over Lua source
   tree/init.lua         async file tree, count, clipboard
   fileinfo/init.lua     fs.stat floating window
+  conflicts/init.lua    git conflict scan (blocking + async) → quickfix list
+  unimported/init.lua   used-but-unimported component tag check (JSX-flavoured filetypes)
+  devserver/init.lua    dev-server detection in terminals, tracked kill-on-exit
   ui/
     telescope.lua       telescope entry_maker + picker
     fzf.lua             fzf-lua picker

@@ -1,12 +1,10 @@
 ---@module 'insights'
----@brief Insights: unified project analysis (symbols, metrics, tree, fileinfo).
+---@brief Insights: unified project analysis, exposed through `:Insights`.
 ---
---- Combines:
----   - function_index  (ripgrep symbol indexer, multi-language)
----   - gather          (Tree-sitter Lua symbol scanner)
----   - lua_project_file_stats (Lua code metrics)
----   - project_tree    (file tree, count, clipboard)
----   - fileinfo        (buffer fs-stat float)
+--- `setup()` wires the command layer, keymaps and autocmds; the rest of this
+--- file is the public Lua façade. See docs/FEATURES/README.md for the module
+--- inventory (symbols, metrics, smells, imports, tree, fileinfo, compress,
+--- conflicts, unimported, devserver).
 local M = {}
 
 local notify = require("insights.util.notify").create("[insights]")
@@ -24,6 +22,12 @@ function M.setup(opts)
   require("insights.bindings.keymaps").setup(cfg)
   require("insights.bindings.autocmds").setup(cfg)
 
+  -- Tell hover.nvim who imports the module under the cursor. Soft: without
+  -- hover.nvim this does nothing. `hover = false` turns it off.
+  if cfg.hover ~= false then
+    require("insights.hover").setup()
+  end
+
   -- One-time (persisted across restarts) popup on the first setup() after
   -- installing this plugin: which CLI tools it wants and why
   -- (docs/install.json). `:Lib deps show insights.nvim` thereafter.
@@ -31,12 +35,6 @@ function M.setup(opts)
   -- config/DEFAULTS.lua) disables it for this plugin specifically.
   -- pcall'd: an older lib.nvim without lib.nvim.deps mustn't break setup()
   -- over an informational popup.
-  -- Tell hover.nvim who imports the module under the cursor. Soft: without
-  -- hover.nvim this does nothing. `hover = false` turns it off.
-  if cfg.hover ~= false then
-    require("insights.hover").setup()
-  end
-
   if cfg.deps_popup ~= false then
     local ok_deps, deps = pcall(require, "lib.nvim.deps")
     if ok_deps then

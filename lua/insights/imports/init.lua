@@ -882,17 +882,11 @@ end
 
 --- Who imports `module`, **out of the remembered scan only**.
 ---
---- The passive counterpart to `run_reverse`: it answers in microseconds or it
---- answers `nil`, and it never scans. A consumer that can afford to wait
---- calls `scan_cwd_async` and is honest about the wait; one that cannot --- a
---- statusline, a hover, anything that speaks while the reader reads --- takes
---- the `nil` and stays quiet. Measured 2026-09-03, a full scan is 631 ms to
---- 1.9 s depending on the tree, which is why this distinction is a hard line
---- rather than a preference.
----
---- `stale` is handed back rather than acted on. An import list from before
---- the last save is usually still right, and the caller is the one that knows
---- whether "probably still right" is good enough for what it is about to say.
+--- The passive counterpart to `run_reverse`: answers in microseconds or
+--- answers `nil`, and never scans itself -- see `imports/index.lua` and
+--- docs/FEATURES/CODE-INSPECTION.md for why that distinction is a hard line.
+--- `stale` is handed back rather than acted on; the caller decides whether
+--- "probably still right" is good enough for what it is about to say.
 ---@param module string
 ---@return { files: string[], entries: ImportEntry[], built_at: integer, stale: boolean }|nil
 function M.reverse_lookup(module)

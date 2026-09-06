@@ -187,7 +187,9 @@ local PATTERNS = {
     func_type = "method",
     name_capture = 1,
     signature_capture = 2,
-    pattern = [[^\s*(?:public|private|protected)?\s*(?:static\s+)?(?:final\s+)?[A-Za-z_<>[\]+\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)]],
+    -- `[=[ ]=]` (not `[[ ]]`): the `\]]` inside the character class would
+    -- otherwise close a `[[` long string early.
+    pattern = [=[^\s*(?:public|private|protected)?\s*(?:static\s+)?(?:final\s+)?[A-Za-z_<>\[\]]+\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)]=],
   },
 
   -- Ruby

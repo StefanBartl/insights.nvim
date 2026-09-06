@@ -13,20 +13,20 @@ jobs:
     name: stylua (format check)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       # Pinned, not "latest": stylua's own rule changes between releases would
       # otherwise turn this gate red with no local diff to blame it on.
       - uses: JohnnyMorganz/stylua-action@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          version: 2.5.2
+          version: v2.5.2
           args: --check lua plugin TESTS
 
   luacheck:
     name: luacheck (lint)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       # Plain Lua 5.4, not LuaJIT: luacheck only needs *an* interpreter to run
       # on, and which dialect it lints for is set by `std` in .luacheckrc --
       # independent of the host. Pinning a LuaJIT build here buys nothing and
@@ -35,14 +35,14 @@ jobs:
         with:
           luaVersion: "5.4"
       - uses: leafo/gh-actions-luarocks@v4
-      - run: luarocks install luacheck
+      - run: luarocks install luacheck 1.2.0
       - run: luacheck lua plugin TESTS
 
   tests:
     name: tests (headless)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           path: insights.nvim
 
@@ -50,7 +50,7 @@ jobs:
       # module load -- so the suite cannot run without it. Checked out as a
       # sibling, which is the layout TESTS/run.lua's own resolver looks for
       # first after $LIB_NVIM_PATH.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           repository: StefanBartl/lib.nvim
           path: lib.nvim

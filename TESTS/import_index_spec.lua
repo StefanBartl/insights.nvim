@@ -90,4 +90,56 @@ return function(H)
 
   index.forget()
   H.eq(imports.reverse_lookup("hover.registry"), nil, "forget() puts it back to cold")
+
+  -- build_unused_report: chunked re-read pass -------------------------------
+  -- More than CHUNK (100) filtered entries: the heuristic's per-file re-read
+  -- must run across event-loop ticks and the report must still arrive.
+  do
+    local dir = vim.fs.normalize(vim.fn.tempname() .. "_insights_unused")
+    vim.fn.mkdir(dir, "p")
+    -- `used.lua` references its bound name again; `dead.lua` never does.
+    -- Absolute paths so the re-read works without touching the cwd (the test
+    -- runner's lib.nvim entry can be a cwd-relative package.path).
+    local used_path = dir .. "/used.lua"
+    local dead_path = dir .. "/dead.lua"
+    local fh1 = assert(io.open(used_path, "w"))
+    fh1:write('local used = require("x.mod")\nreturn used.go()\n')
+    fh1:close()
+    local fh2 = assert(io.open(dead_path, "w"))
+    fh2:write('local dead = require("y.mod")\nreturn 1\n')
+    fh2:close()
+
+    local entries = {}
+    for i = 1, 120 do
+      local is_dead = (i % 2 == 0)
+      entries[i] = {
+        module = is_dead and "y.mod" or "x.mod",
+        name = is_dead and "dead" or "used",
+        field = nil,
+        filename = is_dead and dead_path or used_path,
+        lnum = 1,
+        lang = "lua",
+        external = true,
+      }
+    end
+    local wide_data =
+      { entries = entries, counts = {}, externals = {}, lang_totals = { lua = 120 }, methods = {} }
+
+    local report
+    imports.build_unused_report(wide_data, {}, function(lines)
+      report = lines
+    end)
+    local settled = vim.wait(5000, function()
+      return report ~= nil
+    end)
+    H.ok(settled, "build_unused_report: the chunked pass finished")
+    local joined = table.concat(report, "\n")
+    H.ok(joined:find(dead_path, 1, true) ~= nil, "build_unused_report: flags the dead import")
+    H.ok(
+      joined:find(used_path, 1, true) == nil,
+      "build_unused_report: the used import is not flagged"
+    )
+
+    pcall(vim.fn.delete, dir, "rf")
+  end
 end

@@ -805,6 +805,7 @@ All of these can be overridden per invocation with the flags documented under
 >
   imports = {
     enable      = true,
+    progress_style = "auto", -- indicator for the async cwd scan + `unused` re-read
     engine      = "auto",   -- "auto" | "treesitter" | "ripgrep" — Lua only
     output_file = vim.fn.stdpath("state") .. "/insights/imports.md",
     languages = {

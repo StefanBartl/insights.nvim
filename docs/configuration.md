@@ -119,6 +119,10 @@ require("insights").setup({
   -- Rust, C/C++
   imports = {
     enable      = true,
+    -- Indicator for the file-reading parts of :Insights imports: the async
+    -- cwd scan and `unused`'s per-file re-read pass. Needs lib.nvim; a no-op
+    -- without it. "auto" | "notify" | "statusline" | "fidget" | "float" | "kit"
+    progress_style = "auto",
     engine      = "auto",   -- "auto" → Tree-sitter if Lua parser present, else
                             -- ripgrep; "treesitter" / "ripgrep" force a backend
                             -- (Lua-only — other languages always regex-scan)

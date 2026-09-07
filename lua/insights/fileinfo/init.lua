@@ -31,12 +31,12 @@ local function format_permissions(stat)
   local perm = mode % 512
   local function bits(v)
     local map = { "r", "w", "x" }
-    local s = ""
+    local parts = {}
     for i = 2, 0, -1 do
       local b = 2 ^ i
-      s = s .. (bitlib.band(v, b) ~= 0 and map[3 - i] or "-")
+      parts[#parts + 1] = bitlib.band(v, b) ~= 0 and map[3 - i] or "-"
     end
-    return s
+    return table.concat(parts)
   end
   local u = bits(math.floor(perm / 64))
   local g = bits(math.floor((perm % 64) / 8))

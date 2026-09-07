@@ -40,18 +40,18 @@ function M.scan_source(src)
 
     local from_mod, rest = line:match("^%s*from%s+([%w_%.]+)%s+import%s+(.*)$")
     if from_mod then
-      local buf = rest
+      local buf_parts = { rest }
       local depth = 0
-      for _ in buf:gmatch("%(") do
+      for _ in rest:gmatch("%(") do
         depth = depth + 1
       end
-      for _ in buf:gmatch("%)") do
+      for _ in rest:gmatch("%)") do
         depth = depth - 1
       end
       while depth > 0 and i < #lines do
         i = i + 1
         local cont = strip_comment(lines[i])
-        buf = buf .. " " .. cont
+        buf_parts[#buf_parts + 1] = cont
         for _ in cont:gmatch("%(") do
           depth = depth + 1
         end
@@ -59,6 +59,7 @@ function M.scan_source(src)
           depth = depth - 1
         end
       end
+      local buf = table.concat(buf_parts, " ")
       buf = buf:gsub("[%(%)\\]", "")
 
       for _, tok in ipairs(util.split_commas(buf)) do

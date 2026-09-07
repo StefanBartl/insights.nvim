@@ -32,3 +32,9 @@ is the short version of all of it.
 
 **`install.json`** declares the external tools this plugin can use,
 machine-readably, for `:Lib deps show insights.nvim`.
+
+## Working on it
+
+| Page | Answers |
+| --- | --- |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Ground rules, project layout, and how to add an analysis |

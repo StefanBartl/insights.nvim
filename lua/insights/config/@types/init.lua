@@ -136,6 +136,7 @@
 ---@field classify_external boolean
 ---@field definition Insights.Imports.Definition
 ---@field graph Insights.Imports.Graph
+---@field progress_style Insights.ProgressStyle  Indicator while the import scan runs; needs lib.nvim, no-op without it
 
 ---@class Insights.ConflictsConfig
 ---@field enable boolean
@@ -252,6 +253,7 @@
 ---@field classify_external? boolean
 ---@field definition?        Insights.Imports.Definition
 ---@field graph?             Insights.Imports.Graph
+---@field progress_style?    Insights.ProgressStyle  Indicator while the import scan runs; needs lib.nvim, no-op without it
 
 ---@class Insights.ConflictsOpts
 ---@field enable?      boolean

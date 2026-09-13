@@ -8,6 +8,8 @@ is the short version of all of it.
 | Page | Answers |
 | --- | --- |
 | [installation.md](installation.md) | What has to be there first, and a spec per plugin manager |
+| [quickstart.md](quickstart.md) | The first thing to run after installing |
+| [what-you-get.md](what-you-get.md) | The full `:Insights` surface at a glance |
 | [configuration.md](configuration.md) | Every option, with the full defaults printed out |
 | [health.md](health.md) | The twelve `:checkhealth insights` sections, and which findings are actually problems |
 

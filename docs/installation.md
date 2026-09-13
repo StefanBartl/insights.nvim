@@ -11,6 +11,18 @@
 | `telescope.nvim` | optional | telescope picker |
 | `fzf-lua` | optional | fzf picker |
 | `nvim-treesitter` | optional | TS-based Lua scanner + accurate import analysis |
+| `dot` (graphviz) | optional | layout for `:Insights imports graph` |
+| [`images.nvim`](https://github.com/StefanBartl/images.nvim) | optional | renders the dependency graph in the editor |
+| [`hover.nvim`](https://github.com/StefanBartl/hover.nvim) | optional | reverse-import info in a float |
+
+`rg` and `dot` are declared in [docs/install.json](install.json) and read by
+lib.nvim's
+[deps module](https://github.com/StefanBartl/lib.nvim/blob/main/lua/lib/nvim/deps/README.md).
+A popup explains what is missing the first time `setup()` runs after installing;
+`:Lib deps show insights.nvim` repeats it any time, and it is folded into
+`:checkhealth insights`. Turn the popup off in this plugin's own spec with
+`deps_popup = false`, or globally with
+`vim.g.lib_nvim_deps_disable_first_run = true`.
 
 ## Installation
 

@@ -30,20 +30,25 @@ local function check_lib()
   else
     err_s("lib.nvim not found", { "Install StefanBartl/lib.nvim as a dependency" })
   end
-  if pcall(require, "lib.nvim.ui.kit") then
-    ok_s("lib.nvim.ui.kit available (dev-server prompt)")
-  else
-    err_s(
-      "lib.nvim.ui.kit not found — required for the dev-server prompt",
-      { "Update StefanBartl/lib.nvim" }
-    )
-  end
   if pcall(require, "lib.nvim.bindings.usercmd.composer") then
     ok_s("lib.nvim.bindings.usercmd.composer available (:Insights command layer)")
   else
     err_s(
       ":Insights will fail to register — lib.nvim.bindings.usercmd.composer not found",
       { "Update StefanBartl/lib.nvim" }
+    )
+  end
+end
+
+---@internal
+local function check_ui_nvim()
+  start_s("ui.nvim")
+  if pcall(require, "ui.kit") then
+    ok_s("ui.kit available (dev-server prompt)")
+  else
+    err_s(
+      "ui.kit not found — required for the dev-server prompt",
+      { "Install StefanBartl/ui.nvim" }
     )
   end
 end
@@ -389,6 +394,7 @@ end
 function M.check()
   check_neovim()
   check_lib()
+  check_ui_nvim()
   check_tools()
   check_pickers()
   check_pdfport()

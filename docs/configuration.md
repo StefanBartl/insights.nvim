@@ -179,7 +179,7 @@ require("insights").setup({
   -- Kill dev servers started in a Neovim terminal on exit
   devserver = {
     enable       = true,            -- false = never watch terminals
-    prompt       = true,            -- ask via lib.nvim ui.kit before killing
+    prompt       = true,            -- ask via ui.nvim's ui.kit before killing
     kill_on_exit = true,            -- the answer used when prompt = false
     patterns     = {                -- plain substrings, case-insensitive
       "astro dev", "npm run dev", "pnpm dev", "yarn dev", "bun dev",

@@ -7,7 +7,7 @@
 --- running in another shell is deliberately out of scope: this plugin kills
 --- what it can account for, never everything on the machine matching a name.
 ---
---- The prompt uses lib.nvim's ui.kit confirm dialog (hard dependency).
+--- The prompt uses ui.nvim's ui.kit confirm dialog (hard dependency for this feature).
 
 local notify = require("insights.util.notify").create("[insights.devserver]")
 
@@ -107,7 +107,7 @@ local function ask(chan, cmd)
     return
   end
 
-  local kit = require("lib.nvim.ui.kit")
+  local kit = require("ui.kit")
   kit.confirm({
     title = " Insights ",
     question = ("Dev server detected:\n%s\n\nKill it when Neovim exits?"):format(cmd),

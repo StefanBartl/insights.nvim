@@ -52,7 +52,7 @@
 ---| "statusline"  # headless; read via lib.nvim.progress.styles.statusline.active()
 ---| "fidget"      # fidget.nvim's LSP-style handles
 ---| "float"       # small floating window
----| "kit"         # like "float", themed via lib.nvim.ui.kit
+---| "kit"         # like "float", themed via ui.kit
 
 ---@class Insights.MetricsConfig
 ---@field enable boolean
@@ -154,7 +154,7 @@
 
 ---@class Insights.DevserverConfig
 ---@field enable boolean
----@field prompt boolean       ask via lib.nvim ui.kit; false = apply kill_on_exit silently
+---@field prompt boolean       ask via ui.nvim's ui.kit; false = apply kill_on_exit silently
 ---@field kill_on_exit boolean the answer used when prompt = false
 ---@field patterns string[]    plain substrings matched case-insensitively against the terminal command
 
@@ -271,7 +271,7 @@
 
 ---@class Insights.DevserverOpts
 ---@field enable?       boolean
----@field prompt?       boolean       ask via lib.nvim ui.kit; false = apply kill_on_exit silently
+---@field prompt?       boolean       ask via ui.nvim's ui.kit; false = apply kill_on_exit silently
 ---@field kill_on_exit? boolean the answer used when prompt = false
 ---@field patterns?     string[]    plain substrings matched case-insensitively against the terminal command
 return {}

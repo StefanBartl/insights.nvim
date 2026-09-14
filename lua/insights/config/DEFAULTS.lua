@@ -181,7 +181,7 @@ local defaults = {
   -- the machine matching a name.
   devserver = {
     enable = true,
-    prompt = true, -- ask via lib.nvim ui.kit; false = apply kill_on_exit silently
+    prompt = true, -- ask via ui.nvim's ui.kit; false = apply kill_on_exit silently
     kill_on_exit = true, -- the answer used when prompt = false
     patterns = { -- plain substrings, matched case-insensitively
       "astro dev",

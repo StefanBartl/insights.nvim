@@ -4,13 +4,14 @@
 :checkhealth insights
 ```
 
-Thirteen sections. Most degrade gracefully — a missing optional tool is
-`info`, not `warn`; only a missing **required** piece (`lib.nvim`, an
-unsatisfiable Neovim version) is `error`.
+Fourteen sections. Most degrade gracefully — a missing optional tool is
+`info`, not `warn`; only a missing **required** piece (`lib.nvim`, `ui.nvim`'s
+`ui.kit`, an unsatisfiable Neovim version) is `error`.
 
 | Section | Checks |
 |---|---|
-| `lib.nvim` | The hard dependency itself, plus `lib.nvim.ui.kit` (dev-server prompts) and `lib.nvim.bindings.usercmd.composer` (the `:Insights` command layer) |
+| `lib.nvim` | The hard dependency itself, plus `lib.nvim.bindings.usercmd.composer` (the `:Insights` command layer) |
+| `ui.nvim` | `ui.kit` — required for the dev-server prompt (`devserver.prompt = true`, the default); `error` (not just `info`) when missing, since that feature has no fallback |
 | Automatic triggers | Whether `conflicts` (needs `git` executable), `unimported`, and `devserver` are enabled, and whether each one's own tool (`git`, `taskkill`/`kill` for killing a dev-server process tree) is actually present |
 | Neovim version | `>= 0.9` required (`error` below it); separately notes whether `vim.system` (0.10+) is available, since async tree/count paths need it |
 | External tools | `rg` (ripgrep — required for the symbol indexer, `error` if missing); PowerShell on Windows / `find`+`sed` on Unix for the file tree |

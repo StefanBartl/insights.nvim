@@ -61,6 +61,14 @@ jobs:
           neovim: true
           version: stable
 
+      # ripgrep is this plugin's core dependency for symbol indexing and
+      # import scanning (lua/insights/scan/rg.lua, symbols/rg_index.lua) --
+      # not a test-only fixture, and not preinstalled on ubuntu-latest.
+      # Without it, `vim.fn.executable("rg")`'s guard short-circuits before
+      # the (correctly stubbed) command-building logic ever runs, so the
+      # specs that assert on it fail with no code defect behind them.
+      - run: sudo apt-get update && sudo apt-get install -y ripgrep
+
       - name: Run TESTS/run.lua
         working-directory: insights.nvim
         run: nvim --headless -u NONE -c "set rtp+=." -l TESTS/run.lua

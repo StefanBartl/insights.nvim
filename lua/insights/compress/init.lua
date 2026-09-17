@@ -27,7 +27,13 @@ local M = {}
 ---@return string|nil outdir
 ---@return string|nil errmsg
 local function resolve_outdir(path, cfg_outdir)
-  local sep = platform.is_windows() and "\\" or "/"
+  -- Always "/", never `platform.is_windows()`-conditional: this path goes
+  -- straight into `vim.fn.mkdir` below, real Lua-side I/O that Neovim
+  -- resolves identically on every host regardless of which shell an engine
+  -- later runs. A backslash here used to survive unmangled on Linux, where
+  -- it is just an ordinary filename character, not a directory boundary --
+  -- `mkdir -p` created one oddly-named entry instead of nested directories.
+  local sep = "/"
   local outdir
   if not cfg_outdir or cfg_outdir == "" then
     outdir = path .. sep .. "compressed"
@@ -134,7 +140,12 @@ end
 function engines.powershell(path, outdir, on_complete)
   local name = vim.fn.fnamemodify(path, ":t")
   local out_path = outdir .. "\\" .. name .. ".zip"
-  local list_path = outdir .. "\\file-list.txt"
+  -- Unlike `out_path` above (only ever seen by a real PowerShell command
+  -- string), this one goes straight into `vim.fn.writefile` below -- real
+  -- Lua-side I/O, which Neovim resolves the same way on every host, so it
+  -- gets the same "/" the tar/zip engines already use for their own
+  -- `list_path`, not the shell-facing backslash.
+  local list_path = outdir .. "/file-list.txt"
 
   -- The listing is written from Lua rather than piped into Out-File. Out-File
   -- defaults to UTF-16LE with a BOM in Windows PowerShell -- verified, not

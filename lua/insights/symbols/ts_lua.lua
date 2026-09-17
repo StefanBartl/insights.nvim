@@ -12,6 +12,27 @@ local globbable = require("lib.nvim.fs.globbable")
 local api = vim.api
 local ts = vim.treesitter
 
+---@internal
+---First named child of `node` with the given type. `assignment_statement`
+---exposes its `variable_list`/`expression_list` as typed *children*, not as
+---named fields -- `node:field("left")`/`node:field("right")` always returned
+---nil, which made the whole branch below dead code (verified against the
+---bundled grammar: `assignment_statement -> variable_list, expression_list`).
+---Same helper already used for the same reason in
+---`insights.imports.ts_requires`/`insights.imports.definition`.
+---@param node TSNode
+---@param type_name string
+---@return TSNode|nil
+local function child_of_type(node, type_name)
+  for i = 0, node:named_child_count() - 1 do
+    local ch = assert(node:named_child(i))
+    if ch:type() == type_name then
+      return ch
+    end
+  end
+  return nil
+end
+
 ---One symbol a scanner found. The scanners see a buffer, not a path, so
 ---`filename` is stamped afterwards by whoever knows which file it was --
 ---`symbols/init.lua` and `ts_lua.scan_files` both do it.
@@ -71,11 +92,15 @@ function M.scan_buffer(bufnr)
     end
 
     if t == "assignment_statement" then
-      local var_list = node:field("left")
-      local expr_list = node:field("right")
-      if var_list and expr_list and #var_list > 0 and #expr_list > 0 then
-        local vn = var_list[1]
-        local en = expr_list[1]
+      local var_list = child_of_type(node, "variable_list")
+      local expr_list = child_of_type(node, "expression_list")
+      -- Each item of a `variable_list`/`expression_list` is exposed under its
+      -- own `name`/`value` field, respectively.
+      local vn_field = var_list and var_list:field("name")
+      local en_field = expr_list and expr_list:field("value")
+      if vn_field and en_field and #vn_field > 0 and #en_field > 0 then
+        local vn = vn_field[1]
+        local en = en_field[1]
         if en:type() == "function_definition" then
           local name, row, col
           if vn:type() == "identifier" then

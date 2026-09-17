@@ -227,20 +227,18 @@ return function(H)
     H.contains(ps, "[\\\\/]node_modules[\\\\/]", "each glob made path-separator-agnostic")
     H.contains(ps, "Sort-Object", "and sorted")
 
-    -- BUG (pinned, not fixed): the glob-to-regex translation escapes regex
+    -- Regression: the glob-to-regex translation used to escape regex
     -- metacharacters with Lua's escape character, `%`, rather than the `\`
     -- that .NET's regex engine (which `-match` uses) understands. The default
-    -- exclusion `*/.git/*` therefore becomes `.*[\/]%.git[\/].*`, a pattern
-    -- that requires a literal `%` before the segment and so matches no real
-    -- path at all -- while `node_modules`, which contains no metacharacter,
-    -- survives the translation untouched and does work.
-    --
-    -- The effect: on Windows, `:Insights tree` and `:Insights count` include
-    -- every file under `.git/`, which on any real repository is the bulk of
-    -- the listing. The Unix branch is unaffected: it passes the globs to
-    -- `find -not -path` verbatim, with no translation at all.
-    H.contains(ps, "%.git", "BUG: a dot is escaped Lua-style, not regex-style")
-    H.excludes(ps, "\\.git", "BUG: so the regex engine never sees a escaped dot")
+    -- exclusion `*/.git/*` became `.*[\/]%.git[\/].*`, a pattern requiring a
+    -- literal `%` before the segment that matched no real path at all -- while
+    -- `node_modules`, which contains no metacharacter, survived untouched and
+    -- did work. On Windows, `:Insights tree`/`count` included every file
+    -- under `.git/`, the bulk of the listing on any real repository. The Unix
+    -- branch was never affected: it passes globs to `find -not -path`
+    -- verbatim, with no translation at all.
+    H.contains(ps, "\\.git", "a dot is escaped regex-style now")
+    H.excludes(ps, "%.git", "not Lua-pattern-style")
     H.excludes(ps, "sed", "with no Unix tools assumed")
     windows = false
 

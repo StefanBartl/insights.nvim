@@ -133,10 +133,8 @@ unavailable.
 
 ## Bugs found here
 
-Four real defects were found while writing this suite. The first is **fixed**;
-the remaining three are pinned with `BUG:`-marked assertions so the current
-behaviour cannot change silently, and fixing them stays a separate, deliberate
-change.
+Four real defects were found while writing this suite. **All four are now
+fixed**; the assertions that pinned them stayed on as regression guards.
 
 1. **`symbols/parser.lua` discarded every match on Windows — fixed.**
    `parse_vimgrep_line` split on the first three colons, so a drive letter's
@@ -151,26 +149,26 @@ change.
    report with absolute paths stayed dead. Both are now regression assertions
    in `symbols_patterns_parser_spec.lua` and `ui_fileinfo_spec.lua`.
 
-2. **`symbols/ts_lua.lua`'s assignment branch is dead code.** It reads the
-   target and value through `node:field("left")` / `node:field("right")`, but
-   tree-sitter-lua exposes `variable_list` and `expression_list` as typed
-   *children*, not as named fields. With
-   `symbols.use_treesitter_for_lua = true`, a module written as
-   `M.foo = function() … end` contributes no symbols at all. Pinned in
-   `symbols_ts_lua_spec.lua`.
+2. **`symbols/ts_lua.lua`'s assignment branch was dead code — fixed.** It read
+   the target and value through `node:field("left")` / `node:field("right")`,
+   but tree-sitter-lua exposes `variable_list` and `expression_list` as typed
+   *children*, not as named fields, so both calls always returned an empty
+   list. With `symbols.use_treesitter_for_lua = true`, a module written as
+   `M.foo = function() … end` used to contribute no symbols at all. The module
+   now carries its own `child_of_type` helper, the same one
+   `imports/ts_requires.lua`/`imports/definition.lua` already used for the
+   same reason. Pinned in `symbols_ts_lua_spec.lua`.
 
-3. **`symbols/ts_lua_tables.lua` never prefixes a nested table field.** Same
-   root cause, second call site: `par:field("variable_list")[1]` is always
-   nil, so a field inside `local cfg = { inner = {} }` is listed as `inner`
-   rather than `cfg.inner`. Pinned in `symbols_ts_lua_spec.lua`.
-   Both `imports/ts_requires.lua` and `imports/definition.lua` already carry a
-   `child_of_type` helper whose comment says exactly this.
+3. **`symbols/ts_lua_tables.lua` never prefixed a nested table field — fixed.**
+   Same root cause, second call site: `par:field("variable_list")[1]` was
+   always nil, so a field inside `local cfg = { inner = {} }` was listed as
+   `inner` rather than `cfg.inner`. Pinned in `symbols_ts_lua_spec.lua`.
 
-4. **`tree/init.lua`'s Windows exclusions never match.** The glob-to-regex
-   translation escapes metacharacters with Lua's `%` rather than the `\` the
-   .NET regex engine understands, so the default `*/.git/*` becomes
-   `.*[\/]%.git[\/].*` and matches no real path. On Windows, `:Insights tree`
-   and `:Insights count` therefore include everything under `.git/`.
+4. **`tree/init.lua`'s Windows exclusions never matched — fixed.** The
+   glob-to-regex translation escaped metacharacters with Lua's `%` rather than
+   the `\` the .NET regex engine understands, so the default `*/.git/*` became
+   `.*[\/]%.git[\/].*` and matched no real path. On Windows, `:Insights tree`
+   and `:Insights count` used to include everything under `.git/`.
    `node_modules`, which contains no metacharacter, survives untouched and
    does work. The Unix branch passes the globs to `find -not -path` verbatim
    and is unaffected. Pinned in `compress_tree_spec.lua`.

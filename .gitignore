@@ -9,3 +9,7 @@ doc/tags
 # ~40 MB of downloaded artifacts nobody asked for — in several cases larger
 # than the plugin's own code.
 docs/map/
+
+# Scratch directories created (and removed) by TESTS/harness.lua's `fixture()`.
+# Listed so an interrupted run cannot leave one staged by accident.
+TESTS/.fixture-*/

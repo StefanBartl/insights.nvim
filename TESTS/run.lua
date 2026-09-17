@@ -41,13 +41,46 @@ local H = dofile(dir .. "harness.lua")
 
 -- Ordered so a failure points at the smallest layer first.
 local specs = {
+  -- imports: the leaf helpers, then the scanners, then the report on top
   "import_util_spec.lua",
-  "import_index_spec.lua",
-  "hover_spec.lua",
+  "imports_langs_contract_spec.lua",
+  "imports_langs_detail_spec.lua",
   "lua_imports_spec.lua",
-  "devserver_spec.lua",
-  "config_spec.lua",
+  "imports_ts_requires_spec.lua",
+  "imports_resolve_spec.lua",
+  "imports_definition_spec.lua",
+  "imports_graph_spec.lua",
+  "import_index_spec.lua",
+  "imports_report_spec.lua",
+  "hover_spec.lua",
+
+  -- symbols: patterns/parser, the scan layer, the scanners, the facade
+  "symbols_patterns_parser_spec.lua",
+  "scan_rg_spec.lua",
+  "scan_cache_spec.lua",
+  "symbols_ts_lua_spec.lua",
+  "symbols_index_spec.lua",
+  "symbols_open_spec.lua",
+
+  -- metrics and the smell scans built on its file lister
+  "metrics_analyzer_spec.lua",
+  "metrics_report_spec.lua",
+  "metrics_init_spec.lua",
   "smells_spec.lua",
+  "smells_run_spec.lua",
+
+  -- the remaining features
+  "unimported_spec.lua",
+  "conflicts_spec.lua",
+  "compress_tree_spec.lua",
+  "devserver_spec.lua",
+  "devserver_extra_spec.lua",
+  "ui_fileinfo_spec.lua",
+
+  -- config, then everything that is wired from it
+  "config_spec.lua",
+  "bindings_spec.lua",
+  "health_init_spec.lua",
 }
 
 local failed = 0

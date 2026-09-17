@@ -51,4 +51,32 @@ return function(H)
   )
 
   config.setup({})
+
+  -- expand_paths ---------------------------------------------------------------
+  -- Five path fields are run through lib.nvim's `expand_path` on every
+  -- setup(). The defaults come from `stdpath()` and are already absolute, so
+  -- the call is a no-op on them -- which means this branch is only ever
+  -- exercised by a user value, and only ever here.
+  local home = vim.fn.expand("~")
+  config.setup({
+    symbols = { cache = { dir = "~/insights-cache" } },
+    metrics = { output_file = "~/insights-metrics.md" },
+    tree = { outdir = "~/insights-tree" },
+    imports = { output_file = "~/insights-imports.md" },
+  })
+  local expanded = config.get()
+  H.contains(expanded.symbols.cache.dir, home, "the cache directory is expanded")
+  H.excludes(expanded.symbols.cache.dir, "~", "with no tilde left in it")
+  H.contains(expanded.metrics.output_file, home, "and the metrics output file")
+  H.contains(expanded.tree.outdir, home, "and the tree output directory")
+  H.contains(expanded.imports.output_file, home, "and the imports output file")
+
+  -- `compress.outdir` is the one that is only expanded when it is set: its
+  -- default is the empty string, which means "next to the source directory"
+  -- and must not become the expansion of "".
+  H.eq(config.get().compress.outdir, "", "an empty compress outdir stays empty")
+  config.setup({ compress = { outdir = "~/insights-archives" } })
+  H.contains(config.get().compress.outdir, home, "a set one is expanded like the rest")
+
+  config.setup({})
 end

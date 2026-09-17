@@ -160,19 +160,28 @@ return function(H)
   H.ok(#sig_by_name.wide <= #"wide(" + 40 + 1, "a long parameter list is truncated")
   H.contains(sig_by_name.wide, "...", "with an ellipsis")
 
-  -- BUG (pinned, not fixed): an absolute Windows path never parses ----------
-  -- `parse_vimgrep_line` splits on the first three colons, so the drive
-  -- letter's own colon consumes the `filename` field and the line number lands
-  -- where the path should be. `rg_index.build` passes `vim.fn.getcwd()` to rg
-  -- as the search root, and on Windows that is `E:\repos\…` -- so rg prints
-  -- `E:\repos\…\mod.lua:12:1:…` and **every single match is discarded as
-  -- unparseable**. `:Insights symbols` finds nothing at all on Windows, and
-  -- the failure is silent: the errors list is not shown, only counted.
+  -- Regression: an absolute Windows path used never to parse ----------------
+  -- `parse_vimgrep_line` split on the first three colons, so the drive
+  -- letter's own colon consumed the `filename` field and the path landed in
+  -- the line-number slot. `rg_index.build` passes `vim.fn.getcwd()` to rg as
+  -- the search root, which on Windows is `E:\repos\…` -- so rg printed
+  -- `E:\repos\…\mod.lua:12:1:…` and every single match was discarded as
+  -- unparseable, silently: the errors list is only counted, never shown.
+  -- `:Insights symbols` found nothing at all on that platform.
   local win_entries, win_errors = parser.parse({
     "C:/proj/lua/mod.lua:12:1:local function helper(a, b)",
     [[E:\repos\proj\lua\mod.lua:12:1:local function helper(a, b)]],
   }, { lua = true })
-  H.eq(win_entries and #win_entries, 0, "BUG: an absolute Windows path yields no symbol")
-  H.eq(#win_errors, 2, "BUG: both drive-letter forms are counted as parse failures")
-  H.contains(win_errors[1], "parse failed", "BUG: and reported as malformed input")
+  H.eq(#win_errors, 0, "an absolute Windows path is no longer a parse failure")
+  H.eq(win_entries and #win_entries, 2, "both drive-letter forms yield a symbol")
+  H.eq(win_entries[1].filename, "C:/proj/lua/mod.lua", "the forward-slash form keeps its drive")
+  H.eq(win_entries[2].filename, [[E:\repos\proj\lua\mod.lua]], "and so does the backslash form")
+  H.eq(win_entries[1].lnum, 12, "the line number comes from the line-number field")
+  H.eq(win_entries[1].col, 1, "and the column from the column field")
+  H.eq(win_entries[1].name, "helper", "the symbol name is extracted as usual")
+
+  -- A relative path has no drive prefix to skip, so it must be unaffected.
+  local rel_entries = parser.parse({ "lua/mod.lua:3:7:local function rel()" }, { lua = true })
+  H.eq(#rel_entries, 1, "a relative path still parses")
+  H.eq(rel_entries[1].filename, "lua/mod.lua", "with its filename intact")
 end

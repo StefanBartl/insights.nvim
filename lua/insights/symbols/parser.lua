@@ -15,13 +15,22 @@ local function parse_vimgrep_line(line)
   end
   local parts = {}
   local pos = 1
+  -- A Windows drive letter puts a colon inside the filename itself
+  -- ("E:/repos/x.lua:12:5:text"), so the search for the first field separator
+  -- has to start past it. Scanning from the front made the drive letter the
+  -- whole `filename`, pushed the rest of the path into the line-number field,
+  -- and `tonumber` then failed -- so every rg hit was dropped, silently,
+  -- because `M.parse` only counts its errors. `:Insights symbols` found
+  -- nothing at all on Windows.
+  local scan = line:match("^%a:[/\\]") and 3 or 1
   for i = 1, 3 do
-    local cp = line:find(":", pos, true)
+    local cp = line:find(":", scan, true)
     if not cp then
       return nil
     end
     parts[i] = line:sub(pos, cp - 1)
     pos = cp + 1
+    scan = pos
   end
   parts[4] = line:sub(pos)
   local lnum = tonumber(parts[2])

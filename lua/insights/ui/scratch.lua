@@ -127,8 +127,15 @@ function M.open(lines, title, opts)
   if ui_cfg.follow_key and ui_cfg.follow_key ~= false then
     map("n", ui_cfg.follow_key, function()
       local line = api.nvim_get_current_line()
-      -- Try to open path:line from current line
-      local file, lnum = line:match("^([^:]+):(%d+)")
+      -- Try to open path:line from the current line. An absolute Windows path
+      -- carries a colon of its own, so `^([^:]+):(%d+)` stops at the drive
+      -- letter and then fails against the rest of the path -- the same blind
+      -- spot that made symbols/parser.lua discard every rg hit. Try the
+      -- drive-prefixed shape first, then the ordinary one.
+      local file, lnum = line:match("^(%a:[/\\][^:]*):(%d+)")
+      if not file then
+        file, lnum = line:match("^([^:]+):(%d+)")
+      end
       if file then
         vim.cmd("edit " .. vim.fn.fnameescape(file))
         if lnum then

@@ -131,19 +131,25 @@ bundled tree-sitter-lua on 2026-09-17.
 Each of those specs skips itself, with a printed note, if the Lua parser is
 unavailable.
 
-## Bugs pinned here, not fixed
+## Bugs found here
 
-Four real defects were found while writing this suite. Each is pinned with a
-`BUG:`-marked assertion so the current behaviour cannot change silently;
-fixing them is a separate, deliberate change.
+Four real defects were found while writing this suite. The first is **fixed**;
+the remaining three are pinned with `BUG:`-marked assertions so the current
+behaviour cannot change silently, and fixing them stays a separate, deliberate
+change.
 
-1. **`symbols/parser.lua` discards every match on Windows.**
-   `parse_vimgrep_line` splits on the first three colons, so a drive letter's
-   own colon consumes the `filename` field. `rg_index.build` passes
+1. **`symbols/parser.lua` discarded every match on Windows — fixed.**
+   `parse_vimgrep_line` split on the first three colons, so a drive letter's
+   own colon consumed the `filename` field. `rg_index.build` passes
    `vim.fn.getcwd()` as the search root, which on Windows is `E:\repos\…`, so
-   every line ripgrep prints is counted as unparseable and `:Insights symbols`
-   finds nothing at all. The failure is silent — the error list is counted,
-   not shown. Pinned in `symbols_patterns_parser_spec.lua`.
+   every line ripgrep printed was counted as unparseable and `:Insights
+   symbols` found nothing at all — silently, since the error list is counted,
+   not shown. The scan for the first field separator now starts past a
+   `^%a:[/\\]` drive prefix; relative and POSIX paths are untouched.
+   `ui/scratch.lua`'s follow key had the same blind spot in its own
+   `^([^:]+):(%d+)` pattern and was fixed with it, otherwise the jump out of a
+   report with absolute paths stayed dead. Both are now regression assertions
+   in `symbols_patterns_parser_spec.lua` and `ui_fileinfo_spec.lua`.
 
 2. **`symbols/ts_lua.lua`'s assignment branch is dead code.** It reads the
    target and value through `node:field("left")` / `node:field("right")`, but

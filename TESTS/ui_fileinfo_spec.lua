@@ -128,18 +128,22 @@ return function(H)
     H.contains(vim.fs.normalize(vim.api.nvim_buf_get_name(0)), "target.lua", "gf opens the file")
     H.eq(vim.api.nvim_win_get_cursor(0)[1], 2, "at the line the report named")
 
-    -- Known limitation (pinned, not fixed): the `^([^:]+):(%d+)` pattern stops
-    -- at the first colon, so an *absolute Windows* path is never followed --
-    -- the drive letter's own colon ends the file field and the line number is
-    -- looked for in the rest of the path. The same blind spot as
-    -- `symbols/parser.lua`'s vimgrep reader. It does not show on the imports
-    -- report, whose paths are relative; it does on any report that carries an
-    -- absolute one.
+    -- Regression: `^([^:]+):(%d+)` alone stops at the first colon, so an
+    -- *absolute Windows* path was never followed -- the drive letter's own
+    -- colon ended the file field and the line number was then looked for in
+    -- the rest of the path. Same blind spot as `symbols/parser.lua`'s vimgrep
+    -- reader, and invisible on the imports report, whose paths are relative.
+    local abs = vim.fn.fnamemodify(target, ":p")
     vim.cmd("silent! %bwipeout!")
-    scratch.open({ [[C:\proj\target.lua:2  something]] }, "AbsWindows")
-    local before_abs = vim.api.nvim_buf_get_name(0)
+    scratch.open({ abs .. ":3  something" }, "AbsPath")
+    vim.api.nvim_win_set_cursor(0, { 1, 0 })
     vim.api.nvim_feedkeys("gf", "x", false)
-    H.eq(vim.api.nvim_buf_get_name(0), before_abs, "BUG: an absolute Windows path is not followed")
+    H.contains(
+      vim.fs.normalize(vim.api.nvim_buf_get_name(0)),
+      "target.lua",
+      "an absolute path is followed too"
+    )
+    H.eq(vim.api.nvim_win_get_cursor(0)[1], 3, "at the line it named")
 
     -- A line with no path:line on it is not a jump.
     vim.cmd("silent! %bwipeout!")

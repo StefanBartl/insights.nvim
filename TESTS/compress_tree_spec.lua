@@ -116,7 +116,10 @@ return function(H)
     H.contains(shell.calls[2], "Compress-Archive", "then archiving")
     H.contains(msg_p, ".zip", "and the message names the archive")
     H.eq(
-      H.read(dir .. "\\compressed\\file-list.txt"):gsub("\r", ""),
+      -- Real Lua-side I/O, so "/" throughout even for the PowerShell
+      -- engine -- only the shell command strings it builds are
+      -- backslash-spelled, see lua/insights/compress/init.lua.
+      H.read(dir .. "/compressed/file-list.txt"):gsub("\r", ""),
       "C:\\p\\a.txt\nC:\\p\\b.txt",
       "with the listing written from Lua, one path per line"
     )

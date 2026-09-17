@@ -11,6 +11,27 @@ local api = vim.api
 local ts = vim.treesitter
 
 ---@internal
+---First named child of `node` with the given type. `assignment_statement`
+---exposes its `variable_list` as a typed *child*, not as a named field --
+---`node:field("variable_list")` always returned nil (an empty table), so the
+---prefix lookup below never fired and a nested table field was always listed
+---bare (`inner` rather than `cfg.inner`). Same helper `insights.imports
+---.ts_requires`/`insights.imports.definition` already carry for the same
+---reason.
+---@param node TSNode
+---@param type_name string
+---@return TSNode|nil
+local function child_of_type(node, type_name)
+  for i = 0, node:named_child_count() - 1 do
+    local ch = assert(node:named_child(i))
+    if ch:type() == type_name then
+      return ch
+    end
+  end
+  return nil
+end
+
+---@internal
 ---Build full dot-path for nested table assignments like `state.win = {}`.
 ---@param node TSNode
 ---@param bufnr integer
@@ -122,7 +143,7 @@ function M.scan_buffer(bufnr)
       end
       local ctx = nil
       if par then
-        local vl = par:field("variable_list")[1]
+        local vl = child_of_type(par, "variable_list")
         if vl then
           ctx = ts.get_node_text(vl, bufnr)
         end

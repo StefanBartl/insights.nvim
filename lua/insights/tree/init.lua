@@ -76,7 +76,14 @@ local function build_tree_cmd(cwd, exclude)
   end
   local regexes = {}
   for _, g in ipairs(exclude) do
-    local r = g:gsub("([%^%$%(%)%%%.%[%]%+%-%?])", "%%%1"):gsub("%*", ".*"):gsub("/", "[\\\\/]")
+    -- `-match $r` is a .NET regex, which escapes a metacharacter with `\`, not
+    -- Lua-pattern-style `%`. The replacement below used to prepend a literal
+    -- `%` to each one -- `%.git` isn't special to .NET's engine, it just
+    -- matches a literal `%` followed by "git" -- so every glob containing a
+    -- metacharacter (a leading dot is universal: `.git`, `.cache`, ...) never
+    -- matched and `:Insights tree`/`count` listed the excluded tree in full
+    -- on Windows.
+    local r = g:gsub("([%^%$%(%)%%%.%[%]%+%-%?])", "\\%1"):gsub("%*", ".*"):gsub("/", "[\\\\/]")
     regexes[#regexes + 1] = r
   end
 

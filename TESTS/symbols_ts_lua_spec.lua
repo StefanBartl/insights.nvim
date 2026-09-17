@@ -79,22 +79,18 @@ return function(H)
     H.ok(found["M:method"], "and a method declaration, colon included")
     H.ok(found.in_table, "and a function in a table constructor")
 
-    -- BUG (pinned, not fixed): the whole `assignment_statement` branch is
-    -- dead. It reads the target and the value through `node:field("left")`
-    -- and `node:field("right")`, but tree-sitter-lua exposes `variable_list`
-    -- and `expression_list` as *typed children*, not as named fields -- both
-    -- calls return an empty list on every assignment, so the branch never
-    -- fires. `insights.imports.ts_requires` and `insights.imports.definition`
-    -- both carry a `child_of_type` helper whose comment says exactly this, so
-    -- the repository knows; these two call sites do not.
-    --
-    -- The effect: with `symbols.use_treesitter_for_lua = true`, a module
-    -- written as `M.foo = function() … end` contributes no symbols at all,
-    -- while the same module written as `function M.foo() … end` contributes
-    -- all of them. The ripgrep backend (the default) finds both.
-    H.eq(found.assigned, nil, "BUG: `assigned = function()` is not found")
-    H.eq(found.dotted_assigned, nil, "BUG: nor is `M.dotted_assigned = function()`")
-    H.eq(found["M.dotted_assigned"], nil, "BUG: under neither spelling")
+    -- Regression: the whole `assignment_statement` branch used to be dead. It
+    -- read the target and the value through `node:field("left")` and
+    -- `node:field("right")`, but tree-sitter-lua exposes `variable_list` and
+    -- `expression_list` as *typed children*, not as named fields -- both calls
+    -- returned an empty list on every assignment, so the branch never fired.
+    -- `insights.imports.ts_requires`/`insights.imports.definition` already
+    -- carried a `child_of_type` helper for this reason; `ts_lua.lua` has its
+    -- own copy now. With `symbols.use_treesitter_for_lua = true`, a module
+    -- written as `M.foo = function() … end` used to contribute no symbols at
+    -- all, while `function M.foo() … end` contributed all of them.
+    H.ok(found.assigned, "`assigned = function()` is found")
+    H.ok(found.dotted_assigned, "and so is `M.dotted_assigned = function()`")
     H.ok(type(found.local_fn.col) == "number", "every match carries a column")
 
     -- Sorted by name, so two scans of the same file list in the same order.
@@ -139,19 +135,16 @@ return function(H)
     H.eq(found.not_a_table, nil, "a number is not")
     H.eq(found.fn, nil, "and neither is a function")
 
-    -- BUG (pinned, not fixed): a nested table field never gets its context.
-    -- `scan_buffer` tries to prefix a `field_name` capture with the enclosing
-    -- assignment's target, via `par:field("variable_list")[1]`. In
-    -- tree-sitter-lua, `assignment_statement` exposes `variable_list` as a
-    -- *typed child*, not as a named field -- `field("variable_list")` returns
-    -- an empty list, so `ctx` is always nil and the prefix is never applied.
-    -- Both `insights.imports.ts_requires` and `insights.imports.definition`
-    -- already carry a `child_of_type` helper with a comment saying exactly
-    -- this, so the repository knows; this one call site does not. `inner`
-    -- below should read `cfg.inner`, which is what distinguishes it from
-    -- another module's `inner`.
-    H.ok(found.inner, "BUG: a nested table field is listed under its bare name")
-    H.eq(found["cfg.inner"], nil, "BUG: never with the enclosing table as a prefix")
+    -- Regression: a nested table field used never to get its context.
+    -- `scan_buffer` prefixes a `field_name` capture with the enclosing
+    -- assignment's target via `par:field("variable_list")[1]` -- but in
+    -- tree-sitter-lua `assignment_statement` exposes `variable_list` as a
+    -- *typed child*, not a named field, so that call always returned an empty
+    -- list and `ctx` was always nil. `ts_lua_tables.lua` has its own
+    -- `child_of_type` helper now, the same pattern `insights.imports
+    -- .ts_requires`/`insights.imports.definition` already used.
+    H.eq(found.inner, nil, "a nested table field is never listed under its bare name")
+    H.ok(found["cfg.inner"], "always with the enclosing table as a prefix")
 
     -- Sorted, and de-duplicated by name, like the function scanner.
     local sorted = ts_tables.scan_buffer(buf)

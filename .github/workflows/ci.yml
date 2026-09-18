@@ -39,8 +39,19 @@ jobs:
       - run: luacheck lua plugin TESTS
 
   tests:
-    name: tests (headless)
-    runs-on: ubuntu-latest
+    name: tests (headless) (${{ matrix.os }})
+    runs-on: ${{{{ matrix.os }}}}
+    strategy:
+      # One platform failing must not cancel the others: which of the three
+      # broke is the whole information content of this job.
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    defaults:
+      run:
+        # Windows runners default to PowerShell; one shell on all three keeps
+        # the run step itself from being what differs between platforms.
+        shell: bash
     steps:
       - uses: actions/checkout@v5
         with:
@@ -67,7 +78,19 @@ jobs:
       # Without it, `vim.fn.executable("rg")`'s guard short-circuits before
       # the (correctly stubbed) command-building logic ever runs, so the
       # specs that assert on it fail with no code defect behind them.
-      - run: sudo apt-get update && sudo apt-get install -y ripgrep
+      - name: Install ripgrep
+        run: |
+          # `rg` is a real dependency of these specs, not a convenience -- they
+          # shell out to it. The install is the one step that has to differ per
+          # runner image; everything after it is identical on all three. The
+          # `rg --version` at the end is the actual gate: if a package manager
+          # silently no-ops, the suite must not start and then fail obscurely.
+          case "${{ runner.os }}" in
+            Linux)   sudo apt-get update && sudo apt-get install -y ripgrep ;;
+            macOS)   brew install ripgrep || true ;;
+            Windows) choco install ripgrep -y --no-progress ;;
+          esac
+          rg --version
 
       - name: Run TESTS/run.lua
         working-directory: insights.nvim

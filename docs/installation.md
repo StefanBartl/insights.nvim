@@ -6,7 +6,7 @@
 |------|----------|---------|
 | Neovim | **≥ 0.9** | core |
 | [`lib.nvim`](https://github.com/StefanBartl/lib.nvim) | **yes** | shared notify, cross-platform helpers |
-| [`ui.nvim`](https://github.com/StefanBartl/ui.nvim) | **yes**, for the default config | `ui.kit.confirm` backs the dev-server-detected prompt (`devserver.prompt = true`, the default); no fallback — set `devserver.prompt = false` to opt out instead of installing it |
+| [`ui.nvim`](https://github.com/StefanBartl/ui.nvim) | **yes**, for the default config | `ui.kit.confirm` backs the dev-server-detected prompt (`devserver.prompt = true`, the default); no fallback — set `devserver.prompt = false` to opt out instead of installing it. The `?` cheatsheet in report scratch buffers uses `ui.kit.viewer` when available and falls back to a plain scratch buffer otherwise — it never blocks `:Insights metrics`/`smells`/`imports`/`symbols … scratch` |
 | `rg` (ripgrep) | **yes** | symbol indexing |
 | `git` | optional | conflict scan (`conflicts`) |
 | `telescope.nvim` | optional | telescope picker |

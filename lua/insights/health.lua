@@ -351,19 +351,21 @@ local function check_cache()
   if not ok then
     return
   end
-  local c = cfg_mod.get().symbols.cache
+  local sym_cfg = cfg_mod.get().symbols
+  local c = sym_cfg.cache
   if not c.enabled then
     info_s("cache disabled")
     return
   end
 
   local ok2, cache_mod = pcall(require, "insights.scan.cache")
-  if not ok2 then
+  local ok3, rg_index = pcall(require, "insights.symbols.rg_index")
+  if not ok2 or not ok3 then
     err_s("cannot load cache module", { "Reinstall insights.nvim" })
     return
   end
 
-  local stats = cache_mod.stats(c.dir, "symbols")
+  local stats = cache_mod.stats(c.dir, "symbols", rg_index.cache_variant(sym_cfg))
   if stats then
     ok_s(
       string.format(

@@ -10,6 +10,36 @@ local parser = require("insights.symbols.parser")
 
 local ok_progress, progress_mod = pcall(require, "lib.nvim.progress")
 
+---Everything besides the CWD that changes what a rebuild would produce:
+---which languages are enabled and how indexing is bounded. Two configs that
+---differ only here (e.g. `use_treesitter_for_lua` toggled, or a language
+---flipped off) must not answer from the same cache entry (PERF-46).
+---@param sym_cfg Insights.SymbolsConfig
+---@return string
+function M.cache_variant(sym_cfg)
+  local langs = {}
+  for lang, enabled in pairs(sym_cfg.languages or {}) do
+    if enabled ~= false then
+      langs[#langs + 1] = lang
+    end
+  end
+  table.sort(langs)
+
+  local idx = sym_cfg.indexing or {}
+  local excl = {}
+  for _, p in ipairs(idx.exclude_patterns or {}) do
+    excl[#excl + 1] = p
+  end
+  table.sort(excl)
+
+  return table.concat({
+    table.concat(langs, ","),
+    table.concat(excl, ","),
+    tostring(idx.max_file_size_kb or 0),
+    tostring(idx.follow_symlinks == true),
+  }, "|")
+end
+
 ---@internal
 ---Starts an indicator for an index build, or nil when lib.nvim isn't installed.
 ---
@@ -149,9 +179,10 @@ end
 ---@return string|nil status_message A line for the picker's footer, or nil.
 function M.get(cfg, force_rebuild)
   local c = cfg.symbols.cache
+  local variant = M.cache_variant(cfg.symbols)
 
   if not force_rebuild and c.enabled then
-    local cached, reason = cache.load(c.dir, "symbols", c.ttl_seconds)
+    local cached, reason = cache.load(c.dir, "symbols", c.ttl_seconds, variant)
     if cached then
       return cached, string.format("cache: %d symbols", #cached)
     end
@@ -173,7 +204,7 @@ function M.get(cfg, force_rebuild)
   end
 
   if c.enabled and #entries > 0 then
-    local ok, err = cache.save(c.dir, "symbols", entries)
+    local ok, err = cache.save(c.dir, "symbols", entries, variant)
     if not ok then
       notify.warn("cache save failed: " .. tostring(err))
     end
@@ -194,7 +225,7 @@ end
 function M.rebuild(cfg)
   local c = cfg.symbols.cache
   if c.enabled then
-    cache.clear(c.dir, "symbols")
+    cache.clear(c.dir, "symbols", M.cache_variant(cfg.symbols))
   end
   return M.get(cfg, true)
 end

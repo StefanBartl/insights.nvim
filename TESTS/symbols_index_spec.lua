@@ -15,9 +15,12 @@ return function(H)
   local config = require("insights.config")
 
   -- Snapshot everything that gets replaced, so the suite leaves the module
-  -- registry exactly as it found it.
-  local saved = {}
-  for _, name in ipairs({
+  -- registry exactly as it found it. The name list is also used to restore
+  -- below (rather than `pairs(saved)`): a module not yet loaded before this
+  -- spec has a nil snapshot, which never becomes a key in `saved`, so
+  -- iterating `saved` itself would skip resetting it and leak this test's
+  -- stub into every later spec that requires it.
+  local replaced_modules = {
     "insights.scan.rg",
     "insights.scan.cache",
     "insights.symbols.rg_index",
@@ -28,7 +31,9 @@ return function(H)
     "insights.ui.fzf",
     "insights.ui.telescope",
     "insights.ui.scratch",
-  }) do
+  }
+  local saved = {}
+  for _, name in ipairs(replaced_modules) do
     saved[name] = package.loaded[name]
     package.loaded[name] = nil
   end
@@ -378,8 +383,8 @@ return function(H)
   end)
 
   vim.fn.executable = real_executable
-  for name, mod in pairs(saved) do
-    package.loaded[name] = mod
+  for _, name in ipairs(replaced_modules) do
+    package.loaded[name] = saved[name]
   end
   config.setup({})
 

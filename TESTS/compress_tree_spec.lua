@@ -227,6 +227,23 @@ return function(H)
     H.eq(H.read(path_w), "lua/a.lua\nlua/b.lua", "with the listing written from Lua")
     H.eq(vim.fn.isdirectory(outdir), 1, "creating the output directory on the way")
 
+    -- Regression: the Unix root-prefix strip used to escape the CWD for
+    -- `sed`'s BRE with Lua's own escape character, `%`, which sed treats as
+    -- an ordinary literal -- so `%` was prefixed onto the real path and the
+    -- pattern could never match it. `#` also needs escaping here specifically
+    -- because it is this command's own `s#...#...#` delimiter. Checked
+    -- against the whole command (not just an extracted pattern) since
+    -- `shellescape`'s quoting style is host-dependent.
+    local cmd = tree._internal.build_tree_cmd("/home/u/a.b#c project", {})
+    H.contains(cmd, "a\\.b\\#c project", "'.' and the '#' delimiter are BRE-escaped")
+    H.excludes(cmd, "%", "not prefixed with Lua's own escape character")
+
+    -- `+`, `(`, `)` etc. are already literal in POSIX BRE; escaping them
+    -- would hand GNU sed's backslash-escaped extensions (`\+`, `\(`, ...) a
+    -- meaning they must not have here.
+    local cmd2 = tree._internal.build_tree_cmd("/home/u/a+b(c)", {})
+    H.contains(cmd2, "a+b(c)", "'+()' stay literal, unescaped")
+
     -- Windows: a PowerShell pipeline, with the globs turned into regexes.
     windows = true
     run_tree()

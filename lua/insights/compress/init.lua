@@ -133,6 +133,16 @@ function engines.zip(path, outdir, on_complete)
 end
 
 ---@internal
+---Quote a value for a single-quoted PowerShell string literal (SEC-03):
+---PowerShell escapes an embedded `'` by doubling it. Mirrors `tree/init.lua`'s
+---`q()`.
+---@param s string
+---@return string
+local function q(s)
+  return "'" .. tostring(s):gsub("'", "''") .. "'"
+end
+
+---@internal
 ---Compress `path` into `outdir` via PowerShell's Compress-Archive (Windows).
 ---@param path string
 ---@param outdir string
@@ -154,15 +164,15 @@ function engines.powershell(path, outdir, on_complete)
   -- `-Encoding utf8` would only trade that for a UTF-8 BOM; writing it here
   -- gives all three engines byte-identical output.
   local cmd_list = table.concat({
-    "Get-ChildItem -Recurse -Path '" .. path .. "'",
+    "Get-ChildItem -Recurse -Path " .. q(path),
     "| Where-Object { $_.FullName -notlike '*\\.git\\*' }",
     "| Select-Object -ExpandProperty FullName",
   }, " ")
-  local cmd_arc = "Compress-Archive -Path '"
-    .. path
-    .. "' -DestinationPath '"
-    .. out_path
-    .. "' -Force"
+  local cmd_arc = "Compress-Archive -Path "
+    .. q(path)
+    .. " -DestinationPath "
+    .. q(out_path)
+    .. " -Force"
 
   platform.run_shell(cmd_list, function(ok1, listing, err1)
     if not ok1 then

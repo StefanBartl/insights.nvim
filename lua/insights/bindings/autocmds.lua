@@ -23,6 +23,8 @@ end
 
 ---@internal
 ---Accept a string or a list of events; fall back to `default`.
+---An explicitly empty list (`events = {}`) is a deliberate opt-out and must
+---stay empty here -- only a missing/non-table value falls back.
 ---@param events string|string[]|nil
 ---@param default string[]
 ---@return string[]
@@ -30,7 +32,7 @@ local function norm_events(events, default)
   if type(events) == "string" then
     return { events }
   end
-  if type(events) == "table" and #events > 0 then
+  if type(events) == "table" then
     return events
   end
   return default
@@ -43,10 +45,16 @@ local function setup_conflicts(cfg)
   if not (cfg and cfg.enable) then
     return
   end
+  local events = norm_events(cfg.events, { "VimEnter" })
+  if #events == 0 then
+    -- `events = {}` opts out of automatic scanning entirely; only
+    -- `:Insights conflicts` still runs it.
+    return
+  end
   -- `run_async`, not `run`: nobody asked for this scan, so it must not hold up
   -- the editor. The blocking version does two git spawns with `:wait()`, which
   -- on the default VimEnter event cost ~120ms of main-loop block on Windows.
-  autocmd.create(norm_events(cfg.events, { "VimEnter" }), function()
+  autocmd.create(events, function()
     require("insights.conflicts").run_async({ silent = true })
   end, {
     group = grp,
@@ -61,7 +69,12 @@ local function setup_unimported(cfg)
   if not (cfg and cfg.enable) then
     return
   end
-  autocmd.create(norm_events(cfg.events, { "BufWritePost" }), function(ev)
+  local events = norm_events(cfg.events, { "BufWritePost" })
+  if #events == 0 then
+    -- `events = {}` opts out of the automatic on-write check.
+    return
+  end
+  autocmd.create(events, function(ev)
     local unimported = require("insights.unimported")
     if unimported.handles_filetype(vim.bo[ev.buf].filetype) then
       unimported.run(ev.buf, { silent = true })

@@ -18,18 +18,50 @@ return function(H)
   H.eq(fresh[key], original, "get() before setup() returns the defaults")
   H.ok(fresh ~= DEFAULTS, "as a copy, not the DEFAULTS table itself")
 
-  local changed = (type(original) == "boolean") and not original
-    or (type(original) == "number") and (original + 1)
-    or (tostring(original) .. "-changed")
-  -- `changed` is deliberately of the wrong type for whichever key this round
-  -- picked -- that a user value of any shape wins is the point of the case.
-  ---@diagnostic disable-next-line: assign-type-mismatch
+  -- An explicit if/elseif here, not `a and b or c`: for a boolean `original`
+  -- of `true`, `not original` is `false` -- itself falsy -- which would make
+  -- that chained form fall through to the string branch instead (ERR-60).
+  local changed
+  if type(original) == "boolean" then
+    changed = not original
+  elseif type(original) == "number" then
+    changed = original + 1
+  else
+    changed = original .. "-changed"
+  end
   config.setup({ [key] = changed })
-  H.eq(config.get()[key], changed, "a user value wins")
+  H.eq(config.get()[key], changed, "a same-type user value wins")
   H.eq(DEFAULTS[key], original, "DEFAULTS itself was not mutated")
 
   config.setup({})
   H.eq(config.get()[key], original, "setup({}) restores the defaults")
+
+  -- A top-level value of the wrong type must degrade to its default instead
+  -- of letting the merge replace a required sub-table with it -- every later
+  -- consumer indexing into that sub-table would otherwise crash plugin
+  -- initialisation entirely (ERR-22).
+  ---@diagnostic disable-next-line: assign-type-mismatch
+  config.setup({ compress = false })
+  H.eq(
+    config.get().compress.enable,
+    DEFAULTS.compress.enable,
+    "a mistyped table field falls back to its default instead of crashing"
+  )
+  H.ok(#config.issues() > 0, "and the mismatch is recorded")
+  H.contains(config.issues()[1], "compress", "naming the offending key")
+
+  config.setup({})
+  H.eq(#config.issues(), 0, "a clean setup() reports no issues")
+
+  -- An unknown nested key must not vanish silently into the default
+  -- (ERR-50): it is warned about, with a "did you mean" hint against its
+  -- sibling keys when a close one exists.
+  config.setup({ symbols = { langauges = { lua = true } } })
+  H.ok(#config.issues() > 0, "an unknown nested key is recorded")
+  H.contains(config.issues()[1], "symbols.langauges", "with its full dotted path")
+  H.contains(config.issues()[1], "did you mean `languages`?", "and a suggestion")
+
+  config.setup({})
 
   -- `vim.tbl_deep_extend("force", defaults, opts)` shares references for any
   -- sub-table `opts` never mentions -- a nested subtree of `current` that

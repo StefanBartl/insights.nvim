@@ -203,3 +203,21 @@ require("insights").setup({
   deps_popup = true,
 })
 ```
+
+## Validation
+
+`setup()` checks the shape of `opts` against the defaults above before
+merging it in:
+
+- An **unknown key**, at any nesting, is warned about instead of silently
+  doing nothing — with a "did you mean ..." suggestion when a close match
+  exists among its sibling keys. `symbols.groups`/`imports.groups`-style
+  free-form maps are exempt (their keys are user-chosen, not a fixed set).
+- A **top-level option whose value type doesn't match its default** (e.g.
+  `compress = false`, where a table is expected) falls back to that
+  option's default instead of aborting the rest of `setup()`.
+
+Both are reported via `vim.notify` and kept for `:checkhealth insights`
+(`require("insights.config").issues()`), so a config mistake is visible
+without going looking for it.
+```

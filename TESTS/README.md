@@ -103,6 +103,7 @@ scanners built on it are driven against it for real — see "Tree-sitter" below.
 | `devserver_spec.lua` | the pattern match that decides whether a terminal job is a dev server, and the tracking ledger |
 | `devserver_extra_spec.lua` | `consider`/`ask`/`kill_all`/`chan_cmd`, and `kill_tree`'s fallback from the process group to the plain pid |
 | `ui_fileinfo_spec.lua` | the scratch buffer (keymaps, the `?` cheatsheet, the follow key, the sidebar guard), the file-info float, and the platform helpers |
+| `ui_fzf_spec.lua` | the fzf-lua adapter's "backend missing" guard, the entries-to-lines shape it hands `fzf.fzf_exec`, and its default action's own `path:line` parsing |
 
 ### config and wiring
 
@@ -133,8 +134,11 @@ unavailable.
 
 ## Bugs found here
 
-Four real defects were found while writing this suite. **All four are now
-fixed**; the assertions that pinned them stayed on as regression guards.
+Seven real defects have been found across this suite: four while it was first
+written, three more in a later re-audit that went back over every skip
+reason and checked the four recurring bug shapes this campaign keeps finding
+elsewhere. **All seven are now fixed**; the assertions that pinned them
+stayed on as regression guards.
 
 1. **`symbols/parser.lua` discarded every match on Windows — fixed.**
    `parse_vimgrep_line` split on the first three colons, so a drive letter's
@@ -173,27 +177,70 @@ fixed**; the assertions that pinned them stayed on as regression guards.
    does work. The Unix branch passes the globs to `find -not -path` verbatim
    and is unaffected. Pinned in `compress_tree_spec.lua`.
 
-Two further quirks are pinned as documented behaviour rather than as bugs:
+Found in a later re-audit, after the four above were already fixed:
+
+5. **`health.lua`'s final line crashed the whole report — fixed.** `M.check()`
+   closed with an unguarded
+   `require("lib.nvim.bindings.usercmd.composer").checkhealth(...)`. Earlier in
+   the same report, `check_lib()` already handles that exact dependency being
+   missing with a friendly `err_s()` — but the closing call required it again
+   with no `pcall`, so a genuinely missing composer crashed `:checkhealth
+   insights` right after warning about it, instead of degrading the way every
+   other guard in the file does. Now `pcall`-guarded like `check_lib_deps()`
+   already was. Pinned in `health_init_spec.lua`.
+
+6. **`ui/fzf.lua`'s default action had the same colon blind spot as (1),
+   unfixed — fixed.** `sel[1]:match("^([^:]+):(%d+)")` stops at a Windows
+   drive letter's own colon, same as `symbols/parser.lua` and (until it was
+   fixed alongside (1)) `ui/scratch.lua`'s follow key. `e.filename` here comes
+   straight from rg's own output via `symbols/rg_index.lua`, so it hits this
+   exactly the same way — picking a result in the fzf-lua picker silently did
+   nothing on Windows. This one was missed the first time because the whole
+   `insights.ui.fzf` module is stubbed out everywhere it is *called*
+   (`symbols_open_spec.lua`, `imports_report_spec.lua`); nothing exercised the
+   module's own body. Fixed the same way as (1), and now covered by its own
+   spec, `ui_fzf_spec.lua`.
+
+7. **`symbols/ts_lua.lua`, `ts_lua_tables.lua` and `ts_lua_strings.lua`'s
+   `scan_cwd` ignore list matched nothing on Windows — fixed.** All three carry
+   an identical copy of a "skip `.git/`, `node_modules/`, `.cache/`, `build/`,
+   `dist/`, `target/`" filter, matched with Lua patterns hardcoded to `/`
+   against whatever `vim.fn.globpath` returns — native separators, so `\` on
+   Windows. Unnormalized, none of those patterns ever matched, and a `cwd`
+   Tree-sitter scan (`symbols.use_treesitter_for_lua = true`, or `get_tables`/
+   `get_strings` with `scope = "cwd"`) walked straight into every one of them.
+   This file used to claim the same logic was "covered through
+   `metrics.analyzer.list_files`" — true of the *shape* of the fix, not of the
+   code: that module normalizes to `/` before its own ignore check and always
+   had; these three never did, so the claim had rotted into covering nothing.
+   All three now match against a forward-slash copy instead of the raw path.
+   Pinned in `symbols_ts_lua_spec.lua`, against a real (small) fixture tree.
+
+One further quirk is pinned as documented behaviour rather than as a bug:
 `go.lua` reports every entry of a grouped `import ( … )` block one line early
-(`imports_langs_detail_spec.lua`), and `ui/scratch.lua`'s follow key cannot
-follow an absolute Windows path — the same colon blind spot as (1), though the
-imports report's paths are relative, so it does not show there
-(`ui_fileinfo_spec.lua`).
+(`imports_langs_detail_spec.lua`).
 
 ## What is deliberately not here
 
-- **`ui/fzf.lua` and `ui/telescope.lua` beyond their "backend missing" guard.**
-  Each is a single call into a picker that is not a dependency of this plugin
-  and is not checked out in CI. The entry shape they are handed is pinned where
-  it is built, in `symbols_open_spec.lua` and `imports_report_spec.lua`.
+- **`ui/telescope.lua` beyond its "backend missing" guard.** A single call
+  into a picker that is not a dependency of this plugin and is not checked out
+  in CI, whose action reads `sel.filename`/`sel.lnum` straight off telescope's
+  own selection struct — no parsing of its own, so no branch here worth a
+  fixture. The entry shape it is handed is pinned where it is built, in
+  `symbols_open_spec.lua` and `imports_report_spec.lua`. (`ui/fzf.lua` looked
+  the same at a glance, but its default action parses `path:line` back out of
+  a display string by hand; that turned out to have its own bug, #6 above, and
+  now has its own spec, `ui_fzf_spec.lua`.)
 - **`config/@types/init.lua`.** `---@meta` annotations; no runtime code.
 - **`plugin/insights.lua`.** A three-line `vim.g.loaded_insights` guard with no
   branch worth a fixture.
-- **`ts_lua*.scan_cwd`.** Each walks every `.lua` file under the working
-  directory and loads it into a buffer — a measurement of the machine, not of
-  the scanner. The per-buffer scan they call in a loop is covered exhaustively
-  instead, and the same file-walk-and-ignore logic is covered through
-  `metrics.analyzer.list_files`.
+- **`ts_lua*.scan_cwd`'s file walk.** Each loads every `.lua` file under the
+  working directory into a buffer — a measurement of the machine, not of the
+  scanner. The per-buffer scan they call in a loop is covered exhaustively
+  instead. Their ignore-list *filter* (a few lines of real branching logic,
+  not a file walk) is a different matter and now has its own block in
+  `symbols_ts_lua_spec.lua`, after #7 above showed it was not actually
+  equivalent to `metrics.analyzer.list_files`'s own ignore check.
 - **`devserver.kill_tree` against a real process tree**, and the real Graphviz,
   pandoc, git, tar and ripgrep invocations. Every branch *around* them is
   covered; only the spawn itself is not.

@@ -7,10 +7,14 @@
 -- then capturable as data rather than a window.
 --
 -- The picker adapters `ui/fzf.lua` and `ui/telescope.lua` are not covered
--- here: each is a single call into a backend that is not installed, and the
--- entry shape they are handed is already pinned where it is built
--- (`symbols_open_spec`, `imports_report_spec`). Only their "backend missing"
--- guard is checked, which is the one branch that runs without one.
+-- here. `ui/fzf.lua` has its own spec (`ui_fzf_spec.lua`): unlike telescope's
+-- adapter, it parses `path:line` back out of a display string in its default
+-- action, which is exactly the kind of logic this suite exists to check.
+-- `ui/telescope.lua` stays uncovered beyond its "backend missing" guard: its
+-- action reads `sel.filename`/`sel.lnum` off telescope's own selection
+-- struct, no string parsing of its own, so there is no branch here worth a
+-- fixture. Both adapters' entry shape is pinned where it is built
+-- (`symbols_open_spec`, `imports_report_spec`).
 
 return function(H)
   local config = require("insights.config")

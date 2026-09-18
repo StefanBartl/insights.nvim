@@ -61,6 +61,7 @@ local specs = {
   "symbols_ts_lua_spec.lua",
   "symbols_index_spec.lua",
   "symbols_open_spec.lua",
+  "ui_fzf_spec.lua",
 
   -- metrics and the smell scans built on its file lister
   "metrics_analyzer_spec.lua",

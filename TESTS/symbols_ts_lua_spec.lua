@@ -9,10 +9,13 @@
 -- the node names are still current. Verified against Neovim 0.12.2's bundled
 -- tree-sitter-lua on 2026-09-17.
 --
--- `scan_cwd` is not exercised: it walks every .lua file under the working
--- directory and loads each into a buffer, which on this repository alone is
--- ~50 files -- a measurement of the machine, not of the scanner. The
--- per-buffer scan it calls in a loop is covered exhaustively instead.
+-- `scan_cwd`'s file walk itself is not exercised: it loads every .lua file
+-- under the working directory into a buffer, which on this repository alone
+-- is ~50 files -- a measurement of the machine, not of the scanner. The
+-- per-buffer scan it calls in a loop is covered exhaustively instead. Its
+-- ignore-list filter is a different matter -- real branching logic, small
+-- enough to drive against an actual (tiny) fixture tree -- and has its own
+-- block below.
 
 return function(H)
   local ts_lua = require("insights.symbols.ts_lua")
@@ -184,6 +187,70 @@ return function(H)
     end
 
     vim.api.nvim_buf_delete(buf, { force = true })
+  end
+
+  -- ── scan_cwd: the ignore list, against a real (small) fixture tree ───────
+  -- Not the file walk itself -- that stays unexercised, per the note above --
+  -- but the three-line filter loop all three `scan_cwd`s carry is real
+  -- branching logic, and is small enough to drive for real without becoming
+  -- "a measurement of the machine".
+  --
+  -- BUG regression: `f:match(pat)` matched `f` -- whatever `globpath`
+  -- returned -- against patterns hardcoded to `/` (`"/node_modules/"` etc).
+  -- `globpath` returns native separators, so on Windows this ignore list
+  -- matched nothing at all: a `node_modules/`, `.git/`, `build/`, `dist/` or
+  -- `target/` subtree was scanned right along with everything else. Same
+  -- shape of bug as `tree/init.lua`'s exclusion globs (TESTS/README.md,
+  -- "Bugs found here" #4) and the reason `metrics.analyzer.list_files`
+  -- already normalized before this suite ever ran -- the two were never
+  -- actually "the same ignore logic" this file's own header used to claim.
+  -- Fixed the same way here: matched against a forward-slash copy.
+  do
+    local dir, cleanup = H.fixture("ts-scan-cwd")
+    vim.fn.mkdir(dir .. "/node_modules", "p")
+    vim.fn.mkdir(dir .. "/src", "p")
+    vim.fn.writefile({
+      "local function kept_fn() end",
+      "local kept_table = {}",
+      'local kept_str = "kept_string_literal"',
+    }, dir .. "/src/kept.lua")
+    vim.fn.writefile({
+      "local function ignored_fn() end",
+      "local ignored_table = {}",
+      'local ignored_str = "ignored_string_literal"',
+    }, dir .. "/node_modules/ignored.lua")
+
+    local original_cwd = vim.fn.getcwd()
+    vim.fn.chdir(dir)
+
+    -- `scan_cwd` loads each file with `bufadd`/`bufload` and gates on
+    -- `filetype == "lua"`, same as `scan_buffer` above -- but unlike the
+    -- fixtures above, it never sets that itself; it relies on Neovim's own
+    -- ftdetect, which `-u NONE` does not switch on. A real user's Neovim
+    -- always has this on, so enabling it here is fixture setup, not a
+    -- workaround for the module under test.
+    vim.cmd("filetype on")
+
+    local ok_scan, err_scan = pcall(function()
+      local by_lua = by_name(ts_lua.scan_cwd())
+      H.ok(by_lua.kept_fn, "ts_lua: a function under src/ is found")
+      H.eq(by_lua.ignored_fn, nil, "and a function under node_modules/ is not")
+
+      local by_table = by_name(ts_tables.scan_cwd())
+      H.ok(by_table.kept_table, "ts_lua_tables: a table under src/ is found")
+      H.eq(by_table.ignored_table, nil, "and a table under node_modules/ is not")
+
+      local by_string = by_name(ts_strings.scan_cwd())
+      H.ok(by_string['"kept_string_literal"'], "ts_lua_strings: a string under src/ is found")
+      H.eq(by_string['"ignored_string_literal"'], nil, "and a string under node_modules/ is not")
+    end)
+
+    vim.fn.chdir(original_cwd)
+    cleanup()
+
+    if not ok_scan then
+      error(err_scan, 0)
+    end
   end
 
   -- ── the guards all three share ───────────────────────────────────────────

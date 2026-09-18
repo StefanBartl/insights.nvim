@@ -44,11 +44,12 @@ end
 local function check_ui_nvim()
   start_s("ui.nvim")
   if pcall(require, "ui.kit") then
-    ok_s("ui.kit available (dev-server prompt)")
+    ok_s("ui.kit available (dev-server prompt, `?` cheatsheet)")
   else
     err_s(
-      "ui.kit not found — required for the dev-server prompt",
-      { "Install StefanBartl/ui.nvim" }
+      "ui.kit not found — required for the dev-server prompt (devserver.prompt = true, the"
+        .. " default); the `?` cheatsheet degrades to a plain scratch buffer without it",
+      { "Install StefanBartl/ui.nvim, or set devserver.prompt = false" }
     )
   end
 end

@@ -5,7 +5,6 @@ local M = {}
 local api = vim.api
 local map = require("lib.nvim.bindings.keymap")
 local window = require("lib.nvim.window")
-local kit = require("ui.kit")
 local notify = require("insights.util.notify").create("[insights.ui.scratch]")
 
 ---@internal
@@ -79,13 +78,22 @@ local function show_help(title, rows)
   for _, l in ipairs(lines) do
     width = math.max(width, vim.fn.strdisplaywidth(l))
   end
-  kit.viewer({
-    lines = lines,
-    title = (title or "Insights") .. " Keys",
-    filetype = "insights-scratch-help",
-    width = math.min(width + 2, math.floor(vim.o.columns * 0.9)),
-    height = math.min(#lines, math.floor(vim.o.lines * 0.8)),
-  })
+
+  -- ui.nvim is optional here: the report itself never needs it, only this
+  -- nicer floating cheatsheet does. Without it, fall back to the same plain
+  -- scratch buffer used for the report.
+  local ok_kit, kit = pcall(require, "ui.kit")
+  if ok_kit then
+    kit.viewer({
+      lines = lines,
+      title = (title or "Insights") .. " Keys",
+      filetype = "insights-scratch-help",
+      width = math.min(width + 2, math.floor(vim.o.columns * 0.9)),
+      height = math.min(#lines, math.floor(vim.o.lines * 0.8)),
+    })
+    return
+  end
+  M.open(lines, (title or "Insights") .. " Keys")
 end
 
 ---Open a scratch buffer containing `lines`, closing on `q` / `<Esc>`.

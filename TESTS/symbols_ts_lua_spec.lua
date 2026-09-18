@@ -93,7 +93,12 @@ return function(H)
     -- written as `M.foo = function() … end` used to contribute no symbols at
     -- all, while `function M.foo() … end` contributed all of them.
     H.ok(found.assigned, "`assigned = function()` is found")
-    H.ok(found.dotted_assigned, "and so is `M.dotted_assigned = function()`")
+    -- Full dotted name, not just the field -- see the fix note above: two
+    -- unrelated `M.foo = function() end` files would otherwise collide.
+    H.ok(
+      found["M.dotted_assigned"],
+      "and so is `M.dotted_assigned = function()`, under its full name"
+    )
     H.ok(type(found.local_fn.col) == "number", "every match carries a column")
 
     -- Sorted by name, so two scans of the same file list in the same order.
@@ -110,6 +115,22 @@ return function(H)
     })
     H.eq(#ts_lua.scan_buffer(dupes), 1, "a repeated name is reported once")
     vim.api.nvim_buf_delete(dupes, { force = true })
+
+    -- Regression: `variable_list`/`expression_list`'s `field("name")`/
+    -- `field("value")` return EVERY item in a multi-assignment, not just the
+    -- first -- but the assignment branch only ever inspected index 1, so
+    -- `local a, b = 1, function() end` reported nothing at all for `b`, not
+    -- even a missed-but-attempted match.
+    local multi = buffer({
+      "local a, b = 1, function() end",
+      "local c, d, e = function() end, 2, function() end",
+    })
+    local multi_found = by_name(ts_lua.scan_buffer(multi))
+    H.ok(multi_found.b, "the second name in a multi-assignment is found, not just the first")
+    H.ok(multi_found.c, "the first name in a 3-way multi-assignment is found")
+    H.ok(multi_found.e, "the third name in a 3-way multi-assignment is found too")
+    H.ok(not multi_found.d, "`d`'s own value (2) is not a function -- it must not be reported")
+    vim.api.nvim_buf_delete(multi, { force = true })
 
     vim.api.nvim_buf_delete(buf, { force = true })
   end

@@ -95,27 +95,31 @@ function M.scan_buffer(bufnr)
       local var_list = child_of_type(node, "variable_list")
       local expr_list = child_of_type(node, "expression_list")
       -- Each item of a `variable_list`/`expression_list` is exposed under its
-      -- own `name`/`value` field, respectively.
+      -- own `name`/`value` field, respectively -- both `field()` calls return
+      -- EVERY item, not just the first, so a multi-assignment like
+      -- `local a, b = 1, function() end` must walk every pair, not just
+      -- index 1, or `b`'s definition is silently never even inspected.
       local vn_field = var_list and var_list:field("name")
       local en_field = expr_list and expr_list:field("value")
-      if vn_field and en_field and #vn_field > 0 and #en_field > 0 then
-        local vn = vn_field[1]
-        local en = en_field[1]
-        if en:type() == "function_definition" then
-          local name, row, col
-          if vn:type() == "identifier" then
-            name = ts.get_node_text(vn, bufnr)
-            row, col = vn:range()
-          elseif vn:type() == "dot_index_expression" then
-            local fn = vn:field("field")
-            if fn and #fn > 0 then
-              name = ts.get_node_text(fn[1], bufnr)
-              row, col = fn[1]:range()
+      if vn_field and en_field then
+        for i = 1, math.min(#vn_field, #en_field) do
+          local vn = vn_field[i]
+          local en = en_field[i]
+          if
+            en:type() == "function_definition"
+            and (vn:type() == "identifier" or vn:type() == "dot_index_expression")
+          then
+            -- The whole node's text (`M.foo`), not just a `dot_index_expression`'s
+            -- `field` child (`foo`) -- the latter drops the dotted prefix, so two
+            -- unrelated `M.foo = function() end` / `N.foo = function() end`
+            -- definitions in different files would collide under `seen` and one
+            -- would silently vanish from the report.
+            local name = ts.get_node_text(vn, bufnr)
+            if name and not seen[name] then
+              seen[name] = true
+              local row, col = vn:range()
+              result[#result + 1] = { name = name, lnum = row + 1, col = col }
             end
-          end
-          if name and not seen[name] then
-            seen[name] = true
-            result[#result + 1] = { name = name, lnum = row + 1, col = col }
           end
         end
       end

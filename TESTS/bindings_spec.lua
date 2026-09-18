@@ -411,6 +411,12 @@ return function(H)
       H.eq(met[1][2].col_width, 9, "and so does --colwidth")
       H.eq(met[1][2].percent_mode, "percent", "--percent-only sets the display mode")
 
+      -- A non-numeric --topn/--colwidth value must not look byte-identical
+      -- to the flag never having been given at all (ERR-10).
+      local met_bad = run("Insights metrics --topn=2o --colwidth=wide")
+      H.eq(met_bad[1][2].top_n, nil, "an invalid --topn is dropped, not defaulted silently")
+      H.eq(met_bad[1][2].col_width, nil, "same for an invalid --colwidth")
+
       local met2 = run("Insights metrics --no-reverse --no-ratios --misc-only --misc-detailed")
       H.eq(met2[1][2].reverse_order, false, "--no-reverse")
       H.eq(met2[1][2].show_ratios, false, "--no-ratios")

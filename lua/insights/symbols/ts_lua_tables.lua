@@ -178,9 +178,17 @@ function M.scan_cwd()
   local ignore = { "/%.git/", "/node_modules/", "/%.cache/", "/build/", "/dist/", "/target/" }
   local filtered = {}
   for _, f in ipairs(files) do
+    -- Matched against a forward-slash copy, never `f` itself: `globpath`
+    -- returns native separators, and every pattern above is hardcoded to
+    -- `/` -- unnormalized, this ignore list silently matched nothing at all
+    -- on Windows, the same shape of bug `tree/init.lua`'s exclusion globs
+    -- had (fixed there by escaping for a `\`-based regex instead) and which
+    -- `metrics.analyzer.list_files` already normalizes for before its own
+    -- ignore check.
+    local probe = f:gsub("\\", "/")
     local ok = true
     for _, pat in ipairs(ignore) do
-      if f:match(pat) then
+      if probe:match(pat) then
         ok = false
         break
       end

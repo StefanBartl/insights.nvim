@@ -201,6 +201,36 @@ return function(H)
       end
 
       config.setup({})
+
+      -- BUG regression: `M.check()` used to close with an unguarded
+      -- `require("lib.nvim.bindings.usercmd.composer").checkhealth(...)`.
+      -- check_lib() already reports that dependency missing with a friendly
+      -- err_s() a few lines above -- but the final call still required it
+      -- again with no pcall, so a genuinely missing composer crashed the
+      -- whole `:checkhealth insights` report right after warning about it,
+      -- same "warn, then crash into the very thing you warned about" shape
+      -- as the other health.lua findings in this campaign. Fixed by
+      -- pcall-guarding that last call the same way check_lib_deps() already
+      -- guards lib.nvim.deps.health.
+      local saved_composer = package.loaded["lib.nvim.bindings.usercmd.composer"]
+      local preload_composer = package.preload["lib.nvim.bindings.usercmd.composer"]
+      package.loaded["lib.nvim.bindings.usercmd.composer"] = nil
+      package.preload["lib.nvim.bindings.usercmd.composer"] = function()
+        error("module 'lib.nvim.bindings.usercmd.composer' not found")
+      end
+
+      recorded, sections = {}, {}
+      local composer_ok = pcall(health.check)
+
+      package.preload["lib.nvim.bindings.usercmd.composer"] = preload_composer
+      package.loaded["lib.nvim.bindings.usercmd.composer"] = saved_composer
+
+      H.ok(composer_ok, "a missing usercmd.composer degrades instead of crashing check()")
+      H.contains(
+        text_of("lib.nvim"),
+        "composer",
+        "and the report already said so, in the lib.nvim section"
+      )
     end)
 
     for key, fn in pairs(real) do

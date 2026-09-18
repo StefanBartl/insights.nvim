@@ -406,7 +406,14 @@ function M.check()
   check_hover()
   check_lib_deps()
 
-  require("lib.nvim.bindings.usercmd.composer").checkhealth("Insights")
+  -- check_lib() already reported it above if this is missing; degrade to
+  -- that warning instead of crashing the whole report right at the end --
+  -- the same pattern check_lib_deps() and every "cannot load config" guard
+  -- above already follow.
+  local ok_composer, composer = pcall(require, "lib.nvim.bindings.usercmd.composer")
+  if ok_composer then
+    composer.checkhealth("Insights")
+  end
 end
 
 return M

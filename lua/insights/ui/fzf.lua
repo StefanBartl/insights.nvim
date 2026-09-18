@@ -30,7 +30,17 @@ function M.open(entries, title)
     previewer = "builtin",
     actions = {
       ["default"] = function(sel)
-        local file, lnum = sel[1]:match("^([^:]+):(%d+)")
+        -- An absolute Windows path carries a colon of its own (`E:\…`), which
+        -- `^([^:]+):(%d+)` alone stops at -- the same blind spot that made
+        -- symbols/parser.lua discard every rg hit and ui/scratch.lua's follow
+        -- key miss an absolute path. `e.filename` here comes straight from
+        -- rg's own (OS-native) output via symbols/rg_index.lua, so it hits
+        -- this exactly the same way. Try the drive-prefixed shape first, then
+        -- the ordinary one.
+        local file, lnum = sel[1]:match("^(%a:[/\\][^:]*):(%d+)")
+        if not file then
+          file, lnum = sel[1]:match("^([^:]+):(%d+)")
+        end
         if file and lnum then
           vim.cmd("edit " .. vim.fn.fnameescape(file))
           vim.api.nvim_win_set_cursor(0, { tonumber(lnum), 0 })

@@ -153,6 +153,15 @@ local function handle_symbols(args)
       rebuild = true
     elseif a == "tables" or a == "strings" or a == "functions" then
       sym_type = a
+    else
+      -- An unrecognized token must not silently widen the operation to the
+      -- defaults (cwd/functions) as though nothing had been typed.
+      notify.warn(
+        (
+          "Insights symbols: unknown argument %q -- expected cwd|buffer, "
+          .. "telescope|fzf|scratch, rebuild, or tables|strings|functions"
+        ):format(a)
+      )
     end
   end
 
@@ -201,9 +210,21 @@ local function parse_metrics_args(args)
     elseif a == "--current" then
       opts.single_file = vim.fn.expand("%:p")
     elseif a:match("^--topn=") then
-      opts.top_n = tonumber(a:sub(8))
+      local n = tonumber(a:sub(8))
+      if n then
+        opts.top_n = n
+      else
+        -- A rejected value must not look byte-identical to "flag not given"
+        -- (which keeps the configured default).
+        notify.warn(("Insights metrics: %s is not a number, ignoring"):format(a))
+      end
     elseif a:match("^--colwidth=") then
-      opts.col_width = tonumber(a:sub(12))
+      local w = tonumber(a:sub(12))
+      if w then
+        opts.col_width = w
+      else
+        notify.warn(("Insights metrics: %s is not a number, ignoring"):format(a))
+      end
     elseif a:match("^--file=") then
       opts.single_file = expand_path(a:sub(8))
     elseif not a:match("^%-") then

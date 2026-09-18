@@ -449,7 +449,7 @@ local function handle_cache(args)
       notify.warn("clear failed: " .. tostring(err))
     end
   elseif sub == "info" then
-    local st = cache_mod.stats(cfg.dir, "symbols", variant)
+    local st, st_err = cache_mod.stats(cfg.dir, "symbols", variant)
     if st then
       notify.info(table.concat({
         "=== Insights Cache ===",
@@ -460,6 +460,12 @@ local function handle_cache(args)
         string.format("  Path     : %s", st.path or "?"),
         "=============================",
       }, "\n"))
+    elseif st_err and st_err ~= "no cache file" then
+      -- The file exists but could not be read/parsed -- distinct from
+      -- simply never having built a cache.
+      notify.warn(
+        "cache file present but unreadable (" .. st_err .. ") — run :Insights cache build"
+      )
     else
       notify.info("no cache for current CWD — run :Insights cache build")
     end

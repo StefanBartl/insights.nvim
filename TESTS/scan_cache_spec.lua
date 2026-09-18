@@ -145,5 +145,22 @@ return function(H)
   H.eq(nameless, nil, "an entry naming no file cannot be verified")
   H.eq(nameless_reason, "source files changed", "so the whole cache is rebuilt")
 
+  -- stats distinguishes "no cache" from "cache present but unreadable"
+  -- (ERR-11): both used to answer plain `nil`, so :checkhealth and
+  -- `:Insights cache info` told the user to build a cache they already had.
+  local no_stats, no_stats_reason = cache.stats(cache_dir, "corrupt-ns")
+  H.eq(no_stats, nil, "no file at all -> no stats")
+  H.eq(no_stats_reason, "no cache file", "named exactly")
+
+  cache.save(cache_dir, "corrupt-ns", { entry(src, "f") })
+  local corrupt_path = cache.stats(cache_dir, "corrupt-ns").path
+  vim.fn.writefile({ "{ not valid json" }, corrupt_path)
+  local corrupt_stats, corrupt_reason = cache.stats(cache_dir, "corrupt-ns")
+  H.eq(corrupt_stats, nil, "an unparseable cache file still has no stats")
+  H.ok(
+    type(corrupt_reason) == "string" and corrupt_reason ~= "no cache file",
+    "but the reason says it exists and is broken, not that it is missing"
+  )
+
   cleanup()
 end

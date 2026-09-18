@@ -369,7 +369,7 @@ local function check_cache()
     return
   end
 
-  local stats = cache_mod.stats(c.dir, "symbols", rg_index.cache_variant(sym_cfg))
+  local stats, stats_err = cache_mod.stats(c.dir, "symbols", rg_index.cache_variant(sym_cfg))
   if stats then
     ok_s(
       string.format(
@@ -379,6 +379,10 @@ local function check_cache()
       )
     )
     info_s("  path: " .. stats.path)
+  elseif stats_err and stats_err ~= "no cache file" then
+    -- A cache file exists but could not be read (corrupt/invalid JSON) --
+    -- distinct from simply never having built one.
+    warn_s("cache file present but unreadable: " .. stats_err, { "Run :Insights cache build" })
   else
     info_s("no cache for current CWD — run :Insights cache build")
   end

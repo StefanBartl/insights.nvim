@@ -123,7 +123,10 @@ local function candidate_files(cwd, lang_mod)
     cmd[#cmd + 1] = lang_mod.rg_prefilter
     cmd[#cmd + 1] = cwd
     local lines, code = rg.exec_sync(cmd)
-    if code <= 1 then
+    -- Only 0 (matches) and 1 (no matches) are a completed rg run; -1 (timed
+    -- out/wedged, see rg.exec_sync) and any other exit code fall through to
+    -- the glob fallback below rather than being reported as "no candidates".
+    if code == 0 or code == 1 then
       return lines
     end
   end

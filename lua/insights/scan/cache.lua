@@ -112,18 +112,24 @@ function M.clear(dir, ns, variant)
   return true, nil
 end
 
----Return cache stats or nil if no cache exists.
+---Return cache stats, or (nil, reason) if there is none to report -- `reason`
+---distinguishes "no cache file" from "cache file present but unreadable/
+---corrupt", the same way `M.load` already does.
 ---@param dir string
 ---@param ns  string
 ---@param variant string|nil  see `cache_path`
 ---@return table|nil
+---@return string|nil
 function M.stats(dir, ns, variant)
   local path = cache_path(dir, ns, variant)
-  local decoded = require("lib.nvim.fs.json").read(path)
-  if not decoded then
-    return nil
-  end
   local file_stat = uv.fs_stat(path)
+  if not file_stat then
+    return nil, "no cache file"
+  end
+  local decoded, read_err = require("lib.nvim.fs.json").read(path)
+  if not decoded then
+    return nil, read_err or "unreadable cache file"
+  end
   return {
     version = decoded.version,
     indexed_at = decoded.indexed_at,

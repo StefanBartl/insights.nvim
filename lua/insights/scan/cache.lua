@@ -7,12 +7,17 @@ local uv = vim.uv or vim.loop
 local CACHE_VERSION = "1.0.0"
 
 ---@internal
+---`variant` folds in every parameter besides the CWD that changes what a
+---rebuild would produce (e.g. which languages/patterns were scanned) --
+---without it, two different configurations of the same directory silently
+---share one cache entry and answer each other's question (PERF-46).
 ---@param dir string
 ---@param ns  string  namespace slug (e.g. "symbols")
+---@param variant string|nil
 ---@return string
-local function cache_path(dir, ns)
+local function cache_path(dir, ns, variant)
   local cwd = vim.fn.getcwd()
-  local hash = vim.fn.sha256(cwd):sub(1, 16)
+  local hash = vim.fn.sha256(cwd .. "\30" .. (variant or "")):sub(1, 16)
   return dir .. "/" .. ns .. "_" .. hash .. ".json"
 end
 
@@ -28,9 +33,10 @@ end
 ---@param dir string   cache directory
 ---@param ns  string   namespace slug
 ---@param ttl_seconds integer
+---@param variant string|nil  see `cache_path`
 ---@return table[]|nil, string|nil
-function M.load(dir, ns, ttl_seconds)
-  local path = cache_path(dir, ns)
+function M.load(dir, ns, ttl_seconds, variant)
+  local path = cache_path(dir, ns, variant)
   local decoded, read_err = require("lib.nvim.fs.json").read(path)
   if not decoded then
     return nil, read_err or "no cache file"
@@ -69,8 +75,9 @@ end
 ---@param dir string
 ---@param ns  string
 ---@param entries table[]  must each have a `.filename` field
+---@param variant string|nil  see `cache_path`
 ---@return boolean, string|nil
-function M.save(dir, ns, entries)
+function M.save(dir, ns, entries, variant)
   local index_entries = {}
   for _, e in ipairs(entries) do
     index_entries[#index_entries + 1] = {
@@ -87,16 +94,17 @@ function M.save(dir, ns, entries)
     entries = index_entries,
   }
 
-  local path = cache_path(dir, ns)
+  local path = cache_path(dir, ns, variant)
   return require("lib.nvim.fs.json").write(path, blob)
 end
 
 ---Delete cache file for current CWD.
 ---@param dir string
 ---@param ns  string
+---@param variant string|nil  see `cache_path`
 ---@return boolean, string|nil
-function M.clear(dir, ns)
-  local path = cache_path(dir, ns)
+function M.clear(dir, ns, variant)
+  local path = cache_path(dir, ns, variant)
   local ok, err = pcall(uv.fs_unlink, path)
   if not ok then
     return false, tostring(err)
@@ -107,9 +115,10 @@ end
 ---Return cache stats or nil if no cache exists.
 ---@param dir string
 ---@param ns  string
+---@param variant string|nil  see `cache_path`
 ---@return table|nil
-function M.stats(dir, ns)
-  local path = cache_path(dir, ns)
+function M.stats(dir, ns, variant)
+  local path = cache_path(dir, ns, variant)
   local decoded = require("lib.nvim.fs.json").read(path)
   if not decoded then
     return nil

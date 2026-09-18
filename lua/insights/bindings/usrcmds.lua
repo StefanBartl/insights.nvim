@@ -411,22 +411,24 @@ end
 ---@param args string[]  args[1] is the subcommand, "build"|"info"|"clear"
 local function handle_cache(args)
   local sub = args[1] or ""
-  local cfg = require("insights.config").get().symbols.cache
+  local sym_cfg = require("insights.config").get().symbols
+  local cfg = sym_cfg.cache
   local cache_mod = require("insights.scan.cache")
+  local variant = require("insights.symbols.rg_index").cache_variant(sym_cfg)
 
   if sub == "build" then
     notify.info("rebuilding symbol cache…")
     local entries, msg = require("insights.symbols").rebuild()
     notify.info(msg or (string.format("%d symbols cached", #entries)))
   elseif sub == "clear" then
-    local ok, err = cache_mod.clear(cfg.dir, "symbols")
+    local ok, err = cache_mod.clear(cfg.dir, "symbols", variant)
     if ok then
       notify.info("cache cleared")
     else
       notify.warn("clear failed: " .. tostring(err))
     end
   elseif sub == "info" then
-    local st = cache_mod.stats(cfg.dir, "symbols")
+    local st = cache_mod.stats(cfg.dir, "symbols", variant)
     if st then
       notify.info(table.concat({
         "=== Insights Cache ===",

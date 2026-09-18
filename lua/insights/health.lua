@@ -236,6 +236,17 @@ local function check_config()
   info_s("tree.outdir = " .. (cfg.tree and cfg.tree.outdir or "?"))
   info_s("imports.enable = " .. tostring(cfg.imports and cfg.imports.enable))
   info_s("imports.engine = " .. (cfg.imports and cfg.imports.engine or "auto"))
+
+  -- Unknown keys and type-mismatched values from the last setup() call
+  -- (ERR-22/ERR-50) -- the one place a typo in a config spec is otherwise
+  -- invisible, since a rejected value looks byte-identical to the default.
+  local issues = cfg_mod.issues and cfg_mod.issues() or {}
+  if #issues > 0 then
+    warn_s("setup() had " .. #issues .. " config issue(s):")
+    for _, issue in ipairs(issues) do
+      info_s("  " .. issue)
+    end
+  end
 end
 
 ---@internal

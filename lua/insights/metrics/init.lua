@@ -8,6 +8,7 @@ local analyzer = require("insights.metrics.analyzer")
 local report = require("insights.metrics.report")
 local misc = require("insights.metrics.misc")
 local config = require("insights.config")
+local expand_path = require("lib.nvim.cross.fs.expand_path")
 
 local str_fmt = string.format
 
@@ -21,7 +22,7 @@ local str_fmt = string.format
 ---@param path string
 ---@return string
 function M.normalize_dir(path)
-  local p = vim.fn.fnamemodify(vim.fn.expand(path), ":p")
+  local p = vim.fn.fnamemodify(expand_path(path), ":p")
   return (p:gsub("\\", "/"):gsub("/+$", ""))
 end
 
@@ -298,7 +299,10 @@ function M.write_report_pdf(lines, out_path, callback)
   pdfport.create({
     text = table.concat(lines, "\n"),
     from = "text",
-    output = vim.fn.expand(out_path),
+    -- output_file already went through expand_path at config-merge time;
+    -- no vim.fn.expand() here either, or a backtick span becomes a second,
+    -- unnecessary chance to shell out.
+    output = expand_path(out_path),
     on_conflict = "overwrite",
     __callback = function(result)
       if result.status == "ok" then

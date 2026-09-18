@@ -280,7 +280,7 @@ local function handle_compress(args)
   end
 
   -- arg 1: optional path (default = cwd); arg 2: optional outdir override
-  local path = args[1] and vim.fn.fnamemodify(vim.fn.expand(args[1]), ":p") or vim.fn.getcwd()
+  local path = args[1] and vim.fn.fnamemodify(expand_path(args[1]), ":p") or vim.fn.getcwd()
 
   local compress_cfg = args[2] and vim.tbl_extend("force", cfg.compress, { outdir = args[2] })
     or cfg.compress

@@ -83,7 +83,17 @@ local function build_tree_cmd(cwd, exclude)
     -- metacharacter (a leading dot is universal: `.git`, `.cache`, ...) never
     -- matched and `:Insights tree`/`count` listed the excluded tree in full
     -- on Windows.
-    local r = g:gsub("([%^%$%(%)%%%.%[%]%+%-%?])", "\\%1"):gsub("%*", ".*"):gsub("/", "[\\\\/]")
+    --
+    -- The escaped set also has to include `{`, `}`, `|` and a literal `\`
+    -- itself: .NET treats unescaped `{`/`}` as a quantifier (silently
+    -- changing what matches, e.g. `*/cache{1,2}/*`) and `|` as alternation,
+    -- while a bare `\` followed by an ordinary letter -- exactly what a
+    -- user typing a Windows-style exclude with native separators would
+    -- write, e.g. `*\legacy\*` -- makes `-match` throw
+    -- "Unrecognized escape sequence" outright, failing the whole filter
+    -- rather than just this one pattern.
+    local r =
+      g:gsub("([%^%$%(%)%%%.%[%]%+%-%?{}|\\])", "\\%1"):gsub("%*", ".*"):gsub("/", "[\\\\/]")
     regexes[#regexes + 1] = r
   end
 
@@ -209,5 +219,7 @@ function M.copy_to_clipboard(callback)
   end
   callback(false, "clipboard backend unavailable")
 end
+
+M._internal = { build_tree_cmd = build_tree_cmd }
 
 return M

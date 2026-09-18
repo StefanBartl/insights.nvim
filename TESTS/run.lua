@@ -74,6 +74,7 @@ local specs = {
   "unimported_spec.lua",
   "conflicts_spec.lua",
   "compress_tree_spec.lua",
+  "tree_windows_regex_spec.lua",
   "devserver_spec.lua",
   "devserver_extra_spec.lua",
   "ui_fileinfo_spec.lua",

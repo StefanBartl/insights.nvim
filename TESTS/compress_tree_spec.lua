@@ -11,8 +11,15 @@
 return function(H)
   local config = require("insights.config")
 
+  -- Restored by name at the end, not `pairs(saved)`: storing `nil` in a Lua
+  -- table does not create a key, so a module that had not been required by
+  -- anything yet (`saved[name] == nil`, the common case for a fresh test
+  -- run) would silently never get its `package.loaded` slot cleared back to
+  -- nil -- the fake stubbed in below for this one spec would leak into
+  -- every later spec's `require` for the rest of the process.
+  local stubbed_modules = { "insights.util.platform", "insights.compress", "insights.tree" }
   local saved = {}
-  for _, name in ipairs({ "insights.util.platform", "insights.compress", "insights.tree" }) do
+  for _, name in ipairs(stubbed_modules) do
     saved[name] = package.loaded[name]
     package.loaded[name] = nil
   end
@@ -341,8 +348,8 @@ return function(H)
     H.contains(clip_msg or "", "tree file not found", "and it says which one is missing")
   end)
 
-  for name, mod in pairs(saved) do
-    package.loaded[name] = mod
+  for _, name in ipairs(stubbed_modules) do
+    package.loaded[name] = saved[name]
   end
   config.setup({})
   cleanup()

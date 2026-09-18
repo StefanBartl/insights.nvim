@@ -13,6 +13,7 @@
 
 local platform = require("insights.util.platform")
 local notify = require("insights.util.notify").create("[insights.compress]")
+local expand_path = require("lib.nvim.cross.fs.expand_path")
 
 local M = {}
 
@@ -39,7 +40,11 @@ local function resolve_outdir(path, cfg_outdir)
     outdir = path .. sep .. "compressed"
   else
     local name = vim.fn.fnamemodify(path, ":t")
-    outdir = vim.fn.expand(cfg_outdir) .. sep .. name .. "-compressed"
+    -- config/init.lua already ran this through expand_path at merge time;
+    -- a `:Insights compress` outdir override bypasses that, so this is the
+    -- only expansion it sees. Either way, no `vim.fn.expand()`: a backtick
+    -- span or a leading `%`/`#` must not be read as shell/Vim-specials.
+    outdir = expand_path(cfg_outdir) .. sep .. name .. "-compressed"
   end
   local ok = pcall(vim.fn.mkdir, outdir, "p")
   if not ok then

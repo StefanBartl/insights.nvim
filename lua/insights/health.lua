@@ -3,6 +3,8 @@
 --- config-driven feature availability, one section per feature area.
 local M = {}
 
+local expand_path = require("lib.nvim.cross.fs.expand_path")
+
 local ok_s = vim.health.ok or vim.health.report_ok
 local warn_s = vim.health.warn or vim.health.report_warn
 local err_s = vim.health.error or vim.health.report_error
@@ -255,7 +257,9 @@ local function check_compress()
   info_s("compress.engine = " .. engine)
 
   if cmp.outdir and cmp.outdir ~= "" then
-    local outdir = vim.fn.expand(cmp.outdir)
+    -- Already expand_path'd at config-merge time; re-running it here (rather
+    -- than vim.fn.expand()) keeps :checkhealth from ever shelling out.
+    local outdir = expand_path(cmp.outdir)
     if vim.fn.isdirectory(outdir) == 1 then
       ok_s("compress.outdir exists: " .. outdir)
     else

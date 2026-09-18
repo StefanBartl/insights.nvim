@@ -152,11 +152,11 @@ return function(H)
     autocmds.setup(config.get())
     H.eq(autocmds_of("Insights_conflicts")[1].event, "BufEnter", "a single event may be a string")
 
-    -- An empty list falls back to the default rather than registering nothing
-    -- on no event at all.
+    -- An empty list is a deliberate opt-out: it registers no autocmd at all,
+    -- leaving only `:Insights conflicts` to run it.
     config.setup({ conflicts = { enable = true, events = {} } })
     autocmds.setup(config.get())
-    H.eq(autocmds_of("Insights_conflicts")[1].event, "VimEnter", "an empty list means the default")
+    H.eq(#autocmds_of("Insights_conflicts"), 0, "an empty list means no automatic trigger")
 
     -- Disabling tears down what a previous setup registered, rather than
     -- leaving it behind: the group is cleared either way.

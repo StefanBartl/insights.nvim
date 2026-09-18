@@ -63,7 +63,14 @@ local function build_tree_cmd(cwd, exclude)
       parts[#parts + 1] = "-not -path " .. fn.shellescape(p)
     end
     parts[#parts + 1] = "-print"
-    local escaped_cwd = cwd:gsub("([^%w_%./%-])", "%%%1")
+    -- `sed` BRE escapes a metacharacter with `\`, not the `%` this used to
+    -- prefix every non-word character with -- `%` is an ordinary literal to
+    -- sed, so that produced a pattern that could never match the real path.
+    -- Only escape what BRE (and this command's own `#` delimiter) actually
+    -- treats specially; `+`, `?`, `(`, `)`, `{`, `}`, `|` are literal in BRE
+    -- unescaped and must stay that way -- GNU sed gives backslash-escaped
+    -- versions of those a special meaning instead.
+    local escaped_cwd = cwd:gsub("([%.%*%[%]%^%$\\#])", "\\%1")
     return table.concat(parts, " ")
       .. " | sed -e "
       .. fn.shellescape("s#^" .. escaped_cwd .. "/##")

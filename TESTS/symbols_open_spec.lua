@@ -74,13 +74,18 @@ return function(H)
   -- ── open ─────────────────────────────────────────────────────────────────
   -- The scanners and the UI adapters are replaced: what is pinned is which
   -- scanner each `type` reaches, and which adapter each `ui` reaches.
-  local saved = {}
-  for _, name in ipairs({
+  -- Restored by name at the end, not `pairs(saved)`: storing `nil` in a Lua
+  -- table does not create a key, so a module not yet loaded before this spec
+  -- would silently never get its `package.loaded` slot cleared back to nil,
+  -- leaking this spec's stub into every later spec's `require`.
+  local replaced_modules = {
     "insights.symbols",
     "insights.ui.fzf",
     "insights.ui.telescope",
     "insights.ui.scratch",
-  }) do
+  }
+  local saved = {}
+  for _, name in ipairs(replaced_modules) do
     saved[name] = package.loaded[name]
   end
 
@@ -174,8 +179,8 @@ return function(H)
     H.eq(shown, nil, "and neither does a scanner that answers nothing at all")
   end)
 
-  for name, mod in pairs(saved) do
-    package.loaded[name] = mod
+  for _, name in ipairs(replaced_modules) do
+    package.loaded[name] = saved[name]
   end
 
   if not ok_body then

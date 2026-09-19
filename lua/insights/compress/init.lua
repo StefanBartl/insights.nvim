@@ -214,7 +214,11 @@ end
 ---@param cfg         table   The compress config block.
 ---@param on_complete fun(success: boolean, message: string)
 function M.compress(path, cfg, on_complete)
-  local engine = cfg.engine or "auto"
+  -- `type(...) == "string"` first: `cfg.engine or "auto"` alone only catches
+  -- nil/false -- a truthy non-string (e.g. `engine = true`) survives it and
+  -- then crashes the "unknown compress engine" message below via string
+  -- concatenation. Degrade to "auto" instead (ERR-22).
+  local engine = type(cfg.engine) == "string" and cfg.engine or "auto"
   if engine == "auto" then
     engine = platform.is_windows() and "powershell" or "tar"
   end

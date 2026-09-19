@@ -322,7 +322,11 @@ local function check_compress()
     return
   end
 
-  local engine = cmp.engine or "auto"
+  -- Same guard as compress/init.lua's own resolution: a truthy non-string
+  -- cmp.engine (e.g. `true`) must degrade to "auto" here too, or :checkhealth
+  -- itself crashes on the concatenation below instead of reporting the
+  -- degraded value (ERR-22).
+  local engine = type(cmp.engine) == "string" and cmp.engine or "auto"
   info_s("compress.engine = " .. engine)
 
   if cmp.outdir and cmp.outdir ~= "" then

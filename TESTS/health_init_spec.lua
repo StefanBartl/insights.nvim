@@ -186,6 +186,21 @@ return function(H)
       H.contains(compress_text, "compress.engine = auto", "the configured engine is echoed")
       H.contains(compress_text, "<path>/compressed/", "and the default outdir explained")
 
+      -- A wrong-type engine (e.g. `true`) must degrade to "auto" here too:
+      -- `cmp.engine or "auto"` alone lets a truthy non-string through, and
+      -- `:checkhealth` itself used to crash on the concatenation below
+      -- instead of reporting the degraded value (ERR-22).
+      ---@diagnostic disable-next-line: assign-type-mismatch
+      config.setup({ compress = { enable = true, engine = true, outdir = "" } })
+      recorded, sections = {}, {}
+      local health_ok = pcall(health.check)
+      H.ok(health_ok, "a wrong-type compress.engine does not crash :checkhealth")
+      H.contains(
+        text_of("Compress feature"),
+        "compress.engine = auto",
+        "and is reported as having fallen back to auto"
+      )
+
       config.setup({ compress = { enable = true, engine = "zip", outdir = vim.fn.tempname() } })
       recorded, sections = {}, {}
       health.check()

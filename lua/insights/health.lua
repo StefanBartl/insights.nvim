@@ -295,8 +295,20 @@ local function check_config()
   info_s("symbols.default_scope = " .. default_scope)
   info_s("symbols.languages = " .. table.concat(enabled_langs, ", "))
   info_s("symbols.cache.enabled = " .. tostring(sym.cache and sym.cache.enabled))
-  info_s("metrics.output_file = " .. (cfg.metrics and cfg.metrics.output_file or "?"))
-  info_s("tree.outdir = " .. (cfg.tree and cfg.tree.outdir or "?"))
+  -- Same guard: `cfg.metrics.output_file or "?"` alone only catches
+  -- nil/false -- a truthy non-string (e.g. `output_file = true`) survives it
+  -- and crashes this concatenation too (ERR-22).
+  local metrics_cfg = cfg.metrics or {}
+  local output_file = type(metrics_cfg.output_file) == "string" and metrics_cfg.output_file or "?"
+  info_s("metrics.output_file = " .. output_file)
+
+  -- Same guard: `cfg.tree.outdir or "?"` alone only catches nil/false -- a
+  -- truthy non-string (e.g. `outdir = true`) survives it and crashes this
+  -- concatenation too (ERR-22).
+  local tree_cfg = cfg.tree or {}
+  local outdir = type(tree_cfg.outdir) == "string" and tree_cfg.outdir or "?"
+  info_s("tree.outdir = " .. outdir)
+
   info_s("imports.enable = " .. tostring(cfg.imports and cfg.imports.enable))
   -- Same guard: `cfg.imports.engine or "auto"` alone only catches nil/false --
   -- a truthy non-string (e.g. `engine = true`) survives it and crashes this

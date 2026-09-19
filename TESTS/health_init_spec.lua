@@ -22,6 +22,13 @@ return function(H)
     local sections = {}
     local current
 
+    -- Restored by name at the end, not `pairs(real)`: on a pre-0.10 Neovim
+    -- (this plugin claims 0.9+ support) `vim.health.start/ok/warn/error/info`
+    -- do not exist yet -- only the older `report_*` functions do -- so
+    -- `real[key] = vim.health[key]` would be nil and never create that key in
+    -- `real`, silently skipping its restore and leaking this spec's recorder
+    -- into `vim.health` for the rest of the process.
+    local health_keys = { "start", "ok", "warn", "error", "info" }
     local real = {}
     ---@param key string
     ---@param kind string
@@ -41,11 +48,9 @@ return function(H)
       end
     end
 
-    recorder("start", "start")
-    recorder("ok", "ok")
-    recorder("warn", "warn")
-    recorder("error", "error")
-    recorder("info", "info")
+    for _, key in ipairs(health_keys) do
+      recorder(key, key)
+    end
 
     -- health.lua caches the reporters in locals at module load, so it has to
     -- be loaded *after* they are replaced.
@@ -233,8 +238,8 @@ return function(H)
       )
     end)
 
-    for key, fn in pairs(real) do
-      vim.health[key] = fn
+    for _, key in ipairs(health_keys) do
+      vim.health[key] = real[key]
     end
     package.loaded["insights.health"] = saved_health
     config.setup({})

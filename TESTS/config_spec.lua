@@ -53,6 +53,24 @@ return function(H)
   config.setup({})
   H.eq(#config.issues(), 0, "a clean setup() reports no issues")
 
+  -- A *nested* value of the wrong type must degrade too, not just a
+  -- top-level one: `check_known_keys` only recurses when the user's value is
+  -- itself a table, so a nested mismatch used to sail straight through
+  -- `sanitize()`, get merged in by `vim.tbl_deep_extend`, and crash
+  -- `expand_paths` on the very same setup() call (ERR-22, one level deeper
+  -- than the top-level case above).
+  ---@diagnostic disable-next-line: assign-type-mismatch
+  config.setup({ symbols = { cache = false } })
+  H.eq(
+    config.get().symbols.cache.dir,
+    DEFAULTS.symbols.cache.dir,
+    "a mistyped nested field falls back to its default instead of crashing"
+  )
+  H.ok(#config.issues() > 0, "and the mismatch is recorded")
+  H.contains(config.issues()[1], "symbols.cache", "naming the offending key by its full path")
+
+  config.setup({})
+
   -- An unknown nested key must not vanish silently into the default
   -- (ERR-50): it is warned about, with a "did you mean" hint against its
   -- sibling keys when a close one exists.

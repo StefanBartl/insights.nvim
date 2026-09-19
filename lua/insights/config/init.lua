@@ -25,8 +25,9 @@ local OPEN_KEY_PATHS = {
 }
 
 ---Config issues found by the last setup() call: an unknown key (with a "did
----you mean" hint when a close one exists) or a top-level value whose type
----didn't match its default. Surfaced by :checkhealth (ERR-22/ERR-50).
+---you mean" hint when a close one exists) or a value -- at any nesting --
+---whose type didn't match its default. Surfaced by :checkhealth
+---(ERR-22/ERR-50).
 ---@type string[]
 local last_issues = {}
 
@@ -84,29 +85,60 @@ local function check_known_keys(user_tbl, default_tbl, path, issues)
 end
 
 ---@internal
----A top-level key whose value type doesn't match its default's (e.g.
----`compress = false`, where a table is expected) must degrade to the
----default instead of letting the merge replace the whole sub-table with it
------ every later consumer that indexes into that sub-table would otherwise
----crash on plugin init (ERR-22). Returns a shallow copy of `opts` with any
----such key removed; `opts` itself is left untouched.
----@param opts table
+---A key whose default is a *sub-table* but whose user-supplied value is not
+---(e.g. `compress = false`, or the same one level down as `symbols = {
+---cache = false }`) must degrade to the default instead of letting the merge
+---replace that sub-table with a scalar -- every later consumer that indexes
+---into it would otherwise crash on plugin init (ERR-22). Walks the full
+---nested shape, not just the top level: a mistyped sub-table is exactly as
+---fatal to e.g. `expand_paths` three levels down as it is at the top.
+---
+---Deliberately *not* a general type check, and deliberately scoped to the
+---same "leaf" notion `check_known_keys` already uses (`is_leaf_table`):
+---
+---  * A scalar leaf (e.g. `ui.follow_key`, `keymaps.symbols_fzf`) is never
+---    checked here at all. Several of these are documented to accept
+---    `false` as "disable this" even though their default is a string --
+---    that is a valid union, not a mistake, and consuming code already
+---    guards for it (`if x and x ~= false then ... end`).
+---  * A list-shaped or open-key default (`conflicts.events`,
+---    `imports.groups`, ...) is also never checked here. `events` in
+---    particular is documented and tested to accept a single string as
+---    shorthand for a one-element list (`norm_events` in
+---    `bindings/autocmds.lua` normalizes it); an open-key table has no
+---    fixed shape to check against in the first place.
+---  * Only a *record* sub-table -- fixed named keys, not a list, not an
+---    open-key path -- is checked, because that is the only shape whose
+---    replacement by a non-table crashes a later consumer that indexes into
+---    it by name (`cfg.symbols.cache.dir`, ERR-22).
+---
+---Returns a shallow-cloned copy of `user_tbl` with any such key (at any
+---depth) removed; `user_tbl` itself is left untouched.
+---@param user_tbl table
+---@param default_tbl table
+---@param path string
 ---@param issues string[]
 ---@return table
-local function drop_mistyped_top_level(opts, issues)
+local function drop_mistyped(user_tbl, default_tbl, path, issues)
   local cleaned = {}
-  for k, v in pairs(opts) do
+  for k, v in pairs(user_tbl) do
     cleaned[k] = v
   end
-  for k, default_v in pairs(defaults) do
-    local v = cleaned[k]
-    if v ~= nil and type(v) ~= type(default_v) then
-      issues[#issues + 1] = ("%s: expected %s, got %s -- using the default"):format(
-        k,
-        type(default_v),
-        type(v)
-      )
-      cleaned[k] = nil
+  for k, default_v in pairs(default_tbl) do
+    local full = path == "" and tostring(k) or (path .. "." .. tostring(k))
+    if type(default_v) == "table" and not is_leaf_table(default_v, full) then
+      local v = cleaned[k]
+      if v ~= nil then
+        if type(v) ~= "table" then
+          issues[#issues + 1] = ("%s: expected table, got %s -- using the default"):format(
+            full,
+            type(v)
+          )
+          cleaned[k] = nil
+        else
+          cleaned[k] = drop_mistyped(v, default_v, full, issues)
+        end
+      end
     end
   end
   return cleaned
@@ -119,7 +151,7 @@ end
 local function sanitize(opts)
   local issues = {}
   check_known_keys(opts, defaults, "", issues)
-  local cleaned = drop_mistyped_top_level(opts, issues)
+  local cleaned = drop_mistyped(opts, defaults, "", issues)
 
   last_issues = issues
   if #issues > 0 then

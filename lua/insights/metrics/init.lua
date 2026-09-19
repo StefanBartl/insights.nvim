@@ -150,6 +150,22 @@ local function pick(a, b, d)
 end
 
 ---@internal
+---Like `pick`, but for a value that report.lua feeds straight into
+---string.format/string.rep arithmetic (top_n, col_width): a wrong type
+---(string, bool, ...) surviving config.setup() would otherwise crash the
+---report instead of degrading to the default (ERR-22). `opts.*` is already
+---tonumber()-validated by the command layer, but `cfg.*` comes straight from
+---setup() with no such check, so this still has to guard both sources.
+---@param a any
+---@param b any
+---@param d integer
+---@return integer
+local function pick_positive_int(a, b, d)
+  local v = pick(a, b, d)
+  return (type(v) == "number" and v > 0) and v or d
+end
+
+---@internal
 --- Resolve invocation options against the metrics config defaults.
 ---@param opts table
 ---@param cfg table
@@ -168,9 +184,9 @@ local function resolve(opts, cfg)
     show_misc_detailed = pick(opts.show_misc_detailed, cfg.show_misc_detailed, true),
     percent_mode = pick(opts.percent_mode, cfg.percent_mode, "both"),
     reverse_order = pick(opts.reverse_order, cfg.reverse_order, true),
-    top_n = pick(opts.top_n, cfg.top_n, 50),
+    top_n = pick_positive_int(opts.top_n, cfg.top_n, 50),
     exclude_type_files = pick(opts.exclude_type_files, cfg.exclude_type_files, true),
-    col_width = pick(opts.col_width, cfg.col_width, 7),
+    col_width = pick_positive_int(opts.col_width, cfg.col_width, 7),
     single_file = opts.single_file,
     only_top_lines = opts.only_top_lines,
     only_top_words = opts.only_top_words,

@@ -228,6 +228,20 @@ return function(H)
     H.contains(misc_only, "Documentation & Config Files", "misc-only keeps the misc section")
     H.excludes(misc_only, "Lua files analyzed:", "and drops the Lua one")
 
+    -- A mistyped col_width/top_n (a scalar leaf, so config.setup() lets it
+    -- through with no warning) must degrade to its default rather than crash
+    -- report.lua's string.format/string.rep arithmetic (ERR-22).
+    config.setup({ metrics = { col_width = "wide", top_n = "many" } })
+    shown = nil
+    metrics.run({ root = dir })
+    H.ok(shown, "a wrong-type col_width/top_n does not crash the report")
+    H.contains(
+      table.concat(shown.lines, "\n"),
+      "Top 50 Files by Lines",
+      "and top_n falls back to its default of 50"
+    )
+    config.setup({})
+
     -- `single_file` short-circuits everything else.
     shown = nil
     metrics.run({ single_file = dir .. "/lua/alpha/one.lua" })

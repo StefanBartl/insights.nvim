@@ -29,16 +29,22 @@ end
 
 ---@internal
 ---Find a window to display the scratch buffer in, opening a split if the
----current window is a sidebar (so we never hijack neo-tree etc.).
+---current window is a sidebar (so we never hijack neo-tree etc.), or if
+---`force_new` is set -- so we never hijack an *existing scratch buffer's own
+---window* either (that buffer is typically `bufhidden = "wipe"`, and
+---swapping it out from under itself would silently destroy it).
+---@param force_new boolean|nil
 ---@return integer win
-local function target_window()
-  if is_usable_window(api.nvim_get_current_win()) then
-    return api.nvim_get_current_win()
-  end
-  for _, w in ipairs(api.nvim_list_wins()) do
-    if is_usable_window(w) then
-      api.nvim_set_current_win(w)
-      return w
+local function target_window(force_new)
+  if not force_new then
+    if is_usable_window(api.nvim_get_current_win()) then
+      return api.nvim_get_current_win()
+    end
+    for _, w in ipairs(api.nvim_list_wins()) do
+      if is_usable_window(w) then
+        api.nvim_set_current_win(w)
+        return w
+      end
     end
   end
   vim.cmd("botright split")
@@ -93,13 +99,21 @@ local function show_help(title, rows)
     })
     return
   end
-  M.open(lines, (title or "Insights") .. " Keys")
+  -- Always a fresh split here, never the reuse-current-window path: the
+  -- window we would otherwise reuse is the one already showing the report
+  -- this cheatsheet was requested from, and that report buffer is
+  -- `bufhidden = "wipe"` -- swapping its window's buffer out wipes it with
+  -- no way back. A new split leaves the report exactly where it was.
+  M.open(lines, (title or "Insights") .. " Keys", { new_window = true })
 end
 
 ---Open a scratch buffer containing `lines`, closing on `q` / `<Esc>`.
 ---@param lines string[]
 ---@param title string|nil
----@param opts { keymaps: ScratchKeymap[]|nil }|nil   extra buffer-local keymaps
+---@param opts { keymaps: ScratchKeymap[]|nil, new_window: boolean|nil }|nil
+---   extra buffer-local keymaps; `new_window = true` forces a fresh split
+---   instead of possibly reusing (and thereby destroying) the current
+---   window's own scratch buffer -- see `show_help`'s fallback above.
 ---@return integer|nil bufnr
 function M.open(lines, title, opts)
   if not lines or #lines == 0 then
@@ -122,7 +136,7 @@ function M.open(lines, title, opts)
   -- Display in a normal window; never replace a sidebar's buffer (neo-tree
   -- would misread the buffer name as a path, and BufEnter-driven plugins can
   -- error on the transient buffer id).
-  local win = target_window()
+  local win = target_window(opts and opts.new_window)
   api.nvim_win_set_buf(win, buf)
 
   local ui_cfg = require("insights.config").get().ui or {}

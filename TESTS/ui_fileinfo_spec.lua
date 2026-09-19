@@ -173,6 +173,43 @@ return function(H)
     vim.cmd("silent! %bwipeout!")
     cleanup()
 
+    -- Regression: without ui.kit, `?`'s fallback used to reuse the *current*
+    -- window for the help buffer -- the same window already showing the
+    -- report. Since the report buffer is `bufhidden = "wipe"`, swapping the
+    -- window's buffer out from under it wiped the report with no way back.
+    -- It must now open in a separate split, leaving the report intact.
+    do
+      local no_kit = package.loaded["ui.kit"]
+      package.loaded["ui.kit"] = nil
+      package.preload["ui.kit"] = nil
+
+      vim.cmd("silent! %bwipeout!")
+      vim.cmd("only")
+      local report = scratch.open({ "some report line" }, "NoKit")
+      H.ok(report, "the report opens")
+      H.ok(vim.api.nvim_buf_is_valid(report), "and is a valid buffer")
+      local nokit_wins_before = #vim.api.nvim_list_wins()
+
+      vim.api.nvim_feedkeys("?", "x", false)
+
+      H.ok(
+        vim.api.nvim_buf_is_valid(report),
+        "the report buffer survives showing the cheatsheet without ui.kit"
+      )
+      H.ok(#vim.api.nvim_list_wins() > nokit_wins_before, "the cheatsheet opened in a new split")
+      local report_still_shown = false
+      for _, w in ipairs(vim.api.nvim_list_wins()) do
+        if vim.api.nvim_win_get_buf(w) == report then
+          report_still_shown = true
+        end
+      end
+      H.ok(report_still_shown, "and the report is still visible in its own window")
+
+      vim.cmd("silent! %bwipeout!")
+      vim.cmd("only")
+      package.loaded["ui.kit"] = no_kit
+    end
+
     -- ── the picker adapters' one testable branch ──────────────────────────
     local fzf = require("insights.ui.fzf")
     local telescope = require("insights.ui.telescope")

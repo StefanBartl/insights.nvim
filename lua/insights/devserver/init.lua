@@ -23,9 +23,12 @@ local tracked = {}
 ---@type table<integer, boolean>
 local asked = {}
 
+---A copy: the caller (this module's own public façade, `insights.devservers()`)
+---can freely sort/filter/mutate the result without corrupting the tracking
+---state `M.track`/`M.kill_all` read and write (ERR-54).
 ---@return table<integer, { pid: integer, cmd: string, kill_on_exit: boolean }>
 function M.tracked()
-  return tracked
+  return vim.deepcopy(tracked)
 end
 
 ---Reset all tracking state (used by tests).

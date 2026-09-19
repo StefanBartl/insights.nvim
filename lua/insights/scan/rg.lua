@@ -27,7 +27,11 @@ function M.build_cmd(pattern, extensions, opts)
     cmd[#cmd + 1] = "!" .. excl
   end
 
-  if opts.max_file_size_kb and opts.max_file_size_kb > 0 then
+  -- `type(...) == "number"` first: a mistyped config value here (e.g. a
+  -- string or bool surviving setup()) must degrade to "no cap" rather than
+  -- crash this comparison -- both symbols.indexing.max_file_size_kb and
+  -- todos.search.max_file_size_kb reach this same builder (ERR-22).
+  if type(opts.max_file_size_kb) == "number" and opts.max_file_size_kb > 0 then
     cmd[#cmd + 1] = "--max-filesize"
     cmd[#cmd + 1] = tostring(opts.max_file_size_kb) .. "K"
   end

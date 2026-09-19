@@ -100,7 +100,10 @@ function M.load(dir, ns, ttl_seconds, variant)
   if decoded.cwd ~= vim.fn.getcwd() then
     return nil, "different CWD"
   end
-  if ttl_seconds and ttl_seconds > 0 then
+  -- `type(...) == "number"` first: a mistyped symbols.cache.ttl_seconds
+  -- (string, bool, ...) must degrade to "never expire" here rather than
+  -- crash this comparison (ERR-22).
+  if type(ttl_seconds) == "number" and ttl_seconds > 0 then
     local age = os.time() - (decoded.indexed_at or 0)
     if age > ttl_seconds then
       return nil, string.format("expired (%ds old, TTL %ds)", age, ttl_seconds)

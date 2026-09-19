@@ -69,6 +69,18 @@ return function(H)
   H.eq(entry.kill_on_exit, true, "and so is the decision the user made")
   H.ok(type(entry.pid) == "number", "with the OS pid VimLeavePre will need")
 
+  -- tracked() hands out a copy, not the live ledger (ERR-54): a caller that
+  -- sorts or otherwise mutates its result -- the natural thing to do with a
+  -- list for display -- must not corrupt what kill_all() reads later.
+  local snapshot = devserver.tracked()
+  snapshot[chan].kill_on_exit = false
+  snapshot[chan] = nil
+  H.eq(
+    devserver.tracked()[chan].kill_on_exit,
+    true,
+    "mutating a snapshot leaves the ledger untouched"
+  )
+
   devserver.reset()
   H.eq(count(), 0, "and reset clears it again")
   pcall(vim.fn.jobstop, chan)

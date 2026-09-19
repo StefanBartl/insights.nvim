@@ -43,6 +43,11 @@ M.UIS = { "snacks", "telescope", "fzf", "qf", "scratch" }
 -- after `setup()` so a config change is picked up without a restart.
 local cache = nil
 
+-- Compiled `vim.regex` objects, keyed by the pattern string they came from.
+-- `M.reset()` drops this too.
+---@type table<string, vim.regex>
+local regex_cache = {}
+
 ---@internal
 ---@return Insights.TodosConfig
 local function config()
@@ -52,6 +57,7 @@ end
 ---Drop the derived tables so the next call rebuilds them from the config.
 function M.reset()
   cache = nil
+  regex_cache = {}
 end
 
 ---The effective keyword table: the config's, minus entries a host set to
@@ -171,6 +177,27 @@ function M.parse_vimgrep(line)
   return { filename = file, lnum = tonumber(lnum), col = tonumber(col), text = text }
 end
 
+---The compiled `vim.regex` for `words` (default: every known word), reused
+---across calls instead of recompiled -- `classify()` used to compile one
+---fresh per call, which for `scan()`'s per-hit loop meant one compilation
+---per annotation comment in the whole tree rather than once per scan.
+---@param words string[]|nil
+---@return vim.regex|nil
+function M.compiled_pattern(words)
+  local pattern = M.vim_pattern(words)
+  local re = regex_cache[pattern]
+  if re then
+    return re
+  end
+  local ok
+  ok, re = pcall(vim.regex, pattern)
+  if not ok then
+    return nil
+  end
+  regex_cache[pattern] = re
+  return re
+end
+
 ---The first recognised word in `text`, with its meaning.
 ---@param text string
 ---@param words string[]|nil  Restrict to these words (a keyword filter).
@@ -178,8 +205,8 @@ end
 ---@return { keyword: string, color: string, icon: string }|nil info
 ---@return integer|nil col 1-based byte column of the word in `text`.
 function M.classify(text, words)
-  local ok, re = pcall(vim.regex, M.vim_pattern(words))
-  if not ok then
+  local re = M.compiled_pattern(words)
+  if not re then
     return nil
   end
   local s, e = re:match_str(text)

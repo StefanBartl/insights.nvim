@@ -254,8 +254,8 @@ function M.apply(bufnr, first, last)
 
   vim.api.nvim_buf_clear_namespace(bufnr, M.NS, first, last)
 
-  local ok, re = pcall(vim.regex, todos.vim_pattern())
-  if not ok then
+  local re = todos.compiled_pattern()
+  if not re then
     return 0
   end
   -- A tree that is not known to be parsed can hand `get_node` a stale

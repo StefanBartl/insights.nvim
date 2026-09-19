@@ -55,6 +55,15 @@ return function(H)
   H.falsy(vim.tbl_contains(no_cap, "--max-filesize"), "a cap of 0 adds no flag")
   H.falsy(vim.tbl_contains(no_cap, "--follow"), "and follow_symlinks = false adds none either")
 
+  -- A wrong-type cap (e.g. a string, which config.setup() lets through
+  -- untouched since it is a scalar leaf, not a sub-table) must degrade to
+  -- "no cap" rather than crash the `> 0` comparison (ERR-22).
+  local bad_type_cap = rg.build_cmd("p", { "lua" }, { max_file_size_kb = "512" })
+  H.falsy(
+    vim.tbl_contains(bad_type_cap, "--max-filesize"),
+    "a wrong-type cap adds no flag instead of erroring"
+  )
+
   H.eq(rg.build_cmd("p", { "lua" }, nil)[1], "rg", "opts may be omitted entirely")
 
   -- ── exec_sync ────────────────────────────────────────────────────────────

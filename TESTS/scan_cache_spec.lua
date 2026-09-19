@@ -57,6 +57,10 @@ return function(H)
   -- A TTL of zero (or less) disables the age check entirely rather than
   -- expiring everything immediately.
   H.ok(cache.load(cache_dir, "symbols", 0), "a TTL of 0 means no age check")
+  -- A wrong-type TTL (e.g. a string surviving config.setup(), which never
+  -- validates this scalar) must degrade to "no age check" too, rather than
+  -- crash the `> 0` comparison (ERR-22).
+  H.ok(cache.load(cache_dir, "symbols", "3600"), "a wrong-type TTL does not crash the loader")
 
   -- Rewrite the stored `indexed_at` into the past and the age check bites.
   local json = require("lib.nvim.fs.json")

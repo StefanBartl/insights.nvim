@@ -337,7 +337,11 @@ end
 ---@param title string
 ---@param cfg table
 local function present(lines, title, cfg)
-  local out_path = cfg.output_file
+  -- cfg.output_file is a scalar leaf, so config.setup()'s sanitize() never
+  -- validates it -- a mistyped value (e.g. `output_file = true`) would
+  -- otherwise reach `:sub()` below and crash `:Insights metrics` with
+  -- "attempt to index a boolean/number value" (ERR-22).
+  local out_path = type(cfg.output_file) == "string" and cfg.output_file or nil
   if out_path and out_path ~= "" then
     if out_path:sub(-4):lower() == ".pdf" then
       M.write_report_pdf(lines, out_path, function(ok, err)

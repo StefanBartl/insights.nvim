@@ -792,7 +792,13 @@ local function present(data, filters, ui)
 
   local report, line_index = M.build_report(data, filters)
 
-  local out_path = cfg.imports and cfg.imports.output_file
+  -- imports.output_file is a scalar leaf, so config.setup()'s sanitize()
+  -- never validates it -- a mistyped value (e.g. `output_file = true`)
+  -- would otherwise reach M.write_report()'s io.open() call below and crash
+  -- with "bad argument #1 to '?' (string expected, got boolean)", unlike
+  -- metrics.lua's sibling present(), which is pcall-wrapped (ERR-22).
+  local imports_cfg = cfg.imports or {}
+  local out_path = type(imports_cfg.output_file) == "string" and imports_cfg.output_file or nil
   if out_path and out_path ~= "" then
     local ok, err = M.write_report(report, out_path)
     if ok then

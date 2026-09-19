@@ -316,6 +316,28 @@ return function(H)
     H.eq(#shell.calls, 0, "and nothing is spawned")
     config.setup({ tree = { outdir = outdir, outfile_fmt = "%s-tree.txt" } })
 
+    -- outdir/outfile_fmt are scalar leaves, so config.setup() never
+    -- validates them. A wrong-type outfile_fmt (e.g. a number) used to
+    -- crash output_path()'s `:gsub` call outright, and a wrong-type outdir
+    -- (e.g. a table) used to crash ensure_dir()'s own fn.isdirectory() call
+    -- -- reached before write_tree()'s pcall(fn.mkdir, ...) even runs, and
+    -- not itself guarded. Both must degrade to their defaults instead
+    -- (ERR-22).
+    shell.answer = { ok = true, stdout = "x\n", stderr = "" }
+    ---@diagnostic disable-next-line: assign-type-mismatch
+    config.setup({ tree = { outdir = outdir, outfile_fmt = 123 } })
+    local ok_fmt_call, ok_fmt, _, path_fmt = pcall(run_tree)
+    H.ok(ok_fmt_call, "a wrong-type outfile_fmt does not crash write_tree")
+    H.ok(ok_fmt, "falling back to the default outfile_fmt")
+    H.contains(path_fmt, "-tree.txt", "the default format is used")
+
+    ---@diagnostic disable-next-line: assign-type-mismatch
+    config.setup({ tree = { outdir = { "bad" }, outfile_fmt = "%s-tree.txt" } })
+    local ok_outdir_call, ok_outdir = pcall(run_tree)
+    H.ok(ok_outdir_call, "a wrong-type outdir does not crash write_tree either")
+    H.ok(ok_outdir, "falling back to the default outdir")
+    config.setup({ tree = { outdir = outdir, outfile_fmt = "%s-tree.txt" } })
+
     -- ── count_files ────────────────────────────────────────────────────────
     shell.answer = { ok = true, stdout = "a\nb\nc\n", stderr = "" }
     local count_ok, count_msg, count

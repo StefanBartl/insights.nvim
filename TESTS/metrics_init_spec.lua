@@ -288,6 +288,18 @@ return function(H)
     metrics.run({ root = dir })
     H.ok(shown, "a .pdf output file does not stop the report from opening")
     H.eq(vim.fn.filereadable(dir .. "/out/report.pdf"), 0, "and no PDF is produced without pdfport")
+
+    -- output_file is a scalar leaf, so config.setup() never validates it --
+    -- a wrong-type value (e.g. `output_file = true`, surviving setup()) must
+    -- degrade to "no file written" rather than crash the `:sub(-4)` call
+    -- presenting the report (ERR-22).
+    ---@diagnostic disable-next-line: assign-type-mismatch
+    config.setup({ metrics = { output_file = true } })
+    shown = nil
+    local ok_bad_type = pcall(metrics.run, { root = dir })
+    H.ok(ok_bad_type, "a wrong-type output_file does not crash the report")
+    H.ok(shown, "and the report still opens")
+    config.setup({})
   end)
 
   package.loaded["insights.ui.scratch"] = real_scratch

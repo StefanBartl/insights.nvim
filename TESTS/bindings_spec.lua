@@ -284,8 +284,11 @@ return function(H)
     H.ok(metrics_flags["--reverse"] or metrics_flags["--no-reverse"], "metrics flags complete")
 
     -- ── dispatch ──────────────────────────────────────────────────────────
-    local saved = {}
-    for _, name in ipairs({
+    -- Restored by name at the end, not `pairs(saved)`: storing `nil` in a Lua
+    -- table does not create a key, so a module not yet loaded before this
+    -- spec would silently never get its `package.loaded` slot cleared back to
+    -- nil, leaking this spec's stub into every later spec's `require`.
+    local dispatch_modules = {
       "insights.symbols.open",
       "insights.metrics",
       "insights.smells",
@@ -299,7 +302,9 @@ return function(H)
       "insights.devserver",
       "insights.symbols",
       "insights.scan.cache",
-    }) do
+    }
+    local saved = {}
+    for _, name in ipairs(dispatch_modules) do
       saved[name] = package.loaded[name]
     end
 
@@ -493,8 +498,8 @@ return function(H)
     end)
 
     symbols_open_mod.open = real_symbols_open
-    for name, mod in pairs(saved) do
-      package.loaded[name] = mod
+    for _, name in ipairs(dispatch_modules) do
+      package.loaded[name] = saved[name]
     end
     if not ok_dispatch then
       error(err_dispatch, 0)

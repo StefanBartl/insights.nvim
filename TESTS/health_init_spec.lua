@@ -315,8 +315,11 @@ return function(H)
     -- Every function here is a one-line delegation; what is worth pinning is
     -- that each one reaches the module it names, with the arguments it was
     -- given.
-    local saved = {}
-    for _, name in ipairs({
+    -- Restored by name at the end, not `pairs(saved)`: storing `nil` in a Lua
+    -- table does not create a key, so a module not yet loaded before this
+    -- spec would silently never get its `package.loaded` slot cleared back to
+    -- nil, leaking this spec's stub into every later spec's `require`.
+    local facade_modules = {
       "insights.symbols",
       "insights.metrics",
       "insights.imports",
@@ -325,7 +328,9 @@ return function(H)
       "insights.conflicts",
       "insights.unimported",
       "insights.devserver",
-    }) do
+    }
+    local saved = {}
+    for _, name in ipairs(facade_modules) do
       saved[name] = package.loaded[name]
     end
 
@@ -408,8 +413,8 @@ return function(H)
       H.eq(insights.devservers().a, 1, "devservers returns the ledger")
     end)
 
-    for name, mod in pairs(saved) do
-      package.loaded[name] = mod
+    for _, name in ipairs(facade_modules) do
+      package.loaded[name] = saved[name]
     end
     config.setup({})
 

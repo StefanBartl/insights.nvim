@@ -14,8 +14,13 @@
 return function(H)
   local config = require("insights.config")
 
+  -- Restored by name at the end, not `pairs(saved)`: storing `nil` in a Lua
+  -- table does not create a key, so a module not yet loaded before this spec
+  -- would silently never get its `package.loaded` slot cleared back to nil,
+  -- leaking this spec's stub into every later spec's `require`.
+  local replaced_modules = { "lib.nvim.ui.list", "lib.nvim.cross.executable", "insights.conflicts" }
   local saved = {}
-  for _, name in ipairs({ "lib.nvim.ui.list", "lib.nvim.cross.executable", "insights.conflicts" }) do
+  for _, name in ipairs(replaced_modules) do
     saved[name] = package.loaded[name]
   end
 
@@ -226,8 +231,8 @@ return function(H)
   end)
 
   vim.system = real_system
-  for name, mod in pairs(saved) do
-    package.loaded[name] = mod
+  for _, name in ipairs(replaced_modules) do
+    package.loaded[name] = saved[name]
   end
   config.setup({})
 

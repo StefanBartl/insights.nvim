@@ -382,6 +382,24 @@ return function(H)
     H.contains(H.read(dir .. "/out/imports.md"), "=== Imports", "and the report is on disk")
     config.setup({ imports = { output_file = "" } })
 
+    -- output_file is a scalar leaf, so config.setup() never validates it --
+    -- a wrong-type value (e.g. `output_file = true`, surviving setup())
+    -- must degrade to "no file written" rather than crash write_report()'s
+    -- io.open() call, which -- unlike metrics.lua's sibling present() -- is
+    -- not pcall-wrapped here (ERR-22).
+    ---@diagnostic disable-next-line: assign-type-mismatch
+    config.setup({ imports = { output_file = true } })
+    shown = {}
+    local ok_bad_type = pcall(imports.run, {})
+    H.ok(ok_bad_type, "a wrong-type output_file does not crash run()")
+    H.ok(
+      vim.wait(5000, function()
+        return shown.lines ~= nil
+      end),
+      "and the report still opens"
+    )
+    config.setup({ imports = { output_file = "" } })
+
     -- run_reverse: a warm index answers without scanning again.
     imports.scan_cwd()
     shown = {}

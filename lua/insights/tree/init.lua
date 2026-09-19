@@ -43,12 +43,29 @@ local function ensure_dir(dir)
 end
 
 ---@internal
+---Resolve `cfg.outdir` for the tree feature. Both it and outfile_fmt below
+---are scalar leaves, so config.setup()'s sanitize() never validates them --
+---a mistyped value (e.g. a table) would otherwise crash outright instead of
+---degrading to the default (ERR-22). Shared by write_tree() (which passes
+---this straight to ensure_dir()/fn.isdirectory(), itself unguarded against
+---a non-string) and output_path() below, rather than duplicating the guard
+---at both call sites.
+---@param cfg table
+---@return string
+local function resolved_outdir(cfg)
+  return type(cfg.outdir) == "string" and cfg.outdir or (fn.stdpath("state") .. "/insights/tree")
+end
+
+---@internal
 ---Resolve the configured tree output path for a project name.
 ---@param proj string
 ---@return string
 local function output_path(proj)
   local cfg = config.get().tree
-  return cfg.outdir .. "/" .. (cfg.outfile_fmt:gsub("%%s", proj))
+  -- outfile_fmt fails first in practice since ":gsub" is a method call on
+  -- what may not be a string (ERR-22, same scalar-leaf gap as outdir above).
+  local outfile_fmt = type(cfg.outfile_fmt) == "string" and cfg.outfile_fmt or "%s-tree.txt"
+  return resolved_outdir(cfg) .. "/" .. (outfile_fmt:gsub("%%s", proj))
 end
 
 ---@internal
@@ -132,7 +149,11 @@ function M.write_tree(callback)
     return
   end
 
-  local ok, derr = ensure_dir(cfg.outdir)
+  -- resolved_outdir() guards against a wrong-type cfg.outdir (e.g. a table),
+  -- which would otherwise crash ensure_dir()'s own fn.isdirectory() call
+  -- below outright -- that call is not pcall-wrapped, unlike the fn.mkdir()
+  -- a few lines further down (ERR-22).
+  local ok, derr = ensure_dir(resolved_outdir(cfg))
   if not ok then
     callback(false, "cannot create outdir: " .. tostring(derr), nil)
     return

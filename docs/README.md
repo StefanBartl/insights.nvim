@@ -19,7 +19,7 @@ is the short version of all of it.
 | --- | --- |
 | [commands.md](commands.md) | The unified command, subcommand by subcommand — the longest page here, and the reference for everything you can ask for |
 | [BINDINGS.md](BINDINGS.md) | Every keymap, user command and autocommand this plugin registers |
-| [automatic-triggers.md](automatic-triggers.md) | The three things that act without being asked, and why only those three |
+| [automatic-triggers.md](automatic-triggers.md) | The four things that act without being asked, and why only those four |
 | [hover.md](hover.md) | Resting the cursor on a dotted module name and getting what it is — the hover.nvim integration and what it costs |
 | [WORKFLOW.md](WORKFLOW.md) | The different question: not what each feature does, but which one answers which everyday question about a codebase |
 

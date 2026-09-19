@@ -20,6 +20,8 @@ local current = vim.deepcopy(defaults)
 -- entry here is not a typo and must never be reported as an unknown key.
 local OPEN_KEY_PATHS = {
   ["imports.groups"] = true,
+  ["todos.keywords"] = true,
+  ["todos.colors"] = true,
 }
 
 ---Config issues found by the last setup() call: an unknown key (with a "did

@@ -73,6 +73,7 @@ local specs = {
   -- the remaining features
   "unimported_spec.lua",
   "conflicts_spec.lua",
+  "todos_spec.lua",
   "compress_tree_spec.lua",
   "tree_windows_regex_spec.lua",
   "devserver_spec.lua",

@@ -14,6 +14,7 @@
 ---   :Insights imports reverse <module>
 ---   :Insights imports unused [filter/lang...]
 ---   :Insights conflicts
+---   :Insights todos [KEYWORD...] [snacks|telescope|fzf|qf|scratch]
 ---   :Insights unimported
 ---   :Insights devserver [list|kill]
 ---
@@ -374,6 +375,19 @@ local function handle_imports_unused(args)
 end
 
 ---@internal
+---@param tokens string[]  keywords and/or a UI name, any order
+local function handle_todos(tokens)
+  local cfg = require("insights.config").get()
+  if not (cfg.todos and cfg.todos.enable) then
+    notify.warn("todos feature is disabled (set todos.enable = true in setup)")
+    return
+  end
+  local todos = require("insights.todos")
+  local parsed = todos.parse_tokens(tokens)
+  todos.open({ keywords = parsed.keywords, ui = parsed.ui })
+end
+
+---@internal
 local function handle_conflicts()
   local cfg = require("insights.config").get()
   if not (cfg.conflicts and cfg.conflicts.enable) then
@@ -535,6 +549,21 @@ composer.register_type("INSIGHTS_DIR_SOFT", {
   end,
 })
 
+-- todos' tokens are order-independent too: canonical keywords (read from the
+-- live config, so a host-added keyword completes) plus the UI names.
+composer.register_type("INSIGHTS_TODOS_TOKEN", {
+  validate = function(raw)
+    return true, raw, nil
+  end,
+  complete = function(arg_lead)
+    local todos = require("insights.todos")
+    local cands = vim.tbl_keys(todos.keywords())
+    table.sort(cands)
+    vim.list_extend(cands, todos.UIS)
+    return prefix(cands, arg_lead)
+  end,
+})
+
 ---@internal
 ---N optional positional slots of the same type — reproduces "same completion
 ---candidates at every position" for an order-independent/variadic grammar.
@@ -659,6 +688,14 @@ function M.setup()
       end,
     },
     no_arg_route({ "conflicts" }, "Quickfix unresolved git conflicts", handle_conflicts),
+    {
+      path = { "todos" },
+      args = repeated_args("INSIGHTS_TODOS_TOKEN", 4),
+      desc = "Annotation comments (TODO/FIX/...) — keyword filter and/or UI, any order",
+      run = function(ctx)
+        handle_todos(merged_tokens(ctx))
+      end,
+    },
     no_arg_route({ "unimported" }, "Check used-but-unimported components", handle_unimported),
     no_arg_route({ "devserver" }, "List tracked dev servers", function()
       handle_devserver({})

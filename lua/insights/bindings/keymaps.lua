@@ -65,10 +65,27 @@ function M.setup(cfg)
 
   ---@type Lib.Keymap.Spec
   local spec = {
-    order = { "symbols_telescope", "symbols_fzf", "fileinfo" },
+    order = { "symbols_telescope", "symbols_fzf", "fileinfo", "todos", "todos_qf" },
     actions = {
       symbols_telescope = { rhs = tele_rhs, desc = tele_desc },
       symbols_fzf = { rhs = fzf_rhs, desc = fzf_desc },
+
+      -- Both unbound by default. `todos` opens the annotation report in the
+      -- configured picker (`todos.search.ui`); `todos_qf` always sends it to
+      -- the quickfix list, for the host that wants both a browse key and a
+      -- work-through-it key.
+      todos = {
+        rhs = function()
+          require("insights.todos").open({})
+        end,
+        desc = "todo comments (picker)",
+      },
+      todos_qf = {
+        rhs = function()
+          require("insights.todos").open({ ui = "qf" })
+        end,
+        desc = "todo comments (quickfix)",
+      },
 
       -- `fileinfo.enable = false` switches the feature off entirely, which is
       -- a stronger statement than "do not bind a key for it": leaving the

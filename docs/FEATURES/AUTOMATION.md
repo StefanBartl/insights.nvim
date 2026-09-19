@@ -1,7 +1,7 @@
 # Automatic checks
 
 Everything else in insights.nvim only acts when you run an `:Insights`
-subcommand. These three also run on their own, each switched off with its
+subcommand. These four also run on their own, each switched off with its
 own `enable` key — see [`../automatic-triggers.md`](../automatic-triggers.md)
 for the full config knobs (event overrides, patterns, prompts).
 
@@ -47,3 +47,26 @@ an already-open shell only if it sets the title.
 - **Config:** `opts.devserver.enable` (default `true`),
   `opts.devserver.prompt` (default `true`), `opts.devserver.kill_on_exit`
   (default `true`, used when `prompt = false`), `opts.devserver.patterns`
+
+## Annotation highlight
+
+Colours `TODO`, `FIX`, `AUDIT`, `REF` and the other keywords in
+`todos.keywords` where they appear inside a comment: the keyword as a filled
+block in its category's colour, the rest of the comment in that colour's
+foreground, the keyword's icon in the sign column. Visible lines only, so a
+long file costs nothing for the annotations it is not showing; Tree-sitter
+decides what is a comment (the syntax stack where no parser is attached).
+The project-wide report over the same keyword table is `:Insights todos` —
+see [`../commands.md`](../commands.md#todos).
+
+- **Module:** `todos/highlight.lua` (the report: `todos/init.lua`; the
+  shipped keyword table: `todos/keywords.lua`)
+- **Usercmds:** `:Insights todos [KEYWORD...] [ui]`
+- **Autocmds:** `BufWinEnter`, `FileType` (scan), `TextChanged`,
+  `TextChangedI`, `WinScrolled` (re-scan, debounced), `BufUnload`,
+  `BufWipeout` (clear)
+- **Config:** `opts.todos.enable` (default `true`),
+  `opts.todos.highlight.enable` (default `true`),
+  `opts.todos.highlight.comments_only` (default `true`),
+  `opts.todos.highlight.signs` (default `true`), `opts.todos.keywords` and
+  `opts.todos.colors` (merged over the shipped tables)

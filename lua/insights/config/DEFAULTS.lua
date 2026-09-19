@@ -168,6 +168,38 @@ local defaults = {
     notify = true, -- notify with the conflicting file names
   },
 
+  -- Annotation comments (TODO, FIX, AUDIT, ...): a project-wide report via
+  -- `:Insights todos`, and the keyword coloured in the buffer with a glyph
+  -- in the sign column. The keyword table and colour categories ship in
+  -- todos/keywords.lua; override per entry (`FOO = { color = "info" }`) or
+  -- drop one with `FOO = false`.
+  todos = {
+    enable = true,
+    keywords = require("insights.todos.keywords").KEYWORDS,
+    colors = require("insights.todos.keywords").COLORS,
+    search = {
+      -- "auto" = snacks, then telescope, then fzf-lua, then the quickfix
+      -- list; or name one of those directly.
+      ui = "auto",
+      -- PCRE2, with KEYWORDS replaced by the alternation of every known
+      -- word. No colon: half the annotations in the wild have none.
+      pattern = "\\b(KEYWORDS)\\b",
+      extensions = {}, -- {} = every file rg would search; {"lua","md"} narrows it
+      exclude_patterns = { ".git/", "node_modules/", ".cache/", "build/", "dist/", "target/" },
+      max_file_size_kb = 1024,
+      follow_symlinks = false,
+      open_qf = true, -- :copen when the report goes to the quickfix list
+    },
+    highlight = {
+      enable = true,
+      comments_only = true, -- only a keyword inside a comment is coloured
+      signs = true, -- the keyword's icon in the sign column
+      debounce_ms = 150, -- after a change; a scroll re-scans immediately
+      max_file_size_kb = 512, -- larger files are left alone
+      exclude_filetypes = { "help", "qf", "TelescopePrompt", "snacks_picker_input" },
+    },
+  },
+
   -- Warn about component tags (<Foo …>) that are used but never imported.
   unimported = {
     enable = true,

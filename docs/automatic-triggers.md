@@ -1,6 +1,6 @@
 # Automatic triggers
 
-Most of the plugin only acts when you ask it to. These three also run on their
+Most of the plugin only acts when you ask it to. These four also run on their
 own, and each is switched off with its `enable` key:
 
 | Feature | Fires on | Does |
@@ -8,6 +8,29 @@ own, and each is switched off with its `enable` key:
 | `conflicts` | `VimEnter` | Quickfix-lists unresolved merge conflicts. Silent when the repo is clean or not a git repo. |
 | `unimported` | `BufWritePost` | Warns about used-but-unimported components, for `unimported.filetypes` only. Silent when nothing is missing. |
 | `devserver` | `TermOpen`, `TermRequest`, `VimLeavePre` | Detects dev servers and kills the ones you approved on exit. |
+| `todos.highlight` | `BufWinEnter`, `FileType`, `TextChanged`, `TextChangedI`, `WinScrolled` | Colours annotation keywords (`TODO`, `FIX`, …) in the lines on screen and puts their icon in the sign column. Never notifies. |
+
+## How the annotation highlight works
+
+Only the lines a window is showing, plus a margin, are scanned — a change or
+a scroll re-scans them (a change debounced by `todos.highlight.debounce_ms`, a
+scroll at once), and extmarks outside the range are dropped and come back
+when scrolled to. That is what keeps a very long file from paying for
+annotations it never displays. Buffers with a `buftype`, a filetype in
+`todos.highlight.exclude_filetypes` or a file larger than
+`todos.highlight.max_file_size_kb` are left alone.
+
+A keyword only counts inside a comment (`todos.highlight.comments_only`).
+Tree-sitter answers that where the buffer has a parser — without needing
+Tree-sitter *highlighting* to be on — and the syntax stack answers where it
+does not. A buffer with neither keeps the match: plain text has no comments
+to be outside of.
+
+The highlight groups (`InsightsTodoFg<Category>`, `InsightsTodoBg<Category>`,
+`InsightsTodoSign<Category>`, one set per `todos.colors` entry) are derived
+from the active theme and redefined after every `:colorscheme` or
+`&background` change through `lib.nvim.ui.hl.persist`, so a theme switch
+never leaves them pointing at colours that no longer exist.
 
 ## How the dev-server tracking works
 

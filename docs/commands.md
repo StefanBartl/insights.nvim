@@ -338,6 +338,43 @@ Asks git for files in the unmerged state (`git diff --diff-filter=U`) and puts
 them in the quickfix list, then `:copen`. Runs automatically on `VimEnter` —
 see [Automatic triggers](automatic-triggers.md).
 
+### Todos
+
+```vim
+:Insights todos                    " every annotation comment, in the configured picker
+:Insights todos FIX AUDIT          " only these keywords (their aliases included)
+:Insights todos qf                 " to the quickfix list instead
+:Insights todos bug telescope      " a keyword by alias, and a UI — any order
+```
+
+Annotation comments — `TODO`, `FIX`, `AUDIT`, `REF`, `HACK` and whatever
+else `todos.keywords` names, each with its aliases (`FIXME`, `BUG`, `ISSUE`
+mean `FIX`) — across the tree, in one ripgrep pass. Every hit is shown as
+`file:line  [KEYWORD] the comment`, sorted by file so the report reads in
+tree order, and selecting one jumps there.
+
+Tokens are order-independent. A UI name (`snacks`, `telescope`, `fzf`,
+`qf`, `scratch`) picks where the report goes; anything else is a keyword
+or alias, case-insensitive, and narrows the scan to that keyword's whole
+word set. `<Tab>` completes both. With no UI token the report goes to
+`todos.search.ui` — `"auto"` by default, which takes snacks, telescope or
+fzf-lua in that order and the quickfix list when none is installed.
+
+The scan matches the keywords as whole words, case-sensitively, and does
+**not** require a colon after them: `-- TODO rewrite` and `-- TODO: rewrite`
+are both annotations, because both are how they get written. A host that
+wants the colon sets `todos.search.pattern = "\\b(KEYWORDS):"`. What the scan
+cannot tell is whether a hit sits in a comment — a keyword in a string
+literal is listed too; the in-buffer highlight (next paragraph) does make
+that distinction.
+
+The same keyword table also colours annotations in the buffer as you read
+and write: the keyword as a filled block in its category's colour, the rest
+of the comment in that colour's foreground, and the keyword's icon in the
+sign column. Only keywords inside a comment (per Tree-sitter, or the syntax
+stack where no parser is attached), only the lines on screen — see
+[Automatic triggers](automatic-triggers.md).
+
 ### Unimported
 
 ```vim

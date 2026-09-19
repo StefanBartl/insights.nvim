@@ -168,6 +168,38 @@ require("insights").setup({
     notify      = true,             -- notify with the conflicting file names
   },
 
+  -- Annotation comments (TODO, FIX, AUDIT, ...): the :Insights todos report
+  -- and the in-buffer highlight. The keyword table and colour categories
+  -- ship in lua/insights/todos/keywords.lua; both are open tables, so a
+  -- host states only the difference.
+  todos = {
+    enable = true,
+    keywords = {                      -- merged over the shipped table
+      -- FOO  = { icon = " ", color = "info", alt = { "FOOBAR" } },  add one
+      -- HACK = false,                                                 drop one
+    },
+    colors = {                        -- per category, candidates best first:
+      -- audit = { "DiagnosticHint", "Type", "#00BFA5" },  a highlight group's fg, or a literal
+    },
+    search = {
+      ui               = "auto",      -- snacks > telescope > fzf > qf; or name one
+      pattern          = "\\b(KEYWORDS)\\b", -- PCRE2; KEYWORDS = the word alternation
+      extensions       = {},          -- {} = every file rg would search
+      exclude_patterns = { ".git/", "node_modules/", ".cache/", "build/", "dist/", "target/" },
+      max_file_size_kb = 1024,
+      follow_symlinks  = false,
+      open_qf          = true,        -- :copen when the report goes to quickfix
+    },
+    highlight = {
+      enable            = true,
+      comments_only     = true,       -- only a keyword inside a comment is coloured
+      signs             = true,       -- the keyword's icon in the sign column
+      debounce_ms       = 150,        -- after a change; a scroll re-scans at once
+      max_file_size_kb  = 512,        -- larger files are left alone
+      exclude_filetypes = { "help", "qf", "TelescopePrompt", "snacks_picker_input" },
+    },
+  },
+
   -- Warn about component tags used but never imported
   unimported = {
     enable    = true,

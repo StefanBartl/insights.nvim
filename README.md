@@ -22,8 +22,9 @@
 
 Static analysis of the project you are in, from inside Neovim. One `:Insights`
 command over symbol indexing, multi-language import analysis, Lua code
-metrics, file-tree utilities, and automatic checks for git conflicts, unused
-imports and stray dev servers.
+metrics, annotation comments (`TODO`, `FIX`, … listed project-wide and
+coloured in the buffer), file-tree utilities, and automatic checks for git
+conflicts, unused imports and stray dev servers.
 
 ---
 

@@ -12,6 +12,9 @@ local notify = require("insights.util.notify").create("[insights]")
 ---@param opts InsightsOpts|nil
 function M.setup(opts)
   require("insights.config").setup(opts or {})
+  -- The keyword index is derived from the config; a re-run of setup() with
+  -- a different table must not keep serving the old one.
+  require("insights.todos").reset()
 
   local cfg = require("insights.config").get()
 
@@ -97,6 +100,13 @@ end
 ---@return integer count
 function M.run_conflicts()
   return require("insights.conflicts").run()
+end
+
+---Scan the tree for annotation comments (TODO, FIX, ...) and show them.
+---@param opts { keywords?: string[], ui?: string, cwd?: string }|nil
+---@return integer count
+function M.run_todos(opts)
+  return require("insights.todos").open(opts)
 end
 
 ---Component tags used in a buffer without a matching import or definition.

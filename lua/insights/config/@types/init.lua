@@ -158,6 +158,30 @@
 ---@field kill_on_exit boolean the answer used when prompt = false
 ---@field patterns string[]    plain substrings matched case-insensitively against the terminal command
 
+---@class Insights.Todos.SearchConfig
+---@field ui "auto"|"snacks"|"telescope"|"fzf"|"qf"|"scratch"
+---@field pattern string          PCRE2 template; `KEYWORDS` is replaced by the word alternation
+---@field extensions string[]     {} = every file rg would search
+---@field exclude_patterns string[]
+---@field max_file_size_kb integer
+---@field follow_symlinks boolean
+---@field open_qf boolean
+
+---@class Insights.Todos.HighlightConfig
+---@field enable boolean
+---@field comments_only boolean
+---@field signs boolean
+---@field debounce_ms integer
+---@field max_file_size_kb integer
+---@field exclude_filetypes string[]
+
+---@class Insights.TodosConfig
+---@field enable boolean
+---@field keywords table<string, Insights.Todos.Keyword|false>  see todos/keywords.lua
+---@field colors table<string, string[]>   colour candidates per category, best first
+---@field search Insights.Todos.SearchConfig
+---@field highlight Insights.Todos.HighlightConfig
+
 ---@class InsightsConfig
 ---@field symbols Insights.SymbolsConfig
 ---@field metrics Insights.MetricsConfig
@@ -170,6 +194,7 @@
 ---@field conflicts Insights.ConflictsConfig
 ---@field unimported Insights.UnimportedConfig
 ---@field devserver Insights.DevserverConfig
+---@field todos Insights.TodosConfig
 ---@field commands boolean  false = register no user commands at all
 ---@field deps_popup? boolean  lib.nvim.deps "declared tools" popup once, ever, on first setup() after install (default true; needs lib.nvim.deps — a no-op without it)
 ---@field hover? boolean  Tell hover.nvim who imports the module under the cursor. Soft: without hover.nvim this does nothing. Default true.
@@ -190,6 +215,7 @@
 ---@field conflicts?  Insights.ConflictsOpts
 ---@field unimported? Insights.UnimportedOpts
 ---@field devserver?  Insights.DevserverOpts
+---@field todos?      Insights.TodosOpts
 ---@field commands?   boolean  false = register no user commands at all
 ---@field deps_popup? boolean  lib.nvim.deps "declared tools" popup once, ever, on first setup() after install (default true; needs lib.nvim.deps — a no-op without it)
 ---@field hover?      boolean  Tell hover.nvim who imports the module under the cursor. Soft: without hover.nvim this does nothing. Default true.
@@ -274,4 +300,28 @@
 ---@field prompt?       boolean       ask via ui.nvim's ui.kit; false = apply kill_on_exit silently
 ---@field kill_on_exit? boolean the answer used when prompt = false
 ---@field patterns?     string[]    plain substrings matched case-insensitively against the terminal command
+
+---@class Insights.Todos.SearchOpts
+---@field ui?               "auto"|"snacks"|"telescope"|"fzf"|"qf"|"scratch"
+---@field pattern?          string    PCRE2 template; `KEYWORDS` is replaced by the word alternation
+---@field extensions?       string[]  {} = every file rg would search
+---@field exclude_patterns? string[]  rg `--glob !` patterns
+---@field max_file_size_kb? integer
+---@field follow_symlinks?  boolean
+---@field open_qf?          boolean   :copen when the report goes to the quickfix list
+
+---@class Insights.Todos.HighlightOpts
+---@field enable?            boolean
+---@field comments_only?     boolean   only a keyword inside a comment is coloured
+---@field signs?             boolean   the keyword's icon in the sign column
+---@field debounce_ms?       integer   after a change; 0 = immediately
+---@field max_file_size_kb?  integer   larger files are left alone
+---@field exclude_filetypes? string[]
+
+---@class Insights.TodosOpts
+---@field enable?    boolean
+---@field keywords?  table<string, Insights.Todos.Keyword|false>  per-entry override; `false` drops a shipped keyword
+---@field colors?    table<string, string[]>  colour candidates per category, best first: a highlight group name or `#rrggbb`
+---@field search?    Insights.Todos.SearchOpts
+---@field highlight? Insights.Todos.HighlightOpts
 return {}

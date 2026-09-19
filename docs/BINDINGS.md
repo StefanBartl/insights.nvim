@@ -17,6 +17,8 @@ integration needed.
 | `<leader>fi` | n | `fileinfo.keymap` | Toggle `fs.stat` float for current buffer |
 | `<leader>ps` | n | `keymaps.symbols_telescope` | Open symbol picker (telescope) |
 | `<leader>pS` | n | `keymaps.symbols_fzf` | Open symbol picker (fzf-lua) |
+| — (unbound) | n | `keymaps.todos` | Annotation comments in the configured picker (`:Insights todos`) |
+| — (unbound) | n | `keymaps.todos_qf` | Annotation comments to the quickfix list (`:Insights todos qf`) |
 
 The two `symbols_*` keys accept either a plain lhs string, or a table that
 also picks what the mapping asks for:
@@ -93,6 +95,7 @@ A single dispatcher command with tab-completion at every level, built via
 | `imports reverse` | `<module>` | List every file that imports `<module>` |
 | `imports unused` | `[filter/lang...]` | Bound import names never referenced again in their file |
 | `conflicts` | — | Quickfix unresolved git conflicts |
+| `todos` | `[KEYWORD...] [snacks\|telescope\|fzf\|qf\|scratch]` | Annotation comments (TODO/FIX/…) across the tree; keywords and UI in any order |
 | `unimported` | — | Check used-but-unimported components in current buffer |
 | `devserver` | `[list\|kill]` | List or kill tracked dev servers (default: `list`) |
 
@@ -112,6 +115,9 @@ for the full config knobs (`events` overrides, patterns, prompts).
 | `BufWritePost` (default; `unimported.events`) | `unimported.enable` | Check used-but-unimported components in the written buffer |
 | `TermOpen`, `TermRequest` | `devserver.enable` | Detect a dev server started in a terminal |
 | `VimLeavePre` | `devserver.enable` | Kill tracked dev servers on exit |
+| `BufWinEnter`, `FileType` | `todos.highlight.enable` | Colour annotation keywords in the buffer's visible lines |
+| `TextChanged`, `TextChangedI`, `WinScrolled` | `todos.highlight.enable` | Re-scan the visible lines (debounced by `todos.highlight.debounce_ms`) |
+| `BufUnload`, `BufWipeout` | `todos.highlight.enable` | Drop the buffer's highlight state |
 
 One more, from elsewhere: `imports/index.lua` creates a `BufWritePost` autocmd
 (augroup `InsightsImportIndex`) the first time a scan is remembered, and not

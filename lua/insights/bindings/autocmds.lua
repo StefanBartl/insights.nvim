@@ -5,6 +5,7 @@
 ---   conflicts   — populate the quickfix list with unresolved conflicts
 ---   unimported  — check component references on write
 ---   devserver   — notice dev servers in terminals, kill them on exit
+---   todos       — colour annotation keywords in the lines on screen
 ---
 --- Each is gated by its `enable` key and registers nothing when disabled.
 local M = {}
@@ -125,12 +126,63 @@ local function setup_devserver(cfg)
   })
 end
 
+---@internal
+---@param cfg Insights.TodosConfig
+local function setup_todos(cfg)
+  local grp = augroup("todos")
+  local highlight = require("insights.todos.highlight")
+  if not (cfg and cfg.enable and cfg.highlight and cfg.highlight.enable) then
+    -- A disabled feature must also take back what an earlier setup() placed:
+    -- the groups are cleared above, the extmarks here.
+    for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+      highlight.clear(buf)
+    end
+    return
+  end
+
+  highlight.setup_groups()
+
+  -- Showing a buffer, or attaching a parser to it, is a full re-scan of the
+  -- visible range right away -- there is nothing to debounce, nothing was
+  -- on screen a moment ago.
+  autocmd.create({ "BufWinEnter", "FileType" }, function(ev)
+    highlight.refresh(ev.buf)
+  end, {
+    group = grp,
+    desc = "Insights: highlight annotation keywords (buffer shown)",
+  })
+
+  -- A scroll exposes lines the last pass did not cover; a change may have
+  -- added or removed a keyword. Debounced per buffer so a held-down key does
+  -- not scan on every repeat.
+  autocmd.create({ "TextChanged", "TextChangedI", "WinScrolled" }, function(ev)
+    highlight.schedule(ev.buf)
+  end, {
+    group = grp,
+    desc = "Insights: highlight annotation keywords (buffer changed or scrolled)",
+  })
+
+  autocmd.create({ "BufUnload", "BufWipeout" }, function(ev)
+    highlight.clear(ev.buf)
+  end, {
+    group = grp,
+    desc = "Insights: drop annotation highlight state with the buffer",
+  })
+
+  -- setup() may run after buffers are already on screen (a lazy-loaded
+  -- plugin, or a re-run); those never see BufWinEnter, so scan them now.
+  for _, win in ipairs(vim.api.nvim_list_wins()) do
+    highlight.refresh(vim.api.nvim_win_get_buf(win))
+  end
+end
+
 ---@param cfg InsightsConfig|nil  defaults to the merged config
 function M.setup(cfg)
   cfg = cfg or require("insights.config").get()
   setup_conflicts(cfg.conflicts)
   setup_unimported(cfg.unimported)
   setup_devserver(cfg.devserver)
+  setup_todos(cfg.todos)
 end
 
 return M

@@ -184,6 +184,64 @@ local function check_pickers()
 end
 
 ---@internal
+local function check_todos()
+  start_s("Todo comments")
+  local ok_cfg, config = pcall(require, "insights.config")
+  if not ok_cfg then
+    warn_s("cannot load insights.config")
+    return
+  end
+  local cfg = config.get().todos
+  if not (cfg and cfg.enable) then
+    info_s("todos.enable = false — :Insights todos and the highlight are off")
+    return
+  end
+  local todos = require("insights.todos")
+  local keywords = todos.keywords()
+  local n_keywords = vim.tbl_count(keywords)
+  local n_words = #todos.words()
+  if n_keywords == 0 then
+    warn_s("todos.keywords is empty — nothing will ever match", {
+      "Leave the shipped table in place, or add at least one entry",
+    })
+  else
+    ok_s(("%d keywords, %d words including aliases"):format(n_keywords, n_words))
+  end
+  -- Every category a keyword names must resolve to a colour, else its
+  -- highlight groups are never defined and the keyword renders unstyled.
+  local highlight = require("insights.todos.highlight")
+  local groups = highlight.groups()
+  for name, def in pairs(keywords) do
+    local fg = highlight.group_names(def.color)
+    if not groups[fg] then
+      warn_s(
+        ("keyword %s names colour category %q, which resolves to no colour"):format(name, def.color),
+        {
+          ('Add `todos.colors.%s = { "<HlGroup>", "#rrggbb" }`'):format(def.color),
+        }
+      )
+    end
+  end
+  if exe("rg") then
+    ok_s(("scan: rg, ui = %s (resolves to %s)"):format(cfg.search.ui, todos.default_ui()))
+  else
+    err_s("rg not found — :Insights todos cannot scan", {
+      "Install ripgrep (https://github.com/BurntSushi/ripgrep)",
+    })
+  end
+  if cfg.highlight and cfg.highlight.enable then
+    ok_s(
+      ("highlight: on (comments_only = %s, signs = %s)"):format(
+        tostring(cfg.highlight.comments_only ~= false),
+        tostring(cfg.highlight.signs ~= false)
+      )
+    )
+  else
+    info_s("highlight: off (todos.highlight.enable = false)")
+  end
+end
+
+---@internal
 local function check_pdfport()
   start_s("Optional: PDF export (metrics.output_file ending .pdf)")
   local ok_pp, pdfport = pcall(require, "pdfport")
@@ -425,6 +483,7 @@ function M.check()
   check_autocmds()
   check_compress()
   check_cache()
+  check_todos()
   check_hover()
   check_lib_deps()
 

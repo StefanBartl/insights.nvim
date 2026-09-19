@@ -18,7 +18,8 @@ the one command that asks them:
 | **Imports** | Usage across Lua, Python, JS/TS, Go, Rust and C/C++ — a report, a reverse lookup, unused-import detection, and a rendered dependency graph |
 | **Code** | Lua metrics, and smells: magic numbers and behaviour constants that should have been configuration |
 | **Project** | The file tree written, counted or copied; per-buffer `fs.stat`; directory compression with the engine auto-detected |
-| **Automatic** | Git conflicts to the quickfix list on `VimEnter`, used-but-unimported components in the current buffer, and dev servers started from Neovim that are still running |
+| **Todos** | Annotation comments (`TODO`, `FIX`, `AUDIT`, …, with aliases) across the tree as a picker or quickfix report, and coloured in the buffer with a sign as you read |
+| **Automatic** | Git conflicts to the quickfix list on `VimEnter`, used-but-unimported components in the current buffer, dev servers started from Neovim that are still running, and the annotation highlight above |
 
 The symbol index is cached, and the cache is explicit rather than magic:
 `:Insights cache build`, `info`, `clear`. That matters for the hover
@@ -35,4 +36,5 @@ question, and a parser cannot answer it — see
 - [Project utilities](PROJECT.md) — file tree, buffer info, compression,
   the symbol cache.
 - [Automatic checks](AUTOMATION.md) — conflicts, unimported components,
-  dev-server tracking: the three modules that also run on their own.
+  dev-server tracking, annotation highlighting: the four modules that also
+  run on their own.

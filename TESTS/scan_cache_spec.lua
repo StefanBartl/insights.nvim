@@ -135,7 +135,9 @@ return function(H)
   -- A record whose entry names no file cannot be verified against the tree.
   -- `save` requires a `.filename` per its own contract, so this can only come
   -- from a hand-edited or older cache file -- and it is treated as a miss
-  -- rather than trusted.
+  -- rather than trusted. Caught by the SEC-33 shape validation now, before
+  -- the mtime check even runs -- a more specific reason than the generic
+  -- "source files changed" this used to fall through to.
   cache.save(cache_dir, "nameless", { entry(src, "f") })
   local nameless_path = cache.stats(cache_dir, "nameless").path
   local nameless_blob = json.read(nameless_path)
@@ -143,7 +145,74 @@ return function(H)
   json.write(nameless_path, nameless_blob)
   local nameless, nameless_reason = cache.load(cache_dir, "nameless", 0)
   H.eq(nameless, nil, "an entry naming no file cannot be verified")
-  H.eq(nameless_reason, "source files changed", "so the whole cache is rebuilt")
+  H.contains(nameless_reason or "", "corrupt cache", "so the whole cache is rejected")
+
+  -- A persisted cache is untrusted input (SEC-33): decoding as valid JSON is
+  -- not the same as matching what this module actually wrote. filename in
+  -- particular reaches uv.fs_stat below the validation, which raises
+  -- (rather than erroring cleanly) on anything but a string -- a shape a
+  -- hand-edited or hostile cache file can produce even though save() never
+  -- writes one.
+  do
+    -- A JSON `null` decodes to a still-truthy, still-not-a-string sentinel,
+    -- not Lua `nil` -- write it as real JSON text rather than assigning Lua
+    -- nil (which would just drop the key and hit the "nameless" case above).
+    cache.save(cache_dir, "null-filename", { entry(src, "f") })
+    local null_path = cache.stats(cache_dir, "null-filename").path
+    local raw = table.concat(vim.fn.readfile(null_path), "\n")
+    raw = raw:gsub('"filename":%s*"[^"]*"', '"filename":null', 1)
+    vim.fn.writefile({ raw }, null_path)
+    local null_fn, null_reason = cache.load(cache_dir, "null-filename", 0)
+    H.eq(null_fn, nil, "a JSON null filename does not crash the loader")
+    H.contains(null_reason or "", "corrupt cache", "and is rejected, not trusted")
+  end
+
+  do
+    -- entries itself can be any JSON value, not just the list save() writes.
+    cache.save(cache_dir, "scalar-entries", { entry(src, "f") })
+    local scalar_path = cache.stats(cache_dir, "scalar-entries").path
+    local scalar_blob = json.read(scalar_path)
+    scalar_blob.entries = "not a list"
+    json.write(scalar_path, scalar_blob)
+    local scalar, scalar_reason = cache.load(cache_dir, "scalar-entries", 0)
+    H.eq(scalar, nil, "a non-list entries value does not crash the loader")
+    H.contains(scalar_reason or "", "corrupt cache", "and is rejected")
+  end
+
+  do
+    -- lnum/col reach nvim_win_set_cursor downstream; a non-number there must
+    -- be caught here too, not just filename.
+    cache.save(cache_dir, "bad-lnum", { entry(src, "f") })
+    local lnum_path = cache.stats(cache_dir, "bad-lnum").path
+    local lnum_blob = json.read(lnum_path)
+    lnum_blob.entries[1].entry.lnum = "not a number"
+    json.write(lnum_path, lnum_blob)
+    local bad_lnum, bad_lnum_reason = cache.load(cache_dir, "bad-lnum", 0)
+    H.eq(bad_lnum, nil, "a non-number lnum does not crash the loader")
+    H.contains(bad_lnum_reason or "", "corrupt cache", "and is rejected")
+  end
+
+  do
+    -- No cap on entry count meant a corrupt/hostile cache could balloon into
+    -- an unbounded number of fs_stat calls on every load.
+    local many = {}
+    for i = 1, 5 do
+      many[i] = entry(src, "f" .. i)
+    end
+    cache.save(cache_dir, "capped", many)
+    local capped_path = cache.stats(cache_dir, "capped").path
+    local capped_blob = json.read(capped_path)
+    local template = capped_blob.entries[1]
+    local huge = {}
+    for i = 1, 20001 do
+      huge[i] = vim.deepcopy(template)
+    end
+    capped_blob.entries = huge
+    json.write(capped_path, capped_blob)
+    local over_cap, over_cap_reason = cache.load(cache_dir, "capped", 0)
+    H.eq(over_cap, nil, "an entry count over the cap is rejected")
+    H.contains(over_cap_reason or "", "corrupt cache", "not silently truncated")
+  end
 
   -- stats distinguishes "no cache" from "cache present but unreadable"
   -- (ERR-11): both used to answer plain `nil`, so :checkhealth and

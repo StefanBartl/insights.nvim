@@ -248,6 +248,33 @@ return function(H)
         "and is reported as having fallen back to auto"
       )
 
+      -- Same ERR-22 shape, one function over: `(cfg.metrics and
+      -- cfg.metrics.output_file or "?")` / `(cfg.tree and cfg.tree.outdir or
+      -- "?")` only catch nil/false too -- a truthy non-string survives and
+      -- crashes the concatenation just like default_scope/imports.engine
+      -- above.
+      ---@diagnostic disable-next-line: assign-type-mismatch
+      config.setup({ metrics = { output_file = true } })
+      recorded, sections = {}, {}
+      local output_file_ok = pcall(health.check)
+      H.ok(output_file_ok, "a wrong-type metrics.output_file does not crash :checkhealth")
+      H.contains(
+        text_of("Configuration"),
+        "metrics.output_file = ?",
+        "and is reported as having fallen back to ?"
+      )
+
+      ---@diagnostic disable-next-line: assign-type-mismatch
+      config.setup({ tree = { outdir = true } })
+      recorded, sections = {}, {}
+      local outdir_ok = pcall(health.check)
+      H.ok(outdir_ok, "a wrong-type tree.outdir does not crash :checkhealth")
+      H.contains(
+        text_of("Configuration"),
+        "tree.outdir = ?",
+        "and is reported as having fallen back to ?"
+      )
+
       config.setup({})
 
       -- BUG regression: `M.check()` used to close with an unguarded

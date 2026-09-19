@@ -72,6 +72,16 @@ return function(H)
     H.contains(msg_unknown, "auto | tar | zip | powershell", "and listing the valid ones")
     H.eq(#shell.calls, 0, "without running anything")
 
+    -- A wrong-type engine (e.g. `true`, which `cfg.engine or "auto"` alone
+    -- would let through since it is truthy) must degrade to "auto" instead of
+    -- crashing the "unknown engine" message's string concatenation (ERR-22).
+    windows = false
+    ---@diagnostic disable-next-line: assign-type-mismatch
+    local ok_bad_type, msg_bad_type = run_compress({ engine = true, outdir = "" })
+    H.ok(ok_bad_type, "a wrong-type engine falls back to auto instead of erroring")
+    H.contains(shell.calls[2], "tar", "and auto resolves to tar on Unix, same as a real auto")
+    H.excludes(msg_bad_type, "boolean", "no crash artifact leaking into the message")
+
     -- `auto` resolves per platform.
     windows = false
     local ok_tar = run_compress({ engine = "auto", outdir = "" })

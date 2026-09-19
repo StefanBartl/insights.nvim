@@ -220,6 +220,34 @@ return function(H)
         H.contains(compress_text, "not on Windows", "elsewhere it is flagged")
       end
 
+      -- ERR-22 follow-up: a wrong-type symbols.default_scope or imports.engine
+      -- must degrade to its default in the Configuration section too, the
+      -- same crash-the-whole-`:checkhealth` shape as compress.engine above.
+      -- `sym.default_scope or "cwd"` / `cfg.imports.engine or "auto"` alone
+      -- only catch nil/false -- a truthy non-string survives and crashes the
+      -- concatenation.
+      ---@diagnostic disable-next-line: assign-type-mismatch
+      config.setup({ symbols = { default_scope = true } })
+      recorded, sections = {}, {}
+      local scope_ok = pcall(health.check)
+      H.ok(scope_ok, "a wrong-type symbols.default_scope does not crash :checkhealth")
+      H.contains(
+        text_of("Configuration"),
+        "symbols.default_scope = cwd",
+        "and is reported as having fallen back to cwd"
+      )
+
+      ---@diagnostic disable-next-line: assign-type-mismatch
+      config.setup({ imports = { engine = true } })
+      recorded, sections = {}, {}
+      local imports_engine_ok = pcall(health.check)
+      H.ok(imports_engine_ok, "a wrong-type imports.engine does not crash :checkhealth")
+      H.contains(
+        text_of("Configuration"),
+        "imports.engine = auto",
+        "and is reported as having fallen back to auto"
+      )
+
       config.setup({})
 
       -- BUG regression: `M.check()` used to close with an unguarded

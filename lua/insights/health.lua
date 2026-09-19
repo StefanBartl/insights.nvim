@@ -287,13 +287,23 @@ local function check_config()
       enabled_langs[#enabled_langs + 1] = lang
     end
   end
-  info_s("symbols.default_scope = " .. (sym.default_scope or "cwd"))
+  -- Same guard as compress.engine below: `sym.default_scope or "cwd"` alone
+  -- only catches nil/false -- a truthy non-string (e.g. `default_scope =
+  -- true`) survives it and crashes this concatenation, taking :checkhealth
+  -- itself down instead of reporting the degraded value (ERR-22).
+  local default_scope = type(sym.default_scope) == "string" and sym.default_scope or "cwd"
+  info_s("symbols.default_scope = " .. default_scope)
   info_s("symbols.languages = " .. table.concat(enabled_langs, ", "))
   info_s("symbols.cache.enabled = " .. tostring(sym.cache and sym.cache.enabled))
   info_s("metrics.output_file = " .. (cfg.metrics and cfg.metrics.output_file or "?"))
   info_s("tree.outdir = " .. (cfg.tree and cfg.tree.outdir or "?"))
   info_s("imports.enable = " .. tostring(cfg.imports and cfg.imports.enable))
-  info_s("imports.engine = " .. (cfg.imports and cfg.imports.engine or "auto"))
+  -- Same guard: `cfg.imports.engine or "auto"` alone only catches nil/false --
+  -- a truthy non-string (e.g. `engine = true`) survives it and crashes this
+  -- concatenation too (ERR-22).
+  local imports_cfg = cfg.imports or {}
+  local imports_engine = type(imports_cfg.engine) == "string" and imports_cfg.engine or "auto"
+  info_s("imports.engine = " .. imports_engine)
 
   -- Unknown keys and type-mismatched values from the last setup() call
   -- (ERR-22/ERR-50) -- the one place a typo in a config spec is otherwise

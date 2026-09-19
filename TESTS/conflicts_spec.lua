@@ -106,6 +106,17 @@ return function(H)
     conflicts.list({ git_cmd = "git", diff_filter = "M" })
     H.ok(vim.tbl_contains(seen[2].cmd, "--diff-filter=M"), "a configured diff filter is used")
 
+    -- ERR-22 follow-up: `cfg.diff_filter or "U"` alone only catches nil/false
+    -- -- a truthy non-string (e.g. `diff_filter = true`) survives it and used
+    -- to crash the `"--diff-filter=" .. ...` concatenation. Must degrade to
+    -- the default "U" instead.
+    reset()
+    ---@diagnostic disable-next-line: assign-type-mismatch
+    local list_ok, list_files = pcall(conflicts.list, { git_cmd = "git", diff_filter = true })
+    H.ok(list_ok, "a wrong-type diff_filter does not crash list()")
+    H.eq(#list_files, 2, "and the scan still runs")
+    H.ok(vim.tbl_contains(seen[2].cmd, "--diff-filter=U"), "falling back to the default filter")
+
     reset()
     conflicts.list({ git_cmd = "my-git" })
     H.eq(seen[1].cmd[1], "my-git", "and a configured git binary")
@@ -228,6 +239,24 @@ return function(H)
     reset()
     H.ok(pcall(conflicts.run_async, { silent = true }), "a callback is optional")
     vim.wait(200)
+
+    -- ERR-22 follow-up, run_async's own diff-filter call site: the same
+    -- wrong-type diff_filter must not crash the async path either, since it
+    -- builds the same command through a separate `spawn()` call.
+    config.setup({ conflicts = { enable = true, notify = false, diff_filter = true } })
+    reset()
+    local async_ok, async_result
+    local ok_async_call = pcall(conflicts.run_async, {}, function(c)
+      async_result = c
+    end)
+    H.ok(ok_async_call, "a wrong-type diff_filter does not crash run_async()")
+    async_ok = vim.wait(2000, function()
+      return async_result ~= nil
+    end)
+    H.ok(async_ok, "and it still calls back")
+    H.eq(async_result, 2, "falling back to the default filter, same as the sync path")
+    H.ok(vim.tbl_contains(seen[2].cmd, "--diff-filter=U"), "using the default filter on the wire")
+    config.setup({ conflicts = { enable = true, notify = false } })
   end)
 
   vim.system = real_system

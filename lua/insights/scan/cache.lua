@@ -29,6 +29,58 @@ local function get_mtime(path)
   return st and st.mtime.sec or nil
 end
 
+-- Generous headroom over any real project's file/symbol count; a
+-- corrupt or hostile cache with more than this is rejected outright, not
+-- truncated silently.
+local MAX_CACHE_ENTRIES = 20000
+
+---@internal
+--- A persisted cache is untrusted input (SEC-33): successfully decoding JSON
+--- only means the file was well-formed JSON, not that its content matches
+--- what this module wrote. `filename` in particular reaches uv.fs_stat
+--- below, which raises (rather than returning an error) when handed
+--- anything but a string -- a JSON `null` decodes to a still-truthy,
+--- still-not-a-string sentinel table, so an unchecked entry crashes the
+--- caller instead of falling back to a rebuild the way every other invalid
+--- cache does.
+---
+--- Rejects the whole cache on the first bad entry, the same all-or-nothing
+--- invalidation this module already applies to a version/cwd/TTL mismatch,
+--- rather than trying to salvage individual entries -- which would need its
+--- own trust boundary.
+---@param entries any
+---@return boolean ok
+---@return string|nil reason
+local function validate_entries(entries)
+  if type(entries) ~= "table" then
+    return false, "entries is not a table"
+  end
+  local n = 0
+  for i, ie in ipairs(entries) do
+    n = n + 1
+    if n > MAX_CACHE_ENTRIES then
+      return false, string.format("entry count exceeds cap (%d)", MAX_CACHE_ENTRIES)
+    end
+    if type(ie) ~= "table" or type(ie.entry) ~= "table" then
+      return false, string.format("entry %d is malformed", i)
+    end
+    local filename = ie.entry.filename
+    if type(filename) ~= "string" or filename == "" then
+      return false, string.format("entry %d has a non-string filename", i)
+    end
+    if ie.entry.lnum ~= nil and type(ie.entry.lnum) ~= "number" then
+      return false, string.format("entry %d has a non-number lnum", i)
+    end
+    if ie.entry.col ~= nil and type(ie.entry.col) ~= "number" then
+      return false, string.format("entry %d has a non-number col", i)
+    end
+    if ie.file_mtime ~= nil and type(ie.file_mtime) ~= "number" then
+      return false, string.format("entry %d has a non-number file_mtime", i)
+    end
+  end
+  return true, nil
+end
+
 ---Load cached entries if valid; returns (entries|nil, reason_string|nil).
 ---@param dir string   cache directory
 ---@param ns  string   namespace slug
@@ -55,8 +107,13 @@ function M.load(dir, ns, ttl_seconds, variant)
     end
   end
 
-  -- Check file mtimes for invalidation
   local entries = decoded.entries or {}
+  local entries_ok, entries_err = validate_entries(entries)
+  if not entries_ok then
+    return nil, "corrupt cache: " .. entries_err
+  end
+
+  -- Check file mtimes for invalidation
   for _, ie in ipairs(entries) do
     local cur = get_mtime(ie.entry and ie.entry.filename or "")
     if not cur or (ie.file_mtime and cur > ie.file_mtime) then

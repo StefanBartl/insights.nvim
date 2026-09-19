@@ -44,6 +44,20 @@ local function in_git_repo(git_cmd, cwd)
 end
 
 ---@internal
+---Resolve `cfg.diff_filter` for the `git diff --diff-filter=` flag. Shared by
+---both `M.list` and `M.run_async` below so the guard lives in one place
+---rather than being duplicated inline at each call site (same shape as
+---`scan/rg.lua`'s single `max_file_size_kb` builder feeding two config
+---consumers). `cfg.diff_filter or "U"` alone only catches nil/false -- a
+---truthy non-string (e.g. `diff_filter = true`) survives it and crashes the
+---`"--diff-filter=" .. ...` concatenation at both sites (ERR-22).
+---@param cfg Insights.ConflictsConfig
+---@return string
+local function diff_filter(cfg)
+  return type(cfg.diff_filter) == "string" and cfg.diff_filter or "U"
+end
+
+---@internal
 ---Turn `git diff --name-only` output into a file list.
 ---@param stdout string|nil
 ---@return string[]
@@ -72,7 +86,7 @@ function M.list(cfg)
   end
 
   local ok, res =
-    pcall(run, { git, "diff", "--name-only", "--diff-filter=" .. (cfg.diff_filter or "U") }, cwd)
+    pcall(run, { git, "diff", "--name-only", "--diff-filter=" .. diff_filter(cfg) }, cwd)
   if not ok then
     return nil, "git diff failed: " .. tostring(res)
   end
@@ -194,15 +208,12 @@ function M.run_async(opts, on_done)
       return finish(nil, "not inside a git repository")
     end
 
-    spawn(
-      { git, "diff", "--name-only", "--diff-filter=" .. (cfg.diff_filter or "U") },
-      function(diff)
-        if diff.code ~= 0 then
-          return finish(nil, "git diff failed: " .. vim.trim(diff.stderr or ""))
-        end
-        finish(parse_files(diff.stdout), nil)
+    spawn({ git, "diff", "--name-only", "--diff-filter=" .. diff_filter(cfg) }, function(diff)
+      if diff.code ~= 0 then
+        return finish(nil, "git diff failed: " .. vim.trim(diff.stderr or ""))
       end
-    )
+      finish(parse_files(diff.stdout), nil)
+    end)
   end)
 end
 

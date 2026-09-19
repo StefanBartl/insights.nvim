@@ -72,6 +72,20 @@ return function(H)
     H.eq(todos.rg_pattern({ "TODO", "FIX" }), "\\b(TODO|FIX)\\b", "rg pattern shape")
   end
 
+  -- compiled_pattern: cached, not recompiled per call (fix: classify() used
+  -- to call vim.regex() fresh on every match, one compilation per
+  -- annotation comment in the whole tree instead of once per scan).
+  do
+    local re1 = todos.compiled_pattern()
+    local re2 = todos.compiled_pattern()
+    H.eq(re1, re2, "the same word list reuses the same compiled regex")
+    local re3 = todos.compiled_pattern({ "TODO", "FIX" })
+    H.ok(re3 ~= re1, "a different word list compiles its own regex")
+    todos.reset()
+    local re4 = todos.compiled_pattern()
+    H.ok(re4 ~= re1, "reset() drops the cached regex too")
+  end
+
   -- a host overriding the table: add one, drop one -------------------------
 
   do

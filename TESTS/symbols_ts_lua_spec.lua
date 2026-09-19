@@ -1,13 +1,19 @@
 -- TESTS/symbols_ts_lua_spec.lua — the three Tree-sitter Lua scanners:
 -- functions, tables and string literals.
 --
--- All three are driven against real buffers parsed by the real grammar. A
--- Tree-sitter query naming a node the grammar does not have fails quietly --
--- `pcall(ts.query.parse, …)` returns false and the scanner answers "nothing
--- found", which is indistinguishable from a file with no symbols in it. Every
+-- All three are driven against real buffers parsed by the real grammar. Every
 -- assertion that expects a non-empty result is therefore also a check that
--- the node names are still current. Verified against Neovim 0.12.2's bundled
--- tree-sitter-lua on 2026-09-17.
+-- the node names are still current: a query naming a node the grammar does
+-- not have would leave that result empty too. Verified against Neovim
+-- 0.12.2's bundled tree-sitter-lua on 2026-09-17.
+--
+-- ERR-11 regression: an internal Tree-sitter failure (no parser, parse
+-- raised, or a query naming a node the grammar does not have) used to answer
+-- the exact same bare `{}` as a buffer with genuinely zero
+-- symbols/tables/strings in it -- "could not determine" and "determined, and
+-- it's empty" were the same return. `scan_buffer` now also returns an `err`
+-- string in the broken case and `nil` in the empty-but-fine one; see the
+-- "internal Tree-sitter failures surface `err`" block below.
 --
 -- `scan_cwd`'s file walk itself is not exercised: it loads every .lua file
 -- under the working directory into a buffer, which on this repository alone
@@ -282,20 +288,28 @@ return function(H)
   }) do
     local where = name .. ": "
 
-    H.eq(#scanner.scan_buffer(999999), 0, where .. "a buffer that does not exist scans to nothing")
+    local no_buf, no_buf_err = scanner.scan_buffer(999999)
+    H.eq(#no_buf, 0, where .. "a buffer that does not exist scans to nothing")
+    H.eq(no_buf_err, nil, where .. "legitimately, not because anything broke")
 
     local deleted = buffer({ "local x = {}" })
     vim.api.nvim_buf_delete(deleted, { force = true })
-    H.eq(#scanner.scan_buffer(deleted), 0, where .. "and neither does a deleted one")
+    local del_matches, del_err = scanner.scan_buffer(deleted)
+    H.eq(#del_matches, 0, where .. "and neither does a deleted one")
+    H.eq(del_err, nil, where .. "also legitimately")
 
     -- Filetype is the gate: these scanners parse Lua and nothing else, and a
     -- Python buffer full of braces must not be read as a Lua table.
     local other = buffer({ "x = {}" }, "python")
-    H.eq(#scanner.scan_buffer(other), 0, where .. "a non-Lua buffer is not scanned")
+    local other_matches, other_err = scanner.scan_buffer(other)
+    H.eq(#other_matches, 0, where .. "a non-Lua buffer is not scanned")
+    H.eq(other_err, nil, where .. "not scanning a wrong-filetype buffer is not an error either")
     vim.api.nvim_buf_delete(other, { force = true })
 
     local empty = buffer({})
-    H.eq(#scanner.scan_buffer(empty), 0, where .. "an empty buffer has no symbols")
+    local empty_matches, empty_err = scanner.scan_buffer(empty)
+    H.eq(#empty_matches, 0, where .. "an empty buffer has no symbols")
+    H.eq(empty_err, nil, where .. "an empty buffer is determined-empty, not broken")
     vim.api.nvim_buf_delete(empty, { force = true })
 
     -- Unparseable source still has a tree (Tree-sitter always produces one),
@@ -303,5 +317,60 @@ return function(H)
     local broken = buffer({ "local = = = (((", "function" })
     H.ok(pcall(scanner.scan_buffer, broken), where .. "broken source does not raise")
     vim.api.nvim_buf_delete(broken, { force = true })
+  end
+
+  -- ── ERR-11: internal Tree-sitter failures surface `err` ──────────────────
+  -- A Lua buffer that is otherwise perfectly scannable, but where
+  -- `ts.get_parser` itself fails (parser not installed, grammar mismatch,
+  -- …), used to come back exactly like a file with zero matches. Forcing
+  -- that failure here (rather than uninstalling the parser, which would also
+  -- disable every other case in this file) pins the fix: `err` is now set,
+  -- distinguishing "could not determine" from "determined, and it's empty".
+  for name, scanner in pairs({
+    ts_lua = ts_lua,
+    ts_lua_tables = ts_tables,
+    ts_lua_strings = ts_strings,
+  }) do
+    local where = name .. ": "
+    local buf = buffer({ "local x = 1" })
+
+    local clean_matches, clean_err = scanner.scan_buffer(buf)
+    H.eq(clean_err, nil, where .. "a normal scan of a valid buffer reports no error")
+    H.ok(clean_matches, where .. "and still returns a match list")
+
+    local orig_get_parser = vim.treesitter.get_parser
+    vim.treesitter.get_parser = function()
+      error("forced failure for test")
+    end
+    local ok_call, broken_matches, broken_err = pcall(scanner.scan_buffer, buf)
+    vim.treesitter.get_parser = orig_get_parser
+
+    H.ok(ok_call, where .. "an unavailable parser does not raise")
+    H.eq(#broken_matches, 0, where .. "and still answers no matches")
+    H.ok(broken_err, where .. "but now says so, instead of looking like a clean empty scan")
+
+    vim.api.nvim_buf_delete(buf, { force = true })
+  end
+
+  -- The query-parse branch specifically -- the case the old header comment on
+  -- this file used to warn readers about instead of guarding against: a query
+  -- naming a node the grammar build does not have. Only ts_lua_tables and
+  -- ts_lua_strings run a query (ts_lua walks the tree itself).
+  for name, scanner in pairs({ ts_lua_tables = ts_tables, ts_lua_strings = ts_strings }) do
+    local where = name .. ": "
+    local buf = buffer({ "local x = 1" })
+
+    local orig_query_parse = vim.treesitter.query.parse
+    vim.treesitter.query.parse = function()
+      error("forced query failure for test")
+    end
+    local ok_call, matches, err = pcall(scanner.scan_buffer, buf)
+    vim.treesitter.query.parse = orig_query_parse
+
+    H.ok(ok_call, where .. "a broken query does not raise")
+    H.eq(#matches, 0, where .. "a broken query still answers no matches")
+    H.ok(err, where .. "but now says so too")
+
+    vim.api.nvim_buf_delete(buf, { force = true })
   end
 end

@@ -70,8 +70,17 @@ local function build_table_path(node, bufnr)
 end
 
 ---Scan one buffer for Lua table definitions.
+---
+---An unscannable buffer (invalid, deleted, or not filetype=lua) legitimately
+---has no matches -- `err` stays nil. A Tree-sitter failure on an otherwise
+---scannable Lua buffer (no parser installed, parse raised, or the query below
+---names a node this grammar build does not have) is a different thing: it
+---also has zero matches, but it did not determine that there are none, so
+---`err` is set (ERR-11) instead of answering the same bare `{}` a buffer with
+---genuinely no table constructors would.
 ---@param bufnr integer
 ---@return Insights.Symbols.Match[]
+---@return string|nil err
 function M.scan_buffer(bufnr)
   if not api.nvim_buf_is_valid(bufnr) then
     return {}
@@ -84,12 +93,14 @@ function M.scan_buffer(bufnr)
 
   local ok_p, parser_obj = pcall(ts.get_parser, bufnr, "lua")
   if not ok_p or not parser_obj then
-    return {}
+    local reason = (not ok_p) and tostring(parser_obj) or "no parser for this buffer"
+    return {}, "could not get Lua Tree-sitter parser: " .. reason
   end
 
   local ok_t, trees = pcall(parser_obj.parse, parser_obj)
   if not ok_t or not trees or #trees == 0 then
-    return {}
+    local reason = (not ok_t) and tostring(trees) or "no syntax tree produced"
+    return {}, "Tree-sitter parse failed: " .. reason
   end
 
   local root = trees[1]:root()
@@ -119,7 +130,8 @@ function M.scan_buffer(bufnr)
   ]]
   )
   if not ok_q or not query then
-    return {}
+    local reason = (not ok_q) and tostring(query) or "query returned nothing"
+    return {}, "Tree-sitter query failed: " .. reason
   end
 
   local seen = {}
@@ -166,7 +178,7 @@ function M.scan_buffer(bufnr)
   table.sort(result, function(a, b)
     return a.name < b.name
   end)
-  return result
+  return result, nil
 end
 
 ---Scan all .lua files in cwd.
@@ -206,14 +218,33 @@ function M.scan_cwd()
   notify.info(string.format("scanning %d Lua files for tables…", #filtered))
 
   local all = {}
+  local errors = {}
   for _, path in ipairs(filtered) do
     local bufnr = vim.fn.bufadd(path)
     vim.fn.bufload(bufnr)
-    local matches = M.scan_buffer(bufnr)
+    local matches, err = M.scan_buffer(bufnr)
+    if err then
+      errors[#errors + 1] = err
+    end
     for _, m in ipairs(matches) do
       m.filename = path
       all[#all + 1] = m
     end
+  end
+
+  -- One aggregate warning, not one per file: a missing/broken parser fails
+  -- identically on every file, and notifying that once with a count (ERR-11:
+  -- so the cause stays visible instead of just showing up as a short table
+  -- list) says the same thing as flooding the message history would.
+  if #errors > 0 then
+    notify.warn(
+      string.format(
+        "%d/%d file(s) could not be Tree-sitter scanned (%s)",
+        #errors,
+        #filtered,
+        errors[1]
+      )
+    )
   end
 
   return all

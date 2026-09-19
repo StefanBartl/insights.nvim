@@ -46,7 +46,10 @@ function M.get_buffer()
   if sym_cfg.use_treesitter_for_lua and vim.bo.filetype == "lua" then
     local ts_lua = require("insights.symbols.ts_lua")
     local bufnr = vim.api.nvim_get_current_buf()
-    local matches = ts_lua.scan_buffer(bufnr)
+    local matches, ts_err = ts_lua.scan_buffer(bufnr)
+    if ts_err then
+      notify.warn("Tree-sitter scan failed: " .. ts_err)
+    end
     for _, m in ipairs(matches) do
       m.filename = path
     end
@@ -146,7 +149,10 @@ function M.get_tables(scope)
   if scope == "buffer" then
     local path = vim.api.nvim_buf_get_name(0)
     local bufnr = vim.api.nvim_get_current_buf()
-    local result = scanner.scan_buffer(bufnr)
+    local result, ts_err = scanner.scan_buffer(bufnr)
+    if ts_err then
+      notify.warn("Tree-sitter scan failed: " .. ts_err)
+    end
     for _, e in ipairs(result) do
       e.filename = path
     end
@@ -167,7 +173,10 @@ function M.get_strings(scope)
   if scope == "buffer" then
     local path = vim.api.nvim_buf_get_name(0)
     local bufnr = vim.api.nvim_get_current_buf()
-    local result = scanner.scan_buffer(bufnr)
+    local result, ts_err = scanner.scan_buffer(bufnr)
+    if ts_err then
+      notify.warn("Tree-sitter scan failed: " .. ts_err)
+    end
     for _, e in ipairs(result) do
       e.filename = path
     end

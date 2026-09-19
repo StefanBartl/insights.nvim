@@ -98,6 +98,9 @@ require("insights").setup({
       type    = "functions",  -- "functions" | "tables" | "strings"
       rebuild = false,        -- force a cache rebuild first ("functions" only)
     },
+    -- Annotation comments (:Insights todos); false = declared, not bound
+    todos    = false,         -- e.g. "<leader>sT": the configured picker
+    todos_qf = false,         -- e.g. "<leader>ST": the quickfix list
   },
 
   -- Buffer-local keymaps on scratch reports and the fileinfo float

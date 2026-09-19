@@ -17,8 +17,8 @@ integration needed.
 | `<leader>fi` | n | `fileinfo.keymap` | Toggle `fs.stat` float for current buffer |
 | `<leader>ps` | n | `keymaps.symbols_telescope` | Open symbol picker (telescope) |
 | `<leader>pS` | n | `keymaps.symbols_fzf` | Open symbol picker (fzf-lua) |
-| — (unbound) | n | `keymaps.todos` | Annotation comments in the configured picker (`:Insights todos`) |
-| — (unbound) | n | `keymaps.todos_qf` | Annotation comments to the quickfix list (`:Insights todos qf`) |
+| — (`keymaps.todos = false`) | n | `keymaps.todos` | Annotation comments in the configured picker (`:Insights todos`) |
+| — (`keymaps.todos_qf = false`) | n | `keymaps.todos_qf` | Annotation comments to the quickfix list (`:Insights todos qf`) |
 
 The two `symbols_*` keys accept either a plain lhs string, or a table that
 also picks what the mapping asks for:

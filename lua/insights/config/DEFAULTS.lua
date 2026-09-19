@@ -90,6 +90,10 @@ local defaults = {
   keymaps = {
     symbols_telescope = "<leader>ps",
     symbols_fzf = "<leader>pS",
+    -- Annotation comments (:Insights todos) -- unbound until a host names a
+    -- key; false is "declared, not bound".
+    todos = false,
+    todos_qf = false,
   },
 
   -- Buffer-local keymaps on scratch reports and the fileinfo float.

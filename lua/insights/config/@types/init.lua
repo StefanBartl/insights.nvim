@@ -95,6 +95,8 @@
 ---@class Insights.KeymapsConfig
 ---@field symbols_telescope string|false|Insights.SymbolsKeymap
 ---@field symbols_fzf string|false|Insights.SymbolsKeymap
+---@field todos string|false      annotation comments in the configured picker
+---@field todos_qf string|false   annotation comments to the quickfix list
 
 ---@class Insights.UIConfig
 ---@field close_keys string[]  buffer-local keys that close a scratch buffer / fileinfo float
@@ -260,6 +262,8 @@
 ---@class Insights.KeymapsOpts
 ---@field symbols_telescope? string|false|Insights.SymbolsKeymap
 ---@field symbols_fzf?       string|false|Insights.SymbolsKeymap
+---@field todos?             string|false   annotation comments in the configured picker
+---@field todos_qf?          string|false   annotation comments to the quickfix list
 
 ---@class Insights.UIOpts
 ---@field close_keys? string[]  buffer-local keys that close a scratch buffer / fileinfo float

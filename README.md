@@ -56,32 +56,32 @@ conflicts, unused imports and stray dev servers.
 Start at [docs/README.md](docs/README.md) — what's where, and which question
 each page answers.
 
-**The Basics**
+### The Basics
 
 - [Requirements](docs/installation.md#requirements) — Neovim version, required plugins and CLI tools.
 - [Installation](docs/installation.md) — every package manager, and the automatic-trigger caveat.
 - [Quickstart](docs/quickstart.md) — the first thing to run after installing.
 
-**Configuration**
+### Configuration
 
 - [What you get with the defaults](docs/what-you-get.md) — the full `:Insights` surface at a glance.
 - [All options](docs/configuration.md) — every `setup()` option and its default.
 - [Commands](docs/commands.md) — the full subcommand reference, flags, and symbol types.
 - [Bindings cheatsheet](docs/BINDINGS.md) — every keymap, user command and autocmd the plugin registers.
 
-**What it does**
+### What it does
 
 - [Features](docs/FEATURES/README.md) — every module and what it does.
 - [Automatic triggers](docs/automatic-triggers.md) — the `conflicts`, `unimported` and `devserver` autocmds, and how dev-server tracking works.
 - [Workflow](docs/WORKFLOW.md) — which feature answers which everyday question about a codebase, rather than what each one does.
 - [Hover](docs/hover.md) — the hover.nvim contribution: why a cold index says nothing, and why a module nobody imports is silence rather than a zero.
 
-**Under the hood**
+### Under the hood
 
 - [Architecture](docs/architecture.md) — source tree layout and module responsibilities.
 - [Health check](docs/health.md) — the thirteen `:checkhealth insights` sections, and which findings are actually problems.
 
-**Working on it**
+### Working on it
 
 - [Contributing](docs/CONTRIBUTING.md) — ground rules, project layout, and how to add an analysis.
 - [Feedback](https://github.com/StefanBartl/insights.nvim/issues) — bugs, feature requests and usage questions; broader discussion in [Discussions](https://github.com/StefanBartl/insights.nvim/discussions).

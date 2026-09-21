@@ -98,7 +98,7 @@ return function(H)
 
     -- The answer is recorded against a real job, since `track` resolves the
     -- channel to an OS pid and records nothing without one.
-    local chan = vim.fn.jobstart({ vim.v.progpath, "--headless", "-c", "qa!" })
+    local chan = vim.fn.jobstart({ vim.v.progpath, "--headless", "-u", "NONE", "-c", "qa!" })
     H.ok(chan > 0, "a real job started")
 
     devserver.reset()
@@ -177,7 +177,7 @@ return function(H)
     )
     vim.api.nvim_buf_delete(buf, { force = true })
 
-    local live = vim.fn.jobstart({ vim.v.progpath, "--headless", "-c", "qa!" })
+    local live = vim.fn.jobstart({ vim.v.progpath, "--headless", "-u", "NONE", "-c", "qa!" })
     local cmd = devserver.chan_cmd(live, 1)
     H.contains(cmd, "--headless", "a real channel's argv is joined into one string")
     pcall(vim.fn.jobstop, live)

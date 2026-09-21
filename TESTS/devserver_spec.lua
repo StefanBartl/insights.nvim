@@ -58,7 +58,7 @@ return function(H)
   devserver.track(99999, "npm run dev", true)
   H.eq(count(), 0, "a channel with no job behind it is not recorded")
 
-  local chan = vim.fn.jobstart({ vim.v.progpath, "--headless", "-c", "qa!" })
+  local chan = vim.fn.jobstart({ vim.v.progpath, "--headless", "-u", "NONE", "-c", "qa!" })
   H.ok(chan > 0, "a real job started")
   devserver.track(chan, "npm run dev", true)
   H.eq(count(), 1, "a real channel is recorded")

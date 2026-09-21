@@ -1,7 +1,7 @@
 -- TESTS/run.lua — headless test runner for insights.nvim.
 --
 -- Run from the repo root:
---   nvim --headless -u NONE -c "set rtp+=." -l TESTS/run.lua
+--   nvim -n -i NONE --headless -u NONE -c "set rtp+=." -l TESTS/run.lua
 --
 -- lib.nvim has to be reachable: several insights modules
 -- require it at module load. The runner puts a sibling checkout on the

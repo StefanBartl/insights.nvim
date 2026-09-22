@@ -942,11 +942,13 @@ All of these can be overridden per invocation with the flags documented under
   automatically and use the command only.
 
 `git_cmd`
-  The git executable. Only stdout is parsed, so git's warnings on stderr
-  (e.g. "LF will be replaced by CRLF") are never mistaken for file names.
+  The git executable.
 
 `diff_filter`
-  Value passed to `git diff --diff-filter=`. "U" = unmerged.
+  A `git status --porcelain` code to match, in either the index or the
+  worktree column. "U" (the default) means "unmerged" and matches the full
+  conflict code set (UU, AA, DD, AU, UD, UA, DU), not just paths containing
+  the literal letter U.
 
 `open_qf`
   `false` fills the quickfix list without opening the window.

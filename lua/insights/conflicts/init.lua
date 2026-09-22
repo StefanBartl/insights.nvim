@@ -11,90 +11,72 @@ local notify = require("insights.util.notify").create("[insights.conflicts]")
 -- indirection -- and lib.nvim.cross is already used elsewhere in this plugin.
 local executable = require("lib.nvim.cross.executable")
 local list = require("lib.nvim.ui.list")
+local git = require("lib.nvim.git")
 
 local M = {}
 
----@internal
----Run a git command and return its stdout only.
----
----`vim.system` rather than `systemlist`, because the latter folds stderr into
----its result: git's "LF will be replaced by CRLF" warnings would then be
----parsed as conflicting file names.
----
----`cwd` is passed explicitly (snapshotted once by the caller) rather than
----left to `vim.system`'s own default of the editor's current directory: `run`
----is called twice per scan (`rev-parse` then `diff`), and pinning the value
----once keeps both calls scoped to the same repo even if something changes
----the global cwd in between.
----@param cmd string[]
----@param cwd string
----@return table  # { code, stdout, stderr }
-local function run(cmd, cwd)
-  return vim.system(cmd, { text = true, cwd = cwd }):wait()
-end
+-- The seven `git status --porcelain` XY codes a real unmerged path can carry
+-- (see `git help status`, "Unmerged" table). Not reducible to "does the code
+-- contain the letter U": AA (both added) and DD (both deleted) are conflicts
+-- too but carry no literal "U".
+local UNMERGED_CODES =
+  { UU = true, AA = true, DD = true, AU = true, UD = true, UA = true, DU = true }
 
 ---@internal
----Is the cwd inside a git work tree?
----@param git_cmd string
----@param cwd string
----@return boolean
-local function in_git_repo(git_cmd, cwd)
-  local ok, res = pcall(run, { git_cmd, "rev-parse", "--is-inside-work-tree" }, cwd)
-  return ok and res.code == 0
-end
-
----@internal
----Resolve `cfg.diff_filter` for the `git diff --diff-filter=` flag. Shared by
----both `M.list` and `M.run_async` below so the guard lives in one place
----rather than being duplicated inline at each call site (same shape as
----`scan/rg.lua`'s single `max_file_size_kb` builder feeding two config
----consumers). `cfg.diff_filter or "U"` alone only catches nil/false -- a
----truthy non-string (e.g. `diff_filter = true`) survives it and crashes the
----`"--diff-filter=" .. ...` concatenation at both sites (ERR-22).
+---Resolve `cfg.diff_filter` to a predicate over a status entry's XY code.
+---`"U"`, the default, means "unmerged" and checks the fixed code set above
+---(the general one-letter match below would miss AA/DD). Any other value is
+---matched against either column, the closest read of a single-letter
+---`git diff --diff-filter` value once there is no longer a `git diff` call to
+---hand it to -- the whole point of this swap is one `git status` instead of
+---an `in_git_repo` probe plus a separate `git diff`.
+---
+---`cfg.diff_filter or "U"` alone only catches nil/false -- a truthy
+---non-string (e.g. `diff_filter = true`) survives it and would crash the
+---`:sub()` calls below (ERR-22), so the type check stays.
 ---@param cfg Insights.ConflictsConfig
----@return string
-local function diff_filter(cfg)
-  return type(cfg.diff_filter) == "string" and cfg.diff_filter or "U"
-end
-
----@internal
----Turn `git diff --name-only` output into a file list.
----@param stdout string|nil
----@return string[]
-local function parse_files(stdout)
-  local files = {}
-  for _, line in ipairs(vim.split(stdout or "", "\n", { plain = true })) do
-    line = vim.trim(line)
-    if line ~= "" then
-      files[#files + 1] = line
+---@return fun(code: string): boolean
+local function filter_predicate(cfg)
+  local filter = type(cfg.diff_filter) == "string" and cfg.diff_filter or "U"
+  if filter == "U" then
+    return function(code)
+      return UNMERGED_CODES[code] == true
     end
   end
-  return files
+  return function(code)
+    return code:sub(1, 1) == filter or code:sub(2, 2) == filter
+  end
 end
 
 ---List files git reports as unmerged.
 ---@param cfg Insights.ConflictsConfig
 ---@return string[]|nil files, string|nil err
 function M.list(cfg)
-  local git = cfg.git_cmd or "git"
-  local cwd = vim.fn.getcwd()
-  if not executable.exists(git) then
-    return nil, "git not executable: " .. git
-  end
-  if not in_git_repo(git, cwd) then
-    return nil, "not inside a git repository"
+  local git_cmd = cfg.git_cmd or "git"
+  if not executable.exists(git_cmd) then
+    return nil, "git not executable: " .. git_cmd
   end
 
-  local ok, res =
-    pcall(run, { git, "diff", "--name-only", "--diff-filter=" .. diff_filter(cfg) }, cwd)
-  if not ok then
-    return nil, "git diff failed: " .. tostring(res)
-  end
-  if res.code ~= 0 then
-    return nil, "git diff failed: " .. vim.trim(res.stderr or "")
+  -- `status_porcelain`'s error string is whatever it captured on STDOUT, not
+  -- git's actual complaint (that went to stderr, which the blocking form
+  -- never sees) -- for a real "not a repository" or similar, this is usually
+  -- lib.nvim's own generic "git status failed", not git's specific message.
+  local status, err = git.status_porcelain({ dir = vim.fn.getcwd() }, git_cmd)
+  if not status then
+    return nil, err
   end
 
-  return parse_files(res.stdout), nil
+  local predicate = filter_predicate(cfg)
+  local files = {}
+  for path, entry in pairs(status) do
+    if predicate(entry.code) then
+      files[#files + 1] = path
+    end
+  end
+  -- `pairs()` order is unspecified; git's own `--name-only` was alphabetical,
+  -- and the quickfix list/notification below read as a diff otherwise.
+  table.sort(files)
+  return files, nil
 end
 
 ---@internal
@@ -143,7 +125,7 @@ local function report(files, err, cfg, opts)
   return #files
 end
 
----Scan for conflicts and populate the quickfix list. Blocks on two git calls.
+---Scan for conflicts and populate the quickfix list. Blocks on one git call.
 ---
 ---Use this when someone explicitly asked for a scan (`:Insights conflicts`,
 ---`insights.run_conflicts()`) and is waiting for the answer. For a scan nobody
@@ -160,22 +142,18 @@ end
 
 ---Non-blocking counterpart to `run`.
 ---
----The two git calls go through `vim.system`'s callback form instead of
----`:wait()`. On the `VimEnter` path that matters: the blocking version was
----measured at ~120ms of main-loop block on Windows (two git spawns with an EDR
----scanner in the path), the largest single item in one config's startup.
+---The git call goes through `status_porcelain_async` instead of the blocking
+---form. On the `VimEnter` path that matters: the blocking two-call version
+---(`rev-parse` then `diff`) was measured at ~120ms of main-loop block on
+---Windows (two git spawns with an EDR scanner in the path), the largest
+---single item in one config's startup -- now a single spawn, async.
 ---@param opts { silent?: boolean }|nil
 ---@param on_done fun(count: integer)|nil  # called once the report is applied
 ---@return nil
 function M.run_async(opts, on_done)
   opts = opts or {}
   local cfg = require("insights.config").get().conflicts or {}
-  local git = cfg.git_cmd or "git"
-  -- Snapshotted once: the two spawns below are separated by a scheduled
-  -- callback (a full event-loop turn), so without this the rev-parse and the
-  -- diff could end up scoped to different directories if something else
-  -- changes the global cwd in between.
-  local cwd = vim.fn.getcwd()
+  local git_cmd = cfg.git_cmd or "git"
 
   local function finish(files, err)
     local count = report(files, err, cfg, opts)
@@ -184,37 +162,25 @@ function M.run_async(opts, on_done)
     end
   end
 
-  if not executable.exists(git) then
-    return finish(nil, "git not executable: " .. git)
+  if not executable.exists(git_cmd) then
+    return finish(nil, "git not executable: " .. git_cmd)
   end
 
-  ---@param cmd string[]
-  ---@param cb fun(res: table)
-  local function spawn(cmd, cb)
-    local ok = pcall(vim.system, cmd, { text = true, cwd = cwd }, function(res)
-      vim.schedule(function()
-        cb(res)
-      end)
-    end)
-    if not ok then
-      vim.schedule(function()
-        finish(nil, "git failed to spawn: " .. table.concat(cmd, " "))
-      end)
-    end
-  end
-
-  spawn({ git, "rev-parse", "--is-inside-work-tree" }, function(res)
-    if res.code ~= 0 then
-      return finish(nil, "not inside a git repository")
+  git.status_porcelain_async({ dir = vim.fn.getcwd() }, function(status, err)
+    if not status then
+      return finish(nil, err)
     end
 
-    spawn({ git, "diff", "--name-only", "--diff-filter=" .. diff_filter(cfg) }, function(diff)
-      if diff.code ~= 0 then
-        return finish(nil, "git diff failed: " .. vim.trim(diff.stderr or ""))
+    local predicate = filter_predicate(cfg)
+    local files = {}
+    for path, entry in pairs(status) do
+      if predicate(entry.code) then
+        files[#files + 1] = path
       end
-      finish(parse_files(diff.stdout), nil)
-    end)
-  end)
+    end
+    table.sort(files)
+    finish(files, nil)
+  end, git_cmd)
 end
 
 return M

@@ -167,7 +167,7 @@ local defaults = {
     enable = true,
     events = { "VimEnter" }, -- when to scan; {} = only :Insights conflicts
     git_cmd = "git",
-    diff_filter = "U", -- git --diff-filter; U = unmerged
+    diff_filter = "U", -- git status code to match; U = unmerged (the default set)
     open_qf = true, -- :copen after populating the list
     notify = true, -- notify with the conflicting file names
   },

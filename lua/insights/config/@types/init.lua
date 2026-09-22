@@ -144,7 +144,7 @@
 ---@field enable boolean
 ---@field events string[]      autocmd events that trigger the scan; {} = manual only
 ---@field git_cmd string
----@field diff_filter string   git --diff-filter value; "U" = unmerged
+---@field diff_filter string   git status code to match (either XY column); "U" = unmerged (the default set)
 ---@field open_qf boolean      :copen after populating the quickfix list
 ---@field notify boolean       notify with the conflicting file names
 
@@ -289,7 +289,7 @@
 ---@field enable?      boolean
 ---@field events?      string[]      autocmd events that trigger the scan; {} = manual only
 ---@field git_cmd?     string
----@field diff_filter? string   git --diff-filter value; "U" = unmerged
+---@field diff_filter? string   git status code to match (either XY column); "U" = unmerged (the default set)
 ---@field open_qf?     boolean      :copen after populating the quickfix list
 ---@field notify?      boolean       notify with the conflicting file names
 

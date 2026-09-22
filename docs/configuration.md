@@ -166,7 +166,7 @@ require("insights").setup({
     enable      = true,             -- false = no autocmd, no :Insights conflicts
     events      = { "VimEnter" },   -- {} = never automatic, command only
     git_cmd     = "git",
-    diff_filter = "U",              -- git --diff-filter value; U = unmerged
+    diff_filter = "U",              -- git status code to match; U = unmerged (the default set)
     open_qf     = true,             -- :copen after populating the list
     notify      = true,             -- notify with the conflicting file names
   },

@@ -1,15 +1,11 @@
 -- TESTS/conflicts_spec.lua — the unresolved-merge-conflict scan.
 --
--- **No git process is started.** Both entry points go through `vim.system`,
--- which is replaced for the duration by a fake that answers whatever the case
--- under test needs -- including the answers a real repository would rarely
--- give (git missing, not a work tree, a diff that fails). `lib.nvim.ui.list`
--- is replaced too, so the quickfix list is captured rather than populated and
--- `:copen` never runs.
---
--- The stdout/stderr split is the reason the module uses `vim.system` at all:
--- `systemlist` folds git's "LF will be replaced by CRLF" warnings into its
--- result, and they would be parsed as conflicting file names.
+-- **No git process is started.** `lib.nvim.git.status_porcelain`/`_async`
+-- both go through `vim.system` under the hood (a single `git status
+-- --porcelain -z -u` call, no more separate `rev-parse` probe), which is
+-- replaced for the duration by a fake that answers whatever the case under
+-- test needs. `lib.nvim.ui.list` is replaced too, so the quickfix list is
+-- captured rather than populated and `:copen` never runs.
 
 return function(H)
   local config = require("insights.config")
@@ -41,20 +37,25 @@ return function(H)
   package.loaded["insights.conflicts"] = nil
   local conflicts = require("insights.conflicts")
 
-  -- The fake git. `answers` is consulted per sub-command.
-  local answers, seen
+  -- The fake git: a single answer, shared by every call a case makes (there
+  -- is only ever one `git status` per list()/run_async() invocation now).
+  local answer, seen
   local real_system = vim.system
 
-  ---@param cmd string[]
-  ---@return table
-  local function answer_for(cmd)
-    local sub = cmd[2]
-    return answers[sub] or { code = 0, stdout = "", stderr = "" }
+  ---@param entries string[]  each "XY path", e.g. "UU a.txt"
+  ---@return string  NUL-separated `-z` porcelain stdout
+  local function nul_status(entries)
+    local fields = {}
+    for _, e in ipairs(entries) do
+      fields[#fields + 1] = e
+    end
+    fields[#fields + 1] = "" -- trailing NUL, exactly as git terminates the last entry
+    return table.concat(fields, "\0")
   end
 
   vim.system = function(cmd, opts, cb)
     seen[#seen + 1] = { cmd = cmd, cwd = opts and opts.cwd }
-    local res = answer_for(cmd)
+    local res = answer
     if cb then
       vim.schedule(function()
         cb(res)
@@ -70,10 +71,7 @@ return function(H)
 
   local function reset()
     qf_calls, seen = {}, {}
-    answers = {
-      ["rev-parse"] = { code = 0, stdout = "true\n", stderr = "" },
-      ["diff"] = { code = 0, stdout = "a.txt\nb.txt\n", stderr = "" },
-    }
+    answer = { code = 0, stdout = nul_status({ "UU a.txt", "UU b.txt" }), stderr = "" }
     git_present = true
   end
 
@@ -85,41 +83,69 @@ return function(H)
     local files, err = conflicts.list(config.get().conflicts)
     H.eq(err, nil, "a clean run has no error")
     H.eq(#files, 2, "one entry per unmerged file")
-    H.eq(files[1], "a.txt", "in the order git printed them")
-    H.eq(seen[1].cmd[2], "rev-parse", "the work-tree check runs first")
-    H.eq(seen[2].cmd[2], "diff", "then the diff")
-    H.ok(vim.tbl_contains(seen[2].cmd, "--diff-filter=U"), "asking for unmerged files")
-    H.ok(vim.tbl_contains(seen[2].cmd, "--name-only"), "and only their names")
-    H.eq(seen[1].cwd, seen[2].cwd, "both calls are scoped to the same snapshotted directory")
+    H.eq(files[1], "a.txt", "sorted, not insertion order")
+    H.eq(#seen, 1, "exactly one git process -- status replaces rev-parse + diff")
+    H.eq(seen[1].cmd[1], "git", "the default binary")
+    H.ok(vim.tbl_contains(seen[1].cmd, "status"), "asks for status")
+    H.ok(vim.tbl_contains(seen[1].cmd, "--porcelain"), "porcelain format")
+    H.ok(vim.tbl_contains(seen[1].cmd, "-z"), "NUL-separated, exact paths")
+    H.ok(
+      not vim.tbl_contains(seen[1].cmd, "--diff-filter=U"),
+      "no more --diff-filter on the wire -- filtering happens on the response"
+    )
 
-    -- A blank line in git's output is not a file name.
+    -- Sorting is not an accident of map iteration: the fixture is inserted
+    -- with the alphabetically-later path first.
     reset()
-    answers["diff"] = { code = 0, stdout = "a.txt\n\n  \nb.txt\n", stderr = "" }
-    H.eq(#conflicts.list(config.get().conflicts), 2, "blank lines are not file names")
+    answer.stdout = nul_status({ "UU z_conflict.txt", "UU a_conflict.txt" })
+    local sorted_files = conflicts.list(config.get().conflicts)
+    H.eq(sorted_files[1], "a_conflict.txt", "list() sorts, regardless of map order")
+    H.eq(sorted_files[2], "z_conflict.txt", "...second entry too")
+
+    -- Non-conflicting entries in the same status are excluded.
+    reset()
+    answer.stdout =
+      nul_status({ "UU conflict.txt", " M modified.txt", "?? untracked.txt", "!! ignored.txt" })
+    H.eq(#conflicts.list(config.get().conflicts), 1, "only the UU entry counts as unmerged")
+    H.eq(conflicts.list(config.get().conflicts)[1], "conflict.txt", "...and it is this one")
+
+    -- AA/DD are unmerged too, despite carrying no literal "U".
+    reset()
+    answer.stdout = nul_status({ "AA both-added.txt", "DD both-deleted.txt" })
+    local aadd = conflicts.list(config.get().conflicts)
+    H.eq(#aadd, 2, "AA and DD both count as unmerged")
 
     reset()
-    answers["diff"] = { code = 0, stdout = "", stderr = "" }
-    H.eq(#conflicts.list(config.get().conflicts), 0, "no output is no conflicts, and not an error")
+    answer.stdout = nul_status({})
+    H.eq(
+      #conflicts.list(config.get().conflicts),
+      0,
+      "a clean tree is no conflicts, and not an error"
+    )
 
-    -- The configured filter reaches the command.
+    -- The configured filter changes what is kept from the response, not the
+    -- request: matches either XY column.
     reset()
-    conflicts.list({ git_cmd = "git", diff_filter = "M" })
-    H.ok(vim.tbl_contains(seen[2].cmd, "--diff-filter=M"), "a configured diff filter is used")
+    answer.stdout = nul_status({ " M modified.txt", "UU conflict.txt", "M  staged.txt" })
+    local m_files = conflicts.list({ git_cmd = "git", diff_filter = "M" })
+    H.eq(#m_files, 2, "diff_filter='M' matches either column")
+    H.ok(vim.tbl_contains(m_files, "modified.txt"), "worktree M")
+    H.ok(vim.tbl_contains(m_files, "staged.txt"), "index M")
+    H.ok(not vim.tbl_contains(m_files, "conflict.txt"), "the UU entry does not match 'M'")
 
     -- ERR-22 follow-up: `cfg.diff_filter or "U"` alone only catches nil/false
     -- -- a truthy non-string (e.g. `diff_filter = true`) survives it and used
-    -- to crash the `"--diff-filter=" .. ...` concatenation. Must degrade to
-    -- the default "U" instead.
+    -- to crash the `:sub()` calls in the predicate. Must degrade to the
+    -- default "U" instead.
     reset()
     ---@diagnostic disable-next-line: assign-type-mismatch
     local list_ok, list_files = pcall(conflicts.list, { git_cmd = "git", diff_filter = true })
     H.ok(list_ok, "a wrong-type diff_filter does not crash list()")
-    H.eq(#list_files, 2, "and the scan still runs")
-    H.ok(vim.tbl_contains(seen[2].cmd, "--diff-filter=U"), "falling back to the default filter")
+    H.eq(#list_files, 2, "and the scan still runs, falling back to the default filter")
 
     reset()
     conflicts.list({ git_cmd = "my-git" })
-    H.eq(seen[1].cmd[1], "my-git", "and a configured git binary")
+    H.eq(seen[1].cmd[1], "my-git", "a configured git binary is used")
 
     -- Failure modes ---------------------------------------------------------
     reset()
@@ -129,19 +155,32 @@ return function(H)
     H.contains(no_git_err or "", "git not executable", "and an error saying so")
     H.eq(#seen, 0, "and nothing is spawned")
 
+    -- lib.nvim.git.status_porcelain's blocking form only captures stdout
+    -- (its own doc: "Captured stdout, both on success and failure") --
+    -- stderr, where a real "fatal: not a git repository" would land, never
+    -- reaches this module. Any failure with empty stdout therefore degrades
+    -- to lib.nvim's own generic message, not git's specific one; a real
+    -- non-repo directory (empty stdout on failure) hits exactly this path.
     reset()
-    answers["rev-parse"] = { code = 128, stdout = "", stderr = "fatal: not a git repository" }
+    answer = {
+      code = 128,
+      stdout = "",
+      stderr = "fatal: not a git repository (or any of the parent directories): .git",
+    }
     local outside, outside_err = conflicts.list({ git_cmd = "git" })
     H.eq(outside, nil, "outside a repository there is nothing to list")
-    H.eq(outside_err, "not inside a git repository", "with that as the reason")
-    H.eq(#seen, 1, "and the diff is never attempted")
+    H.eq(
+      outside_err,
+      "git status failed",
+      "lib.nvim's generic message -- stderr does not reach here"
+    )
+    H.eq(#seen, 1, "one attempt, no second call to skip")
 
     reset()
-    answers["diff"] = { code = 1, stdout = "", stderr = "something broke" }
+    answer = { code = 1, stdout = "", stderr = "something broke" }
     local failed, failed_err = conflicts.list({ git_cmd = "git" })
-    H.eq(failed, nil, "a failing diff has no answer")
-    H.contains(failed_err or "", "git diff failed", "and reports the failure")
-    H.contains(failed_err or "", "something broke", "quoting git's stderr")
+    H.eq(failed, nil, "a failing status call has no answer")
+    H.ok(type(failed_err) == "string" and #failed_err > 0, "...with some reason")
 
     -- ── run ────────────────────────────────────────────────────────────────
     reset()
@@ -162,10 +201,10 @@ return function(H)
     H.eq(qf_calls[1].opts.open, false, "open_qf = false leaves the list closed")
     config.setup({ conflicts = { enable = true, notify = false } })
 
-    -- A clean tree touches the quickfix list at all: replacing it with an
-    -- empty list would clear a list the user is reading.
+    -- A clean tree does not touch the quickfix list at all: replacing it with
+    -- an empty list would clear a list the user is reading.
     reset()
-    answers["diff"] = { code = 0, stdout = "", stderr = "" }
+    answer.stdout = nul_status({})
     H.eq(conflicts.run(), 0, "a clean tree reports zero")
     H.eq(#qf_calls, 0, "and does not touch the quickfix list")
 
@@ -188,7 +227,7 @@ return function(H)
     )
     H.eq(async_count, 2, "with the same count")
     H.eq(#qf_calls, 1, "and the same quickfix list")
-    H.eq(seen[1].cwd, seen[2].cwd, "both spawns scoped to one snapshotted directory")
+    H.eq(#seen, 1, "one spawn")
 
     reset()
     git_present = false
@@ -206,7 +245,7 @@ return function(H)
     H.eq(#seen, 0, "having spawned nothing")
 
     reset()
-    answers["rev-parse"] = { code = 128, stdout = "", stderr = "" }
+    answer = { code = 128, stdout = "", stderr = "fatal: not a git repository" }
     async_count = nil
     conflicts.run_async({ silent = true }, function(c)
       async_count = c
@@ -218,10 +257,10 @@ return function(H)
       "and so does the not-a-repository path"
     )
     H.eq(async_count, 0, "with nothing found")
-    H.eq(#seen, 1, "and no diff attempted")
+    H.eq(#seen, 1, "one attempt")
 
     reset()
-    answers["diff"] = { code = 1, stdout = "", stderr = "boom" }
+    answer = { code = 1, stdout = "", stderr = "boom" }
     async_count = nil
     conflicts.run_async({ silent = true }, function(c)
       async_count = c
@@ -230,7 +269,7 @@ return function(H)
       vim.wait(2000, function()
         return async_count ~= nil
       end),
-      "a failing diff still calls back"
+      "a failing status call still calls back"
     )
     H.eq(async_count, 0, "reporting nothing found")
 
@@ -240,9 +279,8 @@ return function(H)
     H.ok(pcall(conflicts.run_async, { silent = true }), "a callback is optional")
     vim.wait(200)
 
-    -- ERR-22 follow-up, run_async's own diff-filter call site: the same
-    -- wrong-type diff_filter must not crash the async path either, since it
-    -- builds the same command through a separate `spawn()` call.
+    -- ERR-22 follow-up, the async path shares `filter_predicate` with the
+    -- sync one, but exercise it separately since it is a different call site.
     config.setup({ conflicts = { enable = true, notify = false, diff_filter = true } })
     reset()
     local async_ok, async_result
@@ -255,7 +293,6 @@ return function(H)
     end)
     H.ok(async_ok, "and it still calls back")
     H.eq(async_result, 2, "falling back to the default filter, same as the sync path")
-    H.ok(vim.tbl_contains(seen[2].cmd, "--diff-filter=U"), "using the default filter on the wire")
     config.setup({ conflicts = { enable = true, notify = false } })
   end)
 

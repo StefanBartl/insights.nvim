@@ -293,25 +293,34 @@ function M.scan(opts)
     return {}, err
   end
 
+  -- Resolved once for the whole scan rather than via a per-hit `classify()`
+  -- call: `words` is invariant across this loop, but `classify` rebuilds
+  -- the alternation string (to know what to look up in `regex_cache`) on
+  -- every call regardless.
+  local re = M.compiled_pattern(words)
   local entries = {}
-  for _, line in ipairs(lines) do
-    local hit = M.parse_vimgrep(line)
-    if hit then
-      local word, info = M.classify(hit.text, words)
-      if word and info then
-        local text = vim.trim(hit.text)
-        entries[#entries + 1] = {
-          filename = hit.filename,
-          lnum = hit.lnum,
-          col = hit.col,
-          text = text,
-          word = word,
-          keyword = info.keyword,
-          color = info.color,
-          icon = info.icon,
-          name = text,
-          func_type = info.keyword,
-        }
+  if re then
+    for _, line in ipairs(lines) do
+      local hit = M.parse_vimgrep(line)
+      if hit then
+        local s, e = re:match_str(hit.text)
+        local word = s and hit.text:sub(s + 1, e) or nil
+        local info = word and M.lookup(word)
+        if word and info then
+          local text = vim.trim(hit.text)
+          entries[#entries + 1] = {
+            filename = hit.filename,
+            lnum = hit.lnum,
+            col = hit.col,
+            text = text,
+            word = word,
+            keyword = info.keyword,
+            color = info.color,
+            icon = info.icon,
+            name = text,
+            func_type = info.keyword,
+          }
+        end
       end
     end
   end

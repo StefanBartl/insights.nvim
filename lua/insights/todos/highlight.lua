@@ -156,11 +156,20 @@ end
 ---just as often. The TTL keeps a file that crosses `max_file_size_kb`
 ---mid-session (e.g. a growing log) from going unnoticed for long, without
 ---paying for a syscall on every refresh.
----@type table<integer, { size: integer|nil, checked_at: integer }>
+---
+---Keyed on `name` too, not just the TTL: `:file`/`:saveas` repoints a
+---buffer at a different path without touching its number and without
+---firing `BufUnload`/`BufWipeout` (the only events `clear()` -- which drops
+---this cache -- is wired to), so a size cached for the buffer's old name
+---would otherwise go on answering for its new one until the TTL happened
+---to expire.
+---@type table<integer, { name: string, size: integer|nil, checked_at: integer }>
 local size_cache = {}
 
----@internal
 local SIZE_STAT_TTL_MS = 3000
+-- Exposed so a test can wait out exactly this long instead of duplicating
+-- (and risking drift from) the constant above.
+M.SIZE_STAT_TTL_MS = SIZE_STAT_TTL_MS
 
 ---Is the buffer one the highlighter should touch?
 ---@param bufnr integer
@@ -187,12 +196,12 @@ function M.eligible(bufnr)
       local now = uv.now()
       local cached = size_cache[bufnr]
       local size
-      if cached and now - cached.checked_at < SIZE_STAT_TTL_MS then
+      if cached and cached.name == name and now - cached.checked_at < SIZE_STAT_TTL_MS then
         size = cached.size
       else
         local st = uv.fs_stat(name)
         size = st and st.size or nil
-        size_cache[bufnr] = { size = size, checked_at = now }
+        size_cache[bufnr] = { name = name, size = size, checked_at = now }
       end
       if size and size > max_kb * 1024 then
         return false

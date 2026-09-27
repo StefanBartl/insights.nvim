@@ -347,6 +347,44 @@ return function(H)
     vim.api.nvim_buf_delete(buf, { force = true })
   end
 
+  -- layer 2 of ts_in_comment: a position the host tree does NOT call a
+  -- comment (it's a Lua string argument) but that resolves, however many
+  -- injection layers deep, to a tree whose *language* is literally
+  -- "comment" -- e.g. a real vimscript comment inside vim.cmd([[ ]]),
+  -- which nvim-treesitter injects as "vim", itself carrying its own nested
+  -- "comment" TODO-markup injection. Skipped gracefully where "vim" and/or
+  -- "comment" aren't installed, same spirit as the has_parser gate above --
+  -- this exercises an optional plugin's query files, not core Neovim's.
+  --
+  -- Layer 3 (a genuinely different embedded language whose own comment
+  -- syntax is never itself injection-wrapped as "comment") has no test:
+  -- every construction tried collapsed into layer 2, because the common
+  -- Tree-sitter grammars installed alongside Neovim nest the same generic
+  -- "comment" TODO-markup injection inside their own comment nodes too.
+
+  do
+    local line = 'vim.cmd([[ "TODO fix this vimscript ]])'
+    local col = assert(line:find("TODO")) - 1
+    local buf = vim.api.nvim_create_buf(false, true)
+    vim.bo[buf].buftype = ""
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, { line })
+    vim.bo[buf].filetype = "lua"
+
+    local ok_parser, parser = pcall(vim.treesitter.get_parser, buf, "lua")
+    if ok_parser and parser then
+      pcall(parser.parse, parser, true)
+      local ok_lt, lang_tree = pcall(parser.language_for_range, parser, { 0, col, 0, col })
+      if ok_lt and lang_tree and lang_tree:lang() == "comment" then
+        H.ok(
+          highlight.is_comment(buf, 0, col),
+          "a real vimscript comment nested inside vim.cmd([[ ]]) is inside a comment"
+        )
+      end
+    end
+
+    vim.api.nvim_buf_delete(buf, { force = true })
+  end
+
   -- eligible()'s max_file_size_kb branch: previously untested. A real
   -- on-disk file over the threshold is ineligible; the stat is cached
   -- (see highlight.lua's size_cache) until `clear()` drops it.
@@ -354,9 +392,13 @@ return function(H)
   do
     local dir, cleanup = H.fixture("todos-eligible")
     local big = dir .. "/big.lua"
+    local big2 = dir .. "/big2.lua"
     local small = dir .. "/small.lua"
+    local small2 = dir .. "/small2.lua"
     vim.fn.writefile({ ("-- TODO padding "):rep(100) }, big)
+    vim.fn.writefile({ ("-- TODO padding "):rep(100) }, big2)
     vim.fn.writefile({ "-- TODO" }, small)
+    vim.fn.writefile({ "-- TODO" }, small2)
 
     config.setup({ todos = { highlight = { max_file_size_kb = 1 } } })
 
@@ -376,8 +418,49 @@ return function(H)
     highlight.clear(buf_small)
     H.falsy(highlight.eligible(buf_small), "clear() drops the cached size")
 
+    -- A rename (`:file`) repoints the buffer at a different path without
+    -- unloading it (no BufUnload/BufWipeout, so clear() never runs) -- the
+    -- cached size must not go on answering for the buffer's old name.
+    local buf_rename = vim.fn.bufadd(small2)
+    vim.fn.bufload(buf_rename)
+    H.ok(highlight.eligible(buf_rename), "small file is eligible before the rename")
+    vim.api.nvim_buf_set_name(buf_rename, big2)
+    H.falsy(
+      highlight.eligible(buf_rename),
+      "renamed onto a too-large file, not served the old name's cached size"
+    )
+
     vim.api.nvim_buf_delete(buf_big, { force = true })
     vim.api.nvim_buf_delete(buf_small, { force = true })
+    vim.api.nvim_buf_delete(buf_rename, { force = true })
+    cleanup()
+  end
+
+  -- size_cache's TTL must expire on its own too, not just get dropped by an
+  -- explicit clear() -- the two are different code paths, and only the
+  -- latter was covered above. Real wall-clock wait (~3s): the same pattern
+  -- other specs in this file already use for async cases.
+
+  do
+    local dir, cleanup = H.fixture("todos-eligible-ttl")
+    local path = dir .. "/f.lua"
+    vim.fn.writefile({ "-- TODO" }, path)
+    config.setup({ todos = { highlight = { max_file_size_kb = 1 } } })
+
+    local buf = vim.fn.bufadd(path)
+    vim.fn.bufload(buf)
+    H.ok(highlight.eligible(buf), "small file is eligible, populating the cache")
+
+    vim.fn.writefile({ ("-- TODO more "):rep(200) }, path)
+    H.ok(highlight.eligible(buf), "grown file still reads the cached (small) size")
+
+    vim.wait(highlight.SIZE_STAT_TTL_MS + 200)
+    H.falsy(
+      highlight.eligible(buf),
+      "the cache self-expires after SIZE_STAT_TTL_MS, with no clear() call"
+    )
+
+    vim.api.nvim_buf_delete(buf, { force = true })
     cleanup()
   end
 

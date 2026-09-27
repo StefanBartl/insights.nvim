@@ -6,6 +6,7 @@
 require("insights.config.@types")
 
 local expand_path = require("lib.nvim.cross.fs.expand_path")
+local notify = require("insights.util.notify").create("[insights]")
 local islist = vim.islist or vim.tbl_islist
 
 local M = {}
@@ -155,10 +156,7 @@ local function sanitize(opts)
 
   last_issues = issues
   if #issues > 0 then
-    vim.notify(
-      "[insights] config issue(s) in setup():\n  - " .. table.concat(issues, "\n  - "),
-      vim.log.levels.WARN
-    )
+    notify.warn("config issue(s) in setup():\n  - " .. table.concat(issues, "\n  - "))
   end
   return cleaned
 end

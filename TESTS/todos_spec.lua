@@ -347,6 +347,40 @@ return function(H)
     vim.api.nvim_buf_delete(buf, { force = true })
   end
 
+  -- eligible()'s max_file_size_kb branch: previously untested. A real
+  -- on-disk file over the threshold is ineligible; the stat is cached
+  -- (see highlight.lua's size_cache) until `clear()` drops it.
+
+  do
+    local dir, cleanup = H.fixture("todos-eligible")
+    local big = dir .. "/big.lua"
+    local small = dir .. "/small.lua"
+    vim.fn.writefile({ ("-- TODO padding "):rep(100) }, big)
+    vim.fn.writefile({ "-- TODO" }, small)
+
+    config.setup({ todos = { highlight = { max_file_size_kb = 1 } } })
+
+    local buf_big = vim.fn.bufadd(big)
+    vim.fn.bufload(buf_big)
+    H.falsy(highlight.eligible(buf_big), "a file over max_file_size_kb is not eligible")
+
+    local buf_small = vim.fn.bufadd(small)
+    vim.fn.bufload(buf_small)
+    H.ok(highlight.eligible(buf_small), "a file under max_file_size_kb is eligible")
+
+    -- Grown past the threshold on disk, but the cached stat is still fresh.
+    vim.fn.writefile({ ("-- TODO more "):rep(200) }, small)
+    H.ok(highlight.eligible(buf_small), "the size check is cached, not re-stat'd immediately")
+
+    -- clear() drops the cache, so the next check sees the file's new size.
+    highlight.clear(buf_small)
+    H.falsy(highlight.eligible(buf_small), "clear() drops the cached size")
+
+    vim.api.nvim_buf_delete(buf_big, { force = true })
+    vim.api.nvim_buf_delete(buf_small, { force = true })
+    cleanup()
+  end
+
   -- restore ---------------------------------------------------------------
 
   config.setup({})

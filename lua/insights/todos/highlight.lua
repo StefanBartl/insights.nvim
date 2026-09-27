@@ -148,7 +148,7 @@ local function sign_text(icon, keyword)
 end
 
 ---@internal
----`eligible`'s file-size stat, cached per buffer for `SIZE_STAT_TTL_MS`: it
+---`eligible`'s file-size stat, cached per buffer for `M.SIZE_STAT_TTL_MS`: it
 ---is the first thing `refresh` checks, and `refresh` runs debounced on
 ---every `TextChanged`/`TextChangedI`/`WinScrolled` -- i.e. after
 ---essentially every burst of scrolling or typing -- so without a cache a
@@ -166,10 +166,10 @@ end
 ---@type table<integer, { name: string, size: integer|nil, checked_at: integer }>
 local size_cache = {}
 
-local SIZE_STAT_TTL_MS = 3000
--- Exposed so a test can wait out exactly this long instead of duplicating
--- (and risking drift from) the constant above.
-M.SIZE_STAT_TTL_MS = SIZE_STAT_TTL_MS
+-- On `M`, not a local: `M.eligible` below reads this field directly, so
+-- (unlike a `local X = N; M.X = X` copy) a test can rely on it as the
+-- actual live value the TTL check uses, not a snapshot from module load.
+M.SIZE_STAT_TTL_MS = 3000
 
 ---Is the buffer one the highlighter should touch?
 ---@param bufnr integer
@@ -196,7 +196,7 @@ function M.eligible(bufnr)
       local now = uv.now()
       local cached = size_cache[bufnr]
       local size
-      if cached and cached.name == name and now - cached.checked_at < SIZE_STAT_TTL_MS then
+      if cached and cached.name == name and now - cached.checked_at < M.SIZE_STAT_TTL_MS then
         size = cached.size
       else
         local st = uv.fs_stat(name)

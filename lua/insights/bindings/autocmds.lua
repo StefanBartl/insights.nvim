@@ -144,12 +144,17 @@ local function setup_todos(cfg)
 
   -- Showing a buffer, or attaching a parser to it, is a full re-scan of the
   -- visible range right away -- there is nothing to debounce, nothing was
-  -- on screen a moment ago.
-  autocmd.create({ "BufWinEnter", "FileType" }, function(ev)
+  -- on screen a moment ago. A rename (`:file`/`:saveas`) belongs here too:
+  -- eligibility (filetype, `max_file_size_kb`) is keyed on the buffer's
+  -- name, and neither `BufWinEnter` nor `FileType` fires just from renaming
+  -- an already-shown buffer -- without this, a buffer renamed onto a file
+  -- that crosses the size threshold keeps showing its old highlights until
+  -- an unrelated scroll or edit happens to re-scan it.
+  autocmd.create({ "BufWinEnter", "FileType", "BufFilePost" }, function(ev)
     highlight.refresh(ev.buf)
   end, {
     group = grp,
-    desc = "Insights: highlight annotation keywords (buffer shown)",
+    desc = "Insights: highlight annotation keywords (buffer shown or renamed)",
   })
 
   -- A scroll exposes lines the last pass did not cover; a change may have

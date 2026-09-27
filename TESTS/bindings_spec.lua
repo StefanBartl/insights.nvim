@@ -147,6 +147,18 @@ return function(H)
     H.ok(dev_events.TermRequest, "and so is a terminal title change")
     H.ok(dev_events.VimLeavePre, "and tracked servers are killed on exit")
 
+    local todos_events = {}
+    for _, a in ipairs(autocmds_of("Insights_todos")) do
+      todos_events[a.event] = true
+    end
+    H.ok(todos_events.BufWinEnter, "todos highlighting scans on buffer show")
+    H.ok(
+      todos_events.BufFilePost,
+      "...and on rename (`:file`/`:saveas`), so a buffer that crosses "
+        .. "max_file_size_kb doesn't keep showing stale highlights"
+    )
+    H.ok(todos_events.BufUnload, "...and drops its state when the buffer goes away")
+
     -- A string event is accepted as well as a list.
     config.setup({ conflicts = { enable = true, events = "BufEnter" } })
     autocmds.setup(config.get())

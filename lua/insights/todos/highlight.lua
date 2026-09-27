@@ -147,6 +147,21 @@ local function sign_text(icon, keyword)
   return text
 end
 
+---@internal
+---`eligible`'s file-size stat, cached per buffer for `SIZE_STAT_TTL_MS`: it
+---is the first thing `refresh` checks, and `refresh` runs debounced on
+---every `TextChanged`/`TextChangedI`/`WinScrolled` -- i.e. after
+---essentially every burst of scrolling or typing -- so without a cache a
+---size that practically never changes mid-session is re-stat'd from disk
+---just as often. The TTL keeps a file that crosses `max_file_size_kb`
+---mid-session (e.g. a growing log) from going unnoticed for long, without
+---paying for a syscall on every refresh.
+---@type table<integer, { size: integer|nil, checked_at: integer }>
+local size_cache = {}
+
+---@internal
+local SIZE_STAT_TTL_MS = 3000
+
 ---Is the buffer one the highlighter should touch?
 ---@param bufnr integer
 ---@return boolean
@@ -167,9 +182,21 @@ function M.eligible(bufnr)
   local max_kb = cfg.max_file_size_kb
   if type(max_kb) == "number" and max_kb > 0 then
     local name = vim.api.nvim_buf_get_name(bufnr)
-    local st = name ~= "" and (vim.uv or vim.loop).fs_stat(name) or nil
-    if st and st.size > max_kb * 1024 then
-      return false
+    if name ~= "" then
+      local uv = vim.uv or vim.loop
+      local now = uv.now()
+      local cached = size_cache[bufnr]
+      local size
+      if cached and now - cached.checked_at < SIZE_STAT_TTL_MS then
+        size = cached.size
+      else
+        local st = uv.fs_stat(name)
+        size = st and st.size or nil
+        size_cache[bufnr] = { size = size, checked_at = now }
+      end
+      if size and size > max_kb * 1024 then
+        return false
+      end
     end
   end
   return true
@@ -350,7 +377,11 @@ function M.apply(bufnr, first, last)
     local row = first + i - 1
     local start = 0
     while start < #line do
-      local s, e = re:match_str(line:sub(start + 1))
+      -- `match_line`, not `match_str(line:sub(start + 1))`: it matches
+      -- directly against the buffer from a byte offset and returns indices
+      -- already relative to that offset, so a line with several matches
+      -- does not allocate a shrinking copy of its own tail on every one.
+      local s, e = re:match_line(bufnr, row, start)
       if not s then
         break
       end
@@ -392,6 +423,7 @@ function M.clear(bufnr)
     timers[bufnr]:close()
     timers[bufnr] = nil
   end
+  size_cache[bufnr] = nil
   if vim.api.nvim_buf_is_valid(bufnr) then
     vim.api.nvim_buf_clear_namespace(bufnr, M.NS, 0, -1)
   end

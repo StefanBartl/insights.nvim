@@ -316,6 +316,37 @@ return function(H)
     vim.api.nvim_buf_delete(buf, { force = true })
   end
 
+  -- a doc-comment annotation's name/type slot, not just its free-text
+  -- description, must still count as "inside a comment" -- the gap a
+  -- version of `ts_in_comment` that asked an injected doc-comment grammar
+  -- (`luadoc`, `jsdoc`, ...) before the host tree missed, since that
+  -- grammar's own node types (`identifier`, `param_annotation`, ...) never
+  -- say "comment" themselves.
+
+  do
+    local buf = vim.api.nvim_create_buf(false, true)
+    vim.bo[buf].buftype = ""
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, {
+      "---@param TODO string the name slot, not the description",
+      "local function f(TODO) end",
+    })
+    vim.bo[buf].filetype = "lua"
+
+    local has_parser = pcall(vim.treesitter.get_parser, buf, "lua")
+    if has_parser then
+      pcall(function()
+        vim.treesitter.get_parser(buf, "lua"):parse(true)
+      end)
+      H.ok(highlight.is_comment(buf, 0, 10), "TODO in a ---@param name slot is inside a comment")
+      H.falsy(
+        highlight.is_comment(buf, 1, 17),
+        "TODO as a real parameter name is code, not a comment"
+      )
+    end
+
+    vim.api.nvim_buf_delete(buf, { force = true })
+  end
+
   -- restore ---------------------------------------------------------------
 
   config.setup({})

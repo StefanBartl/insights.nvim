@@ -83,12 +83,25 @@ local function contrast_fg(hex)
   return luma > 140 and "#000000" or "#ffffff"
 end
 
+---@internal
+---`group_names` is a pure function of `category`, called once per match in
+---`apply`'s hot loop -- cached so the `gsub` + three concatenations run
+---once per category instead of once per occurrence.
+---@type table<string, [string, string, string]>
+local group_names_cache = {}
+
 ---Group names for a category.
 ---@param category string
 ---@return string fg, string bg, string sign
 function M.group_names(category)
+  local cached = group_names_cache[category]
+  if cached then
+    return cached[1], cached[2], cached[3]
+  end
   local cat = capitalize(category)
-  return "InsightsTodoFg" .. cat, "InsightsTodoBg" .. cat, "InsightsTodoSign" .. cat
+  local fg, bg, sign = "InsightsTodoFg" .. cat, "InsightsTodoBg" .. cat, "InsightsTodoSign" .. cat
+  group_names_cache[category] = { fg, bg, sign }
+  return fg, bg, sign
 end
 
 ---The highlight definitions for every configured category, resolved
@@ -110,14 +123,27 @@ function M.groups()
 end
 
 ---@internal
+---`sign_text` results, keyed by keyword: the (icon, keyword) pair behind
+---each call is fixed for as long as the config is (see `todos.reset`), so
+---the glyph and the `strdisplaywidth` VimL call it costs are only paid once
+---per keyword instead of once per occurrence in the scanned range.
+---@type table<string, string>
+local sign_text_cache = {}
+
+---@internal
 ---@param icon string
 ---@param keyword string
 ---@return string
 local function sign_text(icon, keyword)
+  local cached = sign_text_cache[keyword]
+  if cached then
+    return cached
+  end
   local text = vim.trim(icon or "")
   if text == "" or vim.fn.strdisplaywidth(text) > 2 then
     text = keyword:sub(1, 1)
   end
+  sign_text_cache[keyword] = text
   return text
 end
 
@@ -174,29 +200,60 @@ end
 ---`line_comment`, `block_comment`), and a keyword inside a doc comment sits
 ---in a child node of one, so the walk goes up to the root before giving up.
 ---
----One injection breaks that convention on purpose: many `injections.scm`
----files (nvim-treesitter's included) inject the `comment` grammar into every
----`(comment)` node to parse TODO/FIXME-style markup, and that grammar's own
----node types (`source`, `tag`, `name`, ...) never contain the word
----"comment" -- `get_node` with injections on returns a node from *that*
----tree, whose `:parent()` chain tops out inside the injected tree and never
----reaches the host language's `comment` node. So the position's language is
----checked first: sitting inside a tree whose language is literally named
----`comment` already answers the question.
+---Three layers, cheapest and most common first:
+---
+---1. The host language's own node, injections ignored entirely. This alone
+---   answers most matches: a doc-comment markup grammar layered *on top of*
+---   an already-`comment`-typed host node (nvim-treesitter's `comment`
+---   catch-all for TODO/FIXME markup, `jsdoc` for JS/TS `/** */`, `luadoc`
+---   for Lua's own `---@param`/`---@field`/...) has node types that never
+---   contain the word "comment" themselves (`source`, `tag`, `name`, ...),
+---   so asking the injected grammar first -- as this function used to --
+---   answers "not a comment" for text that plainly is one. The host tree
+---   was never fooled by that, so it is checked before any injection.
+---2. Sitting inside a tree whose *language* is literally named `comment`,
+---   however many injection layers deep (a `comment` markup grammar can
+---   itself be injected inside another embedded language, e.g. vimscript
+---   inside a Lua string). `language_for_range` recurses through every
+---   injection layer and answers by name, which is reliable where a node's
+---   own type is not.
+---3. A genuinely different embedded language with its own real comment
+---   syntax (SQL in a string, vimscript in a `vim.cmd()` call) whose
+---   injected grammar is not itself named `comment` -- only that grammar's
+---   own node types reveal the position is inside one of its comments.
 ---@param bufnr integer
 ---@param row integer
 ---@param col integer
+---@param parser vim.treesitter.LanguageTree|nil Already-resolved parser for
+---`bufnr`, e.g. `apply`'s -- avoids re-resolving it for every match.
 ---@return boolean|nil
-local function ts_in_comment(bufnr, row, col)
-  local parser = parser_for(bufnr)
+local function ts_in_comment(bufnr, row, col, parser)
+  parser = parser or parser_for(bufnr)
   if not parser then
     return nil
   end
+
+  local ok_host, host_node = pcall(vim.treesitter.get_node, {
+    bufnr = bufnr,
+    pos = { row, col },
+    ignore_injections = true,
+  })
+  if ok_host and host_node then
+    local n = host_node
+    while n do
+      if n:type():find("comment", 1, true) then
+        return true
+      end
+      n = n:parent()
+    end
+  end
+
   local range = { row, col, row, col }
   local ok_lt, lang_tree = pcall(parser.language_for_range, parser, range)
   if ok_lt and lang_tree and lang_tree:lang() == "comment" then
     return true
   end
+
   local ok, node = pcall(vim.treesitter.get_node, {
     bufnr = bufnr,
     pos = { row, col },
@@ -218,9 +275,11 @@ end
 ---@param bufnr integer
 ---@param row integer
 ---@param col integer
+---@param parser vim.treesitter.LanguageTree|nil Already-resolved parser for
+---`bufnr`, if the caller has one -- see `ts_in_comment`.
 ---@return boolean
-function M.is_comment(bufnr, row, col)
-  local ts = ts_in_comment(bufnr, row, col)
+function M.is_comment(bufnr, row, col, parser)
+  local ts = ts_in_comment(bufnr, row, col, parser)
   if ts ~= nil then
     return ts
   end
@@ -276,8 +335,11 @@ function M.apply(bufnr, first, last)
   end
   -- A tree that is not known to be parsed can hand `get_node` a stale
   -- node. Parsing is incremental, and this range is what is scanned below.
+  -- Resolved once here and threaded into `is_comment` below, which would
+  -- otherwise re-resolve the same parser for every match in the range.
+  local parser
   if cfg.comments_only ~= false then
-    local parser = parser_for(bufnr)
+    parser = parser_for(bufnr)
     if parser then
       pcall(parser.parse, parser, { first, 0, last, 0 })
     end
@@ -295,7 +357,7 @@ function M.apply(bufnr, first, last)
       local col_s, col_e = start + s, start + e
       local word = line:sub(col_s + 1, col_e)
       local info = todos.lookup(word)
-      if info and (cfg.comments_only == false or M.is_comment(bufnr, row, col_s)) then
+      if info and (cfg.comments_only == false or M.is_comment(bufnr, row, col_s, parser)) then
         local fg, bg, sign = M.group_names(info.color)
         local mark = {
           end_col = col_e,
@@ -386,6 +448,12 @@ end
 ---@return Lib.UI.HL.PersistHandle
 function M.setup_groups()
   return require("lib.nvim.ui.hl").persist(M.groups, { name = "insights_todos" })
+end
+
+---Drop `sign_text`'s per-keyword cache, so a re-run of `setup()` with a
+---changed icon table is picked up instead of serving a stale glyph.
+function M.reset()
+  sign_text_cache = {}
 end
 
 return M

@@ -15,6 +15,7 @@ function M.setup(opts)
   -- The keyword index is derived from the config; a re-run of setup() with
   -- a different table must not keep serving the old one.
   require("insights.todos").reset()
+  require("insights.todos.highlight").reset()
 
   local cfg = require("insights.config").get()
 

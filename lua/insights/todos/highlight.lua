@@ -21,6 +21,7 @@
 --- exist.
 
 local todos = require("insights.todos")
+local memory = require("lib.nvim.cache.memory")
 
 local M = {}
 
@@ -147,29 +148,42 @@ local function sign_text(icon, keyword)
   return text
 end
 
----@internal
----`eligible`'s file-size stat, cached per buffer for `M.SIZE_STAT_TTL_MS`: it
----is the first thing `refresh` checks, and `refresh` runs debounced on
----every `TextChanged`/`TextChangedI`/`WinScrolled` -- i.e. after
----essentially every burst of scrolling or typing -- so without a cache a
----size that practically never changes mid-session is re-stat'd from disk
----just as often. The TTL keeps a file that crosses `max_file_size_kb`
----mid-session (e.g. a growing log) from going unnoticed for long, without
----paying for a syscall on every refresh.
----
----Keyed on `name` too, not just the TTL: `:file`/`:saveas` repoints a
----buffer at a different path without touching its number and without
----firing `BufUnload`/`BufWipeout` (the only events `clear()` -- which drops
----this cache -- is wired to), so a size cached for the buffer's old name
----would otherwise go on answering for its new one until the TTL happened
----to expire.
----@type table<integer, { name: string, size: integer|nil, checked_at: integer }>
-local size_cache = {}
-
--- On `M`, not a local: `M.eligible` below reads this field directly, so
--- (unlike a `local X = N; M.X = X` copy) a test can rely on it as the
--- actual live value the TTL check uses, not a snapshot from module load.
+-- On `M`, not a local: `M.eligible` used to read this field directly on
+-- every call, so a test could rely on it as the live value the TTL check
+-- used, not a snapshot from module load. `lib.nvim.cache.memory` fixes a
+-- namespace's TTL at creation instead, so that liveness guarantee is gone --
+-- unlike `config().highlight.max_file_size_kb` (read fresh from `config()`
+-- on every `eligible()` call), changing this constant after startup no
+-- longer changes the running TTL. Kept in ms, and public, only because the
+-- test suite still reads it to size a `vim.wait`.
 M.SIZE_STAT_TTL_MS = 3000
+
+---@internal
+---`eligible`'s file-size stat, cached via `lib.nvim.cache.memory` for
+---`M.SIZE_STAT_TTL_MS`: it is the first thing `refresh` checks, and
+---`refresh` runs debounced on every `TextChanged`/`TextChangedI`/
+---`WinScrolled` -- i.e. after essentially every burst of scrolling or
+---typing -- so without a cache a size that practically never changes
+---mid-session is re-stat'd from disk just as often. The TTL keeps a file
+---that crosses `max_file_size_kb` mid-session (e.g. a growing log) from
+---going unnoticed for long, without paying for a syscall on every refresh.
+---
+---Keyed on the buffer's *name*, not its number: `:file`/`:saveas` repoints
+---a buffer at a different path without touching its number and without
+---firing `BufUnload`/`BufWipeout` (the only events `clear()` -- which drops
+---this cache -- is wired to). Keying on the name means a rename is simply a
+---different cache key, so a size cached for the buffer's old name is never
+---looked up again -- no separate rename tracking needed.
+---
+---Cached as `{ size = size }`, not `size` directly: a failed `fs_stat`
+---(unreadable file, or a name that isn't a real path) is itself a
+---legitimate result worth caching for the TTL, so a buffer that can never
+---be stat'd doesn't cost a syscall every refresh either -- but that means
+---the cached value is `nil` in exactly the same case as a genuine cache
+---miss. Wrapping it keeps the cached entry truthy either way, so only an
+---actual miss reads back as `nil`.
+local size_cache =
+  memory.namespace("insights.todos.eligible_size", { ttl = M.SIZE_STAT_TTL_MS / 1000 })
 
 ---Is the buffer one the highlighter should touch?
 ---@param bufnr integer
@@ -192,16 +206,14 @@ function M.eligible(bufnr)
   if type(max_kb) == "number" and max_kb > 0 then
     local name = vim.api.nvim_buf_get_name(bufnr)
     if name ~= "" then
-      local uv = vim.uv or vim.loop
-      local now = uv.now()
-      local cached = size_cache[bufnr]
+      local cached = size_cache.get(name)
       local size
-      if cached and cached.name == name and now - cached.checked_at < M.SIZE_STAT_TTL_MS then
+      if cached then
         size = cached.size
       else
-        local st = uv.fs_stat(name)
+        local st = (vim.uv or vim.loop).fs_stat(name)
         size = st and st.size or nil
-        size_cache[bufnr] = { name = name, size = size, checked_at = now }
+        size_cache.set(name, { size = size })
       end
       if size and size > max_kb * 1024 then
         return false
@@ -432,8 +444,11 @@ function M.clear(bufnr)
     timers[bufnr]:close()
     timers[bufnr] = nil
   end
-  size_cache[bufnr] = nil
   if vim.api.nvim_buf_is_valid(bufnr) then
+    local name = vim.api.nvim_buf_get_name(bufnr)
+    if name ~= "" then
+      size_cache.invalidate(name)
+    end
     vim.api.nvim_buf_clear_namespace(bufnr, M.NS, 0, -1)
   end
 end

@@ -173,13 +173,29 @@ end
 ---Every language names its comment node with the word in it (`comment`,
 ---`line_comment`, `block_comment`), and a keyword inside a doc comment sits
 ---in a child node of one, so the walk goes up to the root before giving up.
+---
+---One injection breaks that convention on purpose: many `injections.scm`
+---files (nvim-treesitter's included) inject the `comment` grammar into every
+---`(comment)` node to parse TODO/FIXME-style markup, and that grammar's own
+---node types (`source`, `tag`, `name`, ...) never contain the word
+---"comment" -- `get_node` with injections on returns a node from *that*
+---tree, whose `:parent()` chain tops out inside the injected tree and never
+---reaches the host language's `comment` node. So the position's language is
+---checked first: sitting inside a tree whose language is literally named
+---`comment` already answers the question.
 ---@param bufnr integer
 ---@param row integer
 ---@param col integer
 ---@return boolean|nil
 local function ts_in_comment(bufnr, row, col)
-  if not parser_for(bufnr) then
+  local parser = parser_for(bufnr)
+  if not parser then
     return nil
+  end
+  local range = { row, col, row, col }
+  local ok_lt, lang_tree = pcall(parser.language_for_range, parser, range)
+  if ok_lt and lang_tree and lang_tree:lang() == "comment" then
+    return true
   end
   local ok, node = pcall(vim.treesitter.get_node, {
     bufnr = bufnr,

@@ -348,19 +348,27 @@ return function(H)
   end
 
   -- layer 2 of ts_in_comment: a position the host tree does NOT call a
-  -- comment (it's a Lua string argument) but that resolves, however many
+  -- comment (it's a Lua string argument), but that resolves, however many
   -- injection layers deep, to a tree whose *language* is literally
-  -- "comment" -- e.g. a real vimscript comment inside vim.cmd([[ ]]),
-  -- which nvim-treesitter injects as "vim", itself carrying its own nested
-  -- "comment" TODO-markup injection. Skipped gracefully where "vim" and/or
-  -- "comment" aren't installed, same spirit as the has_parser gate above --
-  -- this exercises an optional plugin's query files, not core Neovim's.
+  -- "comment" -- e.g. a real vimscript comment inside vim.cmd([[ ]]).
+  -- Core Neovim already bundles a "vim" parser and the lua->vim injection
+  -- rule on their own (queries/lua/injections.scm); what this test needs on
+  -- top of that is nvim-treesitter's *generic* comment-markup catch-all,
+  -- nested one level deeper inside "vim"'s own comment content -- an
+  -- optional plugin's query file, not core Neovim's, so it is gated on
+  -- language_for_range actually resolving to "comment" for this position.
+  -- A second gate -- layer 1 alone genuinely NOT already calling this a
+  -- comment -- makes sure that when the assertion below does run, it is
+  -- provably exercising layer 2's contribution rather than passing for an
+  -- unrelated reason.
   --
   -- Layer 3 (a genuinely different embedded language whose own comment
   -- syntax is never itself injection-wrapped as "comment") has no test:
-  -- every construction tried collapsed into layer 2, because the common
-  -- Tree-sitter grammars installed alongside Neovim nest the same generic
-  -- "comment" TODO-markup injection inside their own comment nodes too.
+  -- every construction tried resolved via layer 2 wherever nvim-treesitter's
+  -- generic catch-all was present, and via layer 3 on its own -- without
+  -- ever reaching layer 2 -- wherever it wasn't: this exact vim.cmd()
+  -- buffer, with no nvim-treesitter installed, is caught by vim's own
+  -- native "comment" node type, never by language_for_range.
 
   do
     local line = 'vim.cmd([[ "TODO fix this vimscript ]])'
@@ -373,11 +381,30 @@ return function(H)
     local ok_parser, parser = pcall(vim.treesitter.get_parser, buf, "lua")
     if ok_parser and parser then
       pcall(parser.parse, parser, true)
+
+      local layer1_comment = false
+      local ok_host, host_node = pcall(vim.treesitter.get_node, {
+        bufnr = buf,
+        pos = { 0, col },
+        ignore_injections = true,
+      })
+      if ok_host and host_node then
+        local n = host_node
+        while n do
+          if n:type():find("comment", 1, true) then
+            layer1_comment = true
+            break
+          end
+          n = n:parent()
+        end
+      end
+
       local ok_lt, lang_tree = pcall(parser.language_for_range, parser, { 0, col, 0, col })
       if ok_lt and lang_tree and lang_tree:lang() == "comment" then
+        H.falsy(layer1_comment, "the host tree alone does not already call this a comment")
         H.ok(
           highlight.is_comment(buf, 0, col),
-          "a real vimscript comment nested inside vim.cmd([[ ]]) is inside a comment"
+          '...but language_for_range resolving to "comment" still makes it one'
         )
       end
     end

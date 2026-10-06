@@ -16,4 +16,24 @@ return {
   isolated = "file",
   -- tree_windows_regex_spec returns early (no assertions) off Windows; the old runner passed that.
   assertions = "warn",
+  -- Guards: every net runs in error mode; the suite passes them cleanly with the allowlist below.
+  guards = {
+    fs = "error",
+    state = "error",
+    scheduled_error = "error",
+    prompt = "error",
+    deprecation = "error",
+    process_net = "error",
+  },
+  guard_allow = {
+    -- The specs build and remove their fixtures in TESTS/.fixture-* inside the repository (scan
+    -- cache dirs, compress/imports/metrics trees); the fixture names are generated per spec.
+    fs = { "TESTS" },
+    spawn = {
+      -- devserver specs start a throwaway headless nvim as the dev server they track and kill.
+      "nvim",
+      -- tree_windows_regex_spec asks PowerShell for the real -match result of the Windows path regex.
+      "pwsh",
+    },
+  },
 }

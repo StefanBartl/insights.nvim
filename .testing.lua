@@ -36,7 +36,12 @@ return {
       "pwsh",
       -- nvim's own Python provider probe (python3 -c "import neovim") runs when the symbols specs
       -- touch the provider machinery; it only exists on machines that have python3 on PATH (CI).
+      -- The executable name is the interpreter of the runner image (exact match only).
+      "python",
       "python3",
+      "python3.12",
+      "python3.13",
+      "python3.14",
     },
   },
 }

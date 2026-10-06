@@ -11,7 +11,9 @@ return {
   -- Dependencies (directory names) put on the runtimepath: $<NAME>_DIR, .deps/<name>, ../<name>,
   -- stdpath('data')/lazy/<name>.
   deps = { "lib.nvim" },
-  -- "none" = all specs in one nvim, "file" = one nvim per spec file
-  -- (nothing leaks from one file into the next).
-  isolated = "none",
+  -- One nvim per spec file: health_init_spec runs setup() end to end and leaves global state that
+  -- breaks imports_definition_spec when it runs after it (the old fixed order hid that).
+  isolated = "file",
+  -- tree_windows_regex_spec returns early (no assertions) off Windows; the old runner passed that.
+  assertions = "warn",
 }

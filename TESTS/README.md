@@ -4,20 +4,26 @@ Headless spec suite. Every spec drives a module directly — no picker, no
 window, no project scan of anything but its own fixtures.
 
 ```
-nvim --headless -u NONE -c "set rtp+=." -l TESTS/run.lua
+bash scripts/test.sh                   # every spec
+bash scripts/test.sh --file config     # specs whose name contains "config"
+bash scripts/test.sh --json ir.json    # also write the machine-readable result
 ```
 
-Exit 0 is a pass; the runner prints one line per spec and exits non-zero on the
-first failure. CI runs exactly this command.
+The suite runs on [testing.nvim](https://github.com/StefanBartl/testing.nvim)
+(configured in `.testing.lua`, dialect `h` = the helper API of `harness.lua`).
+Exit 0 is a pass; any failing spec, or a missing nvim / testing.nvim / lib.nvim,
+exits 1. CI runs exactly `scripts/test.sh`.
 
 ## lib.nvim
 
 Several modules require lib.nvim at module load, so the suite cannot run
-without it. `run.lua` resolves it in this order:
+without it. `scripts/test.sh` (and `TESTS/minimal_init.lua`) resolve it, like
+testing.nvim itself, in this order and fail loudly naming all four places:
 
-1. `$LIB_NVIM_PATH`
-2. a sibling checkout, `../lib.nvim`
-3. the lazy.nvim-managed copy under `stdpath("data")/lazy/lib.nvim`
+1. `$LIB_NVIM_DIR`
+2. `.deps/lib.nvim`
+3. a sibling checkout, `../lib.nvim`
+4. the lazy.nvim-managed copy under `stdpath("data")/lazy/lib.nvim`
 
 A sibling wins over the plugin-manager copy on purpose: that one is often older
 than the working checkout, and testing against a stale lib.nvim gives
@@ -113,8 +119,8 @@ scanners built on it are driven against it for real — see "Tree-sitter" below.
 | `bindings_spec.lua` | the keymaps (registered for real), the autocmd groups, and `:Insights` — completion at every position plus a dispatch check per subcommand and per feature gate |
 | `health_init_spec.lua` | `:checkhealth insights` against recorded `vim.health` calls, and `setup()` end to end including the "no hover.nvim, no lib.nvim.deps" path and the public façade |
 
-Adding one: write `TESTS/<name>_spec.lua` returning `function(H) ... end`, then
-list it in `run.lua`. `H` is the harness — `eq`, `ok`, `falsy`, `contains`,
+Adding one: write `TESTS/<name>_spec.lua` returning `function(H) ... end`, (it is
+discovered automatically). `H` is the harness — `eq`, `ok`, `falsy`, `contains`,
 `excludes`, `read` and `fixture`.
 
 ## Tree-sitter

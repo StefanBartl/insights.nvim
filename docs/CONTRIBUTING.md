@@ -72,8 +72,8 @@ require("insights").setup({})
 
 ## Tests
 
-`TESTS/` is a [plenary.nvim](https://github.com/nvim-lua/plenary.nvim)
-busted-style suite over fixture trees.
+`TESTS/` is a [testing.nvim](https://github.com/StefanBartl/testing.nvim)
+suite over fixture trees; run it with `bash scripts/test.sh`.
 [GitHub Actions](../.github/workflows/ci.yml) runs it on every push and PR to
 `main`.
 

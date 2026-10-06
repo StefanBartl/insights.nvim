@@ -62,8 +62,8 @@ jobs:
 
       # lib.nvim is a real runtime dependency -- several modules require it at
       # module load -- so the suite cannot run without it. Checked out as a
-      # sibling, which is the layout TESTS/run.lua's own resolver looks for
-      # first after $LIB_NVIM_PATH.
+      # sibling, which is the layout scripts/test.sh resolves
+      # (after $LIB_NVIM_DIR and .deps/).
       - uses: actions/checkout@v5
         with:
           repository: StefanBartl/lib.nvim
@@ -95,11 +95,25 @@ jobs:
           esac
           rg --version
 
-      - name: Run TESTS/run.lua
+      # Checked out from the branch that only moves once the dependency's own CI is green.
+      - uses: actions/checkout@v5
+        with:
+          repository: "StefanBartl/testing.nvim"
+          path: testing.nvim
+          ref: ci-verified
+      - name: Run the spec suite (testing.nvim)
         working-directory: insights.nvim
         run: |
           exec > >(tee -a "$RUNNER_TEMP/test-output.log") 2>&1
-          nvim -n -i NONE --headless -u NONE -c "set rtp+=." -l TESTS/run.lua
+          bash scripts/test.sh --json "$RUNNER_TEMP/testing-ir.json"
+      # The IR is what a reporter or a person reads to find out WHICH case failed on WHICH platform.
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: testing-ir-${{ matrix.os }}
+          path: ${{ runner.temp }}/testing-ir.json
+          if-no-files-found: ignore
+          retention-days: 14
       - uses: actions/upload-artifact@v7
         if: failure()
         with:

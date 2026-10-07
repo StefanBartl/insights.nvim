@@ -93,6 +93,7 @@
 ---@field rebuild? boolean             force a cache rebuild first; "functions" only
 
 ---@class Insights.KeymapsConfig
+---@field enable boolean  false binds none of the global keymaps (fileinfo.keymap included)
 ---@field symbols_telescope string|false|Insights.SymbolsKeymap
 ---@field symbols_fzf string|false|Insights.SymbolsKeymap
 ---@field todos string|false      annotation comments in the configured picker
@@ -210,7 +211,7 @@
 ---@field metrics?    Insights.MetricsOpts
 ---@field tree?       Insights.TreeOpts
 ---@field fileinfo?   Insights.FileinfoOpts
----@field keymaps?    Insights.KeymapsOpts
+---@field keymaps?    Insights.KeymapsOpts|boolean  false = bind no global keymap
 ---@field ui?         Insights.UIOpts
 ---@field compress?   Insights.CompressOpts
 ---@field imports?    Insights.ImportsOpts
@@ -260,6 +261,7 @@
 ---@field keymap? string|false
 
 ---@class Insights.KeymapsOpts
+---@field enable?            boolean        false binds none of the global keymaps (fileinfo.keymap included)
 ---@field symbols_telescope? string|false|Insights.SymbolsKeymap
 ---@field symbols_fzf?       string|false|Insights.SymbolsKeymap
 ---@field todos?             string|false   annotation comments in the configured picker

@@ -38,6 +38,17 @@ return function(H)
     end,
   }
 
+  -- Stand-in dev servers: alive until stopped (no `-c qa!`, which would make
+  -- their lifetime a race), and stopped and reaped after the body even when an
+  -- assertion raises, so no process outlives the file.
+  local jobs = {}
+  ---@return integer chan
+  local function start_job()
+    local id = vim.fn.jobstart({ vim.v.progpath, "--headless", "-u", "NONE" })
+    jobs[#jobs + 1] = id
+    return id
+  end
+
   local ok_body, err_body = pcall(function()
     -- ── kill_tree ──────────────────────────────────────────────────────────
     H.falsy(devserver.kill_tree(0), "pid 0 is not a process to kill")
@@ -98,7 +109,7 @@ return function(H)
 
     -- The answer is recorded against a real job, since `track` resolves the
     -- channel to an OS pid and records nothing without one.
-    local chan = vim.fn.jobstart({ vim.v.progpath, "--headless", "-u", "NONE", "-c", "qa!" })
+    local chan = start_job()
     H.ok(chan > 0, "a real job started")
 
     devserver.reset()
@@ -162,8 +173,6 @@ return function(H)
     H.eq(devserver.kill_all(), 0, "an empty ledger kills nothing")
     H.eq(devserver.kill_all(true), 0, "forced or not")
 
-    pcall(vim.fn.jobstop, chan)
-
     -- ── chan_cmd ───────────────────────────────────────────────────────────
     -- A channel with no job behind it has no argv and no terminal title.
     H.eq(devserver.chan_cmd(999999, 1), "", "an unknown channel has no command")
@@ -177,11 +186,15 @@ return function(H)
     )
     vim.api.nvim_buf_delete(buf, { force = true })
 
-    local live = vim.fn.jobstart({ vim.v.progpath, "--headless", "-u", "NONE", "-c", "qa!" })
+    local live = start_job()
     local cmd = devserver.chan_cmd(live, 1)
     H.contains(cmd, "--headless", "a real channel's argv is joined into one string")
-    pcall(vim.fn.jobstop, live)
   end)
+
+  for _, id in ipairs(jobs) do
+    pcall(vim.fn.jobstop, id)
+  end
+  pcall(vim.fn.jobwait, jobs, 2000)
 
   vim.system = real_system
   package.loaded["ui.kit"] = real_kit

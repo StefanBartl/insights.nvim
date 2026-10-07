@@ -20,6 +20,9 @@ integration needed.
 | — (`keymaps.todos = false`) | n | `keymaps.todos` | Annotation comments in the configured picker (`:Insights todos`) |
 | — (`keymaps.todos_qf = false`) | n | `keymaps.todos_qf` | Annotation comments to the quickfix list (`:Insights todos qf`) |
 
+`keymaps.enable = false` (or `keymaps = false`) binds none of these global
+keymaps, `<leader>fi` (`fileinfo.keymap`) included; the default is `true`.
+
 The two `symbols_*` keys accept either a plain lhs string, or a table that
 also picks what the mapping asks for:
 

@@ -9,6 +9,9 @@
 ---   { lhs = "<leader>ps", scope = "buffer", type = "tables" }`. The registry
 ---   takes the `lhs`; the rest is read here, from the same value, so the two
 ---   can never disagree.
+--- * `keymaps.enable = false` (or `keymaps = false`) binds none of it, the
+---   `fileinfo.keymap` key included: the registry treats `enable` as the
+---   common switch for every action it declares.
 --- * `fileinfo`'s key lives at `fileinfo.keymap`, not in `keymaps`. It stays
 ---   there and is used as that action's default, so `keymaps.fileinfo` now
 ---   *also* works without `fileinfo.keymap` ceasing to.

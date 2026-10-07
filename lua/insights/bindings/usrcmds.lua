@@ -65,6 +65,33 @@ local METRICS_BOOL_FLAGS = {
 local METRICS_VALUE_FLAGS = { "topn", "colwidth", "file" }
 
 ---@internal
+---One line per metrics flag for the option float (the cheatsheet in the command
+---line). A `--no-x` twin of a described `--x` shows "Off: <text of --x>" on its
+---own, so `no-ratios` and `no-deviations` carry no text here; `no-reverse`,
+---`no-misc` and `no-top` mean something of their own (there is no `--misc` or
+---`--top`, and "off" for `--reverse` is a different order, not nothing).
+---@type table<string, string>
+local METRICS_FLAG_DESC = {
+  ["reverse"] = "Totals and ratios first, per-file tables last",
+  ["no-reverse"] = "Per-file tables first, totals and ratios last",
+  ["percent-only"] = "Show table values as percentages only",
+  ["numbers-only"] = "Show table values as raw counts only",
+  ["ratios"] = "Per-folder comment, doc and code ratios",
+  ["deviations"] = "Deviations from the project average in the ratio table",
+  ["lua-only"] = "Analyze Lua files only, skip Markdown/TXT/JSON",
+  ["misc-only"] = "Analyze Markdown/TXT/JSON only, skip Lua",
+  ["no-misc"] = "Skip the Markdown/TXT/JSON analysis",
+  ["misc-detailed"] = "Per-file list of the Markdown/TXT/JSON files",
+  ["no-top"] = "Skip the top-N files by lines and by words lists",
+  ["top-files-lines-only"] = "Only the top-N files by lines, no other report",
+  ["top-files-words-only"] = "Only the top-N files by words, no other report",
+  ["current"] = "Stats for the current buffer's file only",
+  ["topn"] = "Entries per top-N list (default 50)",
+  ["colwidth"] = "Width of the data columns in tables (default 7)",
+  ["file"] = "Stats for this one file instead of a directory",
+}
+
+---@internal
 ---FlagSpec list for the `metrics` route — declared purely so composer's own
 ---`--<Tab>` completion fires (composer intercepts any "--"-prefixed arg_lead
 ---unconditionally, ahead of a route's own `args` completers — a plain
@@ -78,10 +105,10 @@ local METRICS_VALUE_FLAGS = { "topn", "colwidth", "file" }
 local function metrics_flag_specs()
   local specs = {}
   for _, name in ipairs(METRICS_BOOL_FLAGS) do
-    specs[#specs + 1] = { name = name, bool = true }
+    specs[#specs + 1] = { name = name, bool = true, desc = METRICS_FLAG_DESC[name] }
   end
   for _, name in ipairs(METRICS_VALUE_FLAGS) do
-    specs[#specs + 1] = { name = name, type = "STRING" }
+    specs[#specs + 1] = { name = name, type = "STRING", desc = METRICS_FLAG_DESC[name] }
   end
   return specs
 end
@@ -633,8 +660,16 @@ function M.setup()
       path = { "smells" },
       args = { { name = "root", type = "INSIGHTS_DIR_SOFT", optional = true } },
       flags = {
-        { name = "magic-numbers-only", bool = true },
-        { name = "constants-only", bool = true },
+        {
+          name = "magic-numbers-only",
+          bool = true,
+          desc = "Only numbers hardcoded in calls (defer, wait, timeout, size)",
+        },
+        {
+          name = "constants-only",
+          bool = true,
+          desc = "Only named constants that no config key exposes",
+        },
       },
       desc = "Magic numbers + unconfigured behaviour constants (flags + optional directory)",
       run = handle_smells,

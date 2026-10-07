@@ -804,10 +804,15 @@ All of these can be overridden per invocation with the flags documented under
 6.5 keymaps                              *insights-config-keymaps*
 >
   keymaps = {
+    enable = true,                      -- false: bind none (also fileinfo.keymap)
     symbols_telescope = "<leader>ps",   -- false to disable
     symbols_fzf       = "<leader>pS",   -- false to disable
   },
 <
+`enable`
+  Set to `false` (or write `keymaps = false`) to bind none of the global keymaps,
+  `fileinfo.keymap` included. Default: `true`.
+
 `commands`
   Set to `false` to skip registering the `:Insights` user command
   entirely (use the Lua API instead). Default: `true`.

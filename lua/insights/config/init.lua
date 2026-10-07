@@ -177,9 +177,25 @@ local function expand_paths(cfg)
   end
 end
 
+---@internal
+---`keymaps = false` is the natural way to say "bind none of the global keymaps".
+---Written in place of the table it would otherwise be dropped as mistyped (and
+---the keymaps would stay bound), so it is turned into the switch's own form
+---first: `false` -> `{ enable = false }`, `true` -> `{}` (the defaults).
+---@param opts table the caller's table; a shallow copy is returned when changed
+---@return table
+local function normalize_keymaps_switch(opts)
+  if opts.keymaps ~= false and opts.keymaps ~= true then
+    return opts
+  end
+  local copy = vim.tbl_extend("force", {}, opts)
+  copy.keymaps = opts.keymaps == false and { enable = false } or {}
+  return copy
+end
+
 ---@param opts InsightsOpts|nil
 function M.setup(opts)
-  local sanitized = sanitize(opts or {})
+  local sanitized = sanitize(normalize_keymaps_switch(opts or {}))
 
   -- `vim.tbl_deep_extend` only recurses into keys present on *both* sides;
   -- a sub-table `opts` never touches (e.g. `metrics` when only `symbols` was

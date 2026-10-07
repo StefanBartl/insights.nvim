@@ -88,6 +88,9 @@ local defaults = {
   },
 
   keymaps = {
+    -- The common switch: false binds none of the global keymaps below, nor
+    -- fileinfo.keymap. `keymaps = false` is the same statement.
+    enable = true,
     symbols_telescope = "<leader>ps",
     symbols_fzf = "<leader>pS",
     -- Annotation comments (:Insights todos) -- unbound until a host names a

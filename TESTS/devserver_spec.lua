@@ -58,30 +58,42 @@ return function(H)
   devserver.track(99999, "npm run dev", true)
   H.eq(count(), 0, "a channel with no job behind it is not recorded")
 
-  local chan = vim.fn.jobstart({ vim.v.progpath, "--headless", "-u", "NONE", "-c", "qa!" })
+  -- The stand-in dev server stays alive until the spec stops it: no `-c qa!`,
+  -- which would only make its lifetime a race against the assertions. It is
+  -- stopped and reaped below even when an assertion raises, so no process
+  -- outlives the file.
+  local chan = vim.fn.jobstart({ vim.v.progpath, "--headless", "-u", "NONE" })
   H.ok(chan > 0, "a real job started")
-  devserver.track(chan, "npm run dev", true)
-  H.eq(count(), 1, "a real channel is recorded")
+  local ok_body, err_body = pcall(function()
+    devserver.track(chan, "npm run dev", true)
+    H.eq(count(), 1, "a real channel is recorded")
 
-  local entry = devserver.tracked()[chan]
-  H.ok(entry, "keyed by the channel it came from")
-  H.eq(entry.cmd, "npm run dev", "the command is stored for the prompt text")
-  H.eq(entry.kill_on_exit, true, "and so is the decision the user made")
-  H.ok(type(entry.pid) == "number", "with the OS pid VimLeavePre will need")
+    local entry = devserver.tracked()[chan]
+    H.ok(entry, "keyed by the channel it came from")
+    H.eq(entry.cmd, "npm run dev", "the command is stored for the prompt text")
+    H.eq(entry.kill_on_exit, true, "and so is the decision the user made")
+    H.ok(type(entry.pid) == "number", "with the OS pid VimLeavePre will need")
 
-  -- tracked() hands out a copy, not the live ledger (ERR-54): a caller that
-  -- sorts or otherwise mutates its result -- the natural thing to do with a
-  -- list for display -- must not corrupt what kill_all() reads later.
-  local snapshot = devserver.tracked()
-  snapshot[chan].kill_on_exit = false
-  snapshot[chan] = nil
-  H.eq(
-    devserver.tracked()[chan].kill_on_exit,
-    true,
-    "mutating a snapshot leaves the ledger untouched"
-  )
+    -- tracked() hands out a copy, not the live ledger (ERR-54): a caller that
+    -- sorts or otherwise mutates its result -- the natural thing to do with a
+    -- list for display -- must not corrupt what kill_all() reads later.
+    local snapshot = devserver.tracked()
+    snapshot[chan].kill_on_exit = false
+    snapshot[chan] = nil
+    H.eq(
+      devserver.tracked()[chan].kill_on_exit,
+      true,
+      "mutating a snapshot leaves the ledger untouched"
+    )
+
+    devserver.reset()
+    H.eq(count(), 0, "and reset clears it again")
+  end)
 
   devserver.reset()
-  H.eq(count(), 0, "and reset clears it again")
   pcall(vim.fn.jobstop, chan)
+  pcall(vim.fn.jobwait, { chan }, 2000)
+  if not ok_body then
+    error(err_body, 0)
+  end
 end

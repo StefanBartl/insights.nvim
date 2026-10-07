@@ -86,6 +86,25 @@ return function(H)
     H.eq(maps[leader .. "pS"], nil, "a mapping set to false is not bound")
     H.eq(maps[leader .. "fi"], nil, "and fileinfo.enable = false binds nothing")
 
+    -- The common switch (REL-20): `keymaps.enable = false` and `keymaps = false`
+    -- bind nothing at all, <leader>fi (fileinfo.keymap) included.
+    for _, off in ipairs({ { enable = false }, false }) do
+      for _, lhs in ipairs({ "ps", "pS", "fi", "zt" }) do
+        pcall(vim.keymap.del, "n", leader .. lhs)
+      end
+      config.setup({ keymaps = off })
+      H.eq(config.get().keymaps.enable, false, "the switch reaches the config")
+      keymaps.setup(config.get())
+      maps = global_maps()
+      H.eq(maps[leader .. "ps"], nil, "a switched-off keymaps binds no telescope key")
+      H.eq(maps[leader .. "pS"], nil, "nor the fzf one")
+      H.eq(maps[leader .. "fi"], nil, "nor fileinfo.keymap")
+    end
+    config.setup({ keymaps = true })
+    H.eq(config.get().keymaps.enable, true, "keymaps = true keeps the defaults")
+    keymaps.setup(config.get())
+    H.ok(global_maps()[leader .. "fi"], "and binds fileinfo.keymap again")
+
     -- Invoking the mapping reaches `symbols.open` with what the config said.
     local saved_open = package.loaded["insights.symbols.open"]
     local opened

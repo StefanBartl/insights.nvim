@@ -320,7 +320,43 @@ return function(H)
   end
 
   -- ── setup ────────────────────────────────────────────────────────────────
-  do
+  -- setup() really wires the plugin: the command, the global keymaps and the
+  -- autocmds (groups and a group-less VimLeavePre). Those are process-global,
+  -- so what this block adds is taken away again afterwards -- also when an
+  -- assertion raises -- or every later spec in the same editor inherits it.
+  local function snapshot()
+    local autocmds, maps = {}, {}
+    for _, a in ipairs(vim.api.nvim_get_autocmds({})) do
+      if a.id then -- ids exist from Neovim 0.10 on
+        autocmds[a.id] = true
+      end
+    end
+    for _, m in ipairs(vim.api.nvim_get_keymap("n")) do
+      maps[m.lhs] = true
+    end
+    return { autocmds = autocmds, maps = maps, command = vim.fn.exists(":Insights") == 2 }
+  end
+
+  ---@param before { autocmds: table<integer, boolean>, maps: table<string, boolean>, command: boolean }
+  local function restore(before)
+    for _, a in ipairs(vim.api.nvim_get_autocmds({})) do
+      if a.id and not before.autocmds[a.id] then
+        pcall(vim.api.nvim_del_autocmd, a.id)
+      end
+    end
+    for _, m in ipairs(vim.api.nvim_get_keymap("n")) do
+      if not before.maps[m.lhs] then
+        pcall(vim.keymap.del, "n", m.lhs)
+      end
+    end
+    if not before.command and vim.fn.exists(":Insights") == 2 then
+      pcall(vim.api.nvim_del_user_command, "Insights")
+    end
+    config.setup({})
+  end
+
+  local before_setup = snapshot()
+  local ok_setup, err_setup = pcall(function()
     local insights = require("insights")
 
     -- The whole wiring, for real: the command, the keymaps and the autocmds.
@@ -496,5 +532,10 @@ return function(H)
     if not ok_facade then
       error(err_facade, 0)
     end
+  end)
+
+  restore(before_setup)
+  if not ok_setup then
+    error(err_setup, 0)
   end
 end

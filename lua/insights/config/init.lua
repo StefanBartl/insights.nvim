@@ -189,7 +189,7 @@ local function normalize_keymaps_switch(opts)
     return opts
   end
   local copy = vim.tbl_extend("force", {}, opts)
-  copy.keymaps = opts.keymaps == false and { enable = false } or {}
+  copy.keymaps = require("lib.nvim.normalize").normalize_switch_group(opts.keymaps)
   return copy
 end
 

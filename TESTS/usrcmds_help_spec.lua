@@ -1,9 +1,11 @@
--- TESTS/usrcmds_help_spec.lua -- every flag of `:Insights` has a line in the option float.
+-- TESTS/usrcmds_help_spec.lua -- every flag and positional argument of `:Insights` has a line in
+-- the option float.
 --
 -- lib.nvim's help float (the option cheatsheet on the command line) shows one
--- line per `--flag` / `key=`, taken from the `desc` of its spec. This pins that
--- no flag of the verb ships without one, and that the lines stay what the float
--- expects: one short line, no trailing full stop.
+-- line per `--flag` / `key=` and per positional argument, taken from the `desc`
+-- of its spec (or, for an argument, from the text of its type). This pins that
+-- nothing the verb ships goes without one, and that the lines stay what the
+-- float expects: one short line, no trailing full stop.
 
 return function(H)
   local composer = require("lib.nvim.bindings.usercmd.composer")
@@ -12,7 +14,8 @@ return function(H)
   require("insights.config").setup({})
   require("insights.bindings.usrcmds").setup()
 
-  local missing = composer.help.undocumented("Insights")
+  -- `args = true` also lists the positional arguments (older lib.nvim: flags only).
+  local missing = composer.help.undocumented("Insights", { args = true })
   local names = {}
   for _, m in ipairs(missing) do
     names[#names + 1] = ("%s %s %s"):format(m.route, m.kind, m.name)
@@ -20,7 +23,9 @@ return function(H)
   H.eq(
     #missing,
     0,
-    "every :Insights flag has a description (missing: " .. table.concat(names, ", ") .. ")"
+    "every :Insights flag and argument has a description (missing: "
+      .. table.concat(names, ", ")
+      .. ")"
   )
 
   local handle = composer.registry().Insights
@@ -38,6 +43,24 @@ return function(H)
     end
   end
   H.ok(seen > 0, "the routes' flags were actually walked")
+
+  -- The same house style for the positional arguments: a text of the argument's own or of its
+  -- type, one short line, no trailing full stop.
+  if type(entries.arg_desc) == "function" then
+    local walked = 0
+    for _, route in ipairs(handle:spec().routes or {}) do
+      for _, arg in ipairs(route.args or {}) do
+        walked = walked + 1
+        local label = table.concat(route.path, " ") .. " " .. arg.name
+        local text = entries.arg_desc(arg)
+        H.ok(text and text ~= "", label .. " shows a text")
+        H.ok(not text:find("\n", 1, true), label .. " is one line")
+        H.ok(#text <= 80, label .. " stays short (" .. #text .. " chars)")
+        H.ok(not text:find("%.$"), label .. " has no trailing full stop")
+      end
+    end
+    H.ok(walked > 0, "the routes' arguments were actually walked")
+  end
 
   -- A negation without a text of its own reads "Off: <text of the positive>".
   for _, route in ipairs(handle:spec().routes or {}) do

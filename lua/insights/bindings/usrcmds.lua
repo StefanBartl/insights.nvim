@@ -547,6 +547,7 @@ vim.list_extend(SYMBOL_TOKENS, SYMBOL_UIS)
 vim.list_extend(SYMBOL_TOKENS, SYMBOL_FLAGS)
 
 composer.register_type("INSIGHTS_SYMBOLS_TOKEN", {
+  desc = "Scope (cwd|buffer), type (functions|tables|strings), picker or rebuild",
   validate = function(raw)
     return true, raw, nil
   end,
@@ -556,6 +557,7 @@ composer.register_type("INSIGHTS_SYMBOLS_TOKEN", {
 })
 
 composer.register_type("INSIGHTS_IMPORT_GROUP", {
+  desc = "Import filter: group, language or module prefix",
   validate = function(raw)
     return true, raw, nil
   end,
@@ -579,6 +581,7 @@ composer.register_type("INSIGHTS_DIR_SOFT", {
 -- todos' tokens are order-independent too: canonical keywords (read from the
 -- live config, so a host-added keyword completes) plus the UI names.
 composer.register_type("INSIGHTS_TODOS_TOKEN", {
+  desc = "Keyword (TODO, FIX ...) or picker: snacks|telescope|fzf|qf|scratch",
   validate = function(raw)
     return true, raw, nil
   end,
@@ -596,11 +599,12 @@ composer.register_type("INSIGHTS_TODOS_TOKEN", {
 ---candidates at every position" for an order-independent/variadic grammar.
 ---@param type_name string
 ---@param count integer
+---@param desc? string  # one line for the option float; nil = the type's own text
 ---@return table[]
-local function repeated_args(type_name, count)
+local function repeated_args(type_name, count, desc)
   local out = {}
   for i = 1, count do
-    out[i] = { name = "a" .. i, type = type_name, optional = true }
+    out[i] = { name = "a" .. i, type = type_name, optional = true, desc = desc }
   end
   return out
 end
@@ -649,7 +653,14 @@ function M.setup()
     },
     {
       path = { "metrics" },
-      args = { { name = "root", type = "INSIGHTS_DIR_SOFT", optional = true } },
+      args = {
+        {
+          name = "root",
+          type = "INSIGHTS_DIR_SOFT",
+          optional = true,
+          desc = "Directory to analyze (default: cwd)",
+        },
+      },
       flags = metrics_flag_specs(),
       desc = "Lua code metrics (flags + optional directory)",
       run = function(ctx)
@@ -658,7 +669,14 @@ function M.setup()
     },
     {
       path = { "smells" },
-      args = { { name = "root", type = "INSIGHTS_DIR_SOFT", optional = true } },
+      args = {
+        {
+          name = "root",
+          type = "INSIGHTS_DIR_SOFT",
+          optional = true,
+          desc = "Directory to scan (default: cwd)",
+        },
+      },
       flags = {
         {
           name = "magic-numbers-only",
@@ -690,8 +708,18 @@ function M.setup()
     {
       path = { "compress" },
       args = {
-        { name = "path", type = "INSIGHTS_DIR_SOFT", optional = true },
-        { name = "outdir", type = "INSIGHTS_DIR_SOFT", optional = true },
+        {
+          name = "path",
+          type = "INSIGHTS_DIR_SOFT",
+          optional = true,
+          desc = "Directory to archive (default: cwd)",
+        },
+        {
+          name = "outdir",
+          type = "INSIGHTS_DIR_SOFT",
+          optional = true,
+          desc = "Base directory for the archive (default: compress.outdir)",
+        },
       },
       desc = "Archive a directory (default: cwd)",
       run = function(ctx)
@@ -700,7 +728,11 @@ function M.setup()
     },
     {
       path = { "imports" },
-      args = repeated_args("INSIGHTS_IMPORT_GROUP", 6),
+      args = repeated_args(
+        "INSIGHTS_IMPORT_GROUP",
+        6,
+        "Group, language or module prefix; or picker: telescope|fzf|graph"
+      ),
       desc = "import/require usage report (filters + optional picker UI)",
       run = function(ctx)
         handle_imports(merged_tokens(ctx))
@@ -708,7 +740,13 @@ function M.setup()
     },
     {
       path = { "imports", "reverse" },
-      args = { { name = "module", type = "STRING" } },
+      args = {
+        {
+          name = "module",
+          type = "STRING",
+          desc = "Module name or prefix whose importing files are listed",
+        },
+      },
       desc = "List every file that imports <module>",
       run = function(ctx)
         handle_imports_reverse(merged_tokens(ctx))
@@ -716,7 +754,11 @@ function M.setup()
     },
     {
       path = { "imports", "unused" },
-      args = repeated_args("INSIGHTS_IMPORT_GROUP", 6),
+      args = repeated_args(
+        "INSIGHTS_IMPORT_GROUP",
+        6,
+        "Group, language or module prefix to limit the check to"
+      ),
       desc = "Bound import names never referenced again in their file",
       run = function(ctx)
         handle_imports_unused(merged_tokens(ctx))

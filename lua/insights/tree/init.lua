@@ -4,6 +4,7 @@ local M = {}
 
 local platform = require("insights.util.platform")
 local config = require("insights.config")
+local ps_escape = require("lib.nvim.cross.powershell").escape_single
 
 local fn = vim.fn
 
@@ -97,7 +98,7 @@ local function build_tree_cmd(cwd, exclude)
   -- PowerShell
   local function q(s)
     -- U+2018..U+201B count as quotes to PowerShell too, hence the lib helper.
-    return "'" .. require("lib.nvim.cross.powershell").escape_single(tostring(s)) .. "'"
+    return "'" .. ps_escape(tostring(s)) .. "'"
   end
   local regexes = {}
   for _, g in ipairs(exclude) do

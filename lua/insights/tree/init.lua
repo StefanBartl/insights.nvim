@@ -96,7 +96,8 @@ local function build_tree_cmd(cwd, exclude)
 
   -- PowerShell
   local function q(s)
-    return "'" .. tostring(s):gsub("'", "''") .. "'"
+    -- U+2018..U+201B count as quotes to PowerShell too, hence the lib helper.
+    return "'" .. require("lib.nvim.cross.powershell").escape_single(tostring(s)) .. "'"
   end
   local regexes = {}
   for _, g in ipairs(exclude) do

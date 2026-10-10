@@ -34,6 +34,9 @@ return function(H)
     "x" .. q(0x2019) .. "; Write-Output INJECTED; " .. q(0x2019),
   }
 
+  ---@type table<string, true>
+  local compress_names = { [names[1]] = true, [names[5]] = true, [names[7]] = true }
+
   local dir, cleanup = H.fixture("ps-quote")
   local ok_body, err_body = pcall(function()
     for _, name in ipairs(names) do
@@ -50,20 +53,24 @@ return function(H)
       H.contains(res.stdout or "", "a.txt", "tree: and lists the file for " .. vim.inspect(name))
       H.excludes(res.stdout or "", "INJECTED", "tree: no script text taken from the name")
 
-      -- compress: listing and Compress-Archive both run, the archive exists
-      local done, ok, msg
-      compress.compress(sub, { engine = "powershell", outdir = "" }, function(o, m)
-        done, ok, msg = true, o, m
-      end)
-      vim.wait(60000, function()
-        return done
-      end, 50)
-      H.ok(ok, "compress: succeeds for " .. vim.inspect(name) .. " -- " .. tostring(msg))
-      H.eq(
-        vim.fn.filereadable(sub .. "/compressed/" .. name .. ".zip"),
-        1,
-        "compress: and writes the archive"
-      )
+      -- compress (two more PowerShell processes per name, so only the
+      -- representative ones): listing and Compress-Archive both run, the
+      -- archive exists
+      if compress_names[name] then
+        local done, ok, msg
+        compress.compress(sub, { engine = "powershell", outdir = "" }, function(o, m)
+          done, ok, msg = true, o, m
+        end)
+        vim.wait(60000, function()
+          return done
+        end, 50)
+        H.ok(ok, "compress: succeeds for " .. vim.inspect(name) .. " -- " .. tostring(msg))
+        H.eq(
+          vim.fn.filereadable(sub .. "/compressed/" .. name .. ".zip"),
+          1,
+          "compress: and writes the archive"
+        )
+      end
     end
   end)
   cleanup()

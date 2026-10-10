@@ -14,6 +14,7 @@
 local platform = require("insights.util.platform")
 local notify = require("insights.util.notify").create("[insights.compress]")
 local expand_path = require("lib.nvim.cross.fs.expand_path")
+local ps_escape = require("lib.nvim.cross.powershell").escape_single
 
 local M = {}
 
@@ -145,7 +146,7 @@ end
 ---@param s string
 ---@return string
 local function q(s)
-  return "'" .. require("lib.nvim.cross.powershell").escape_single(tostring(s)) .. "'"
+  return "'" .. ps_escape(tostring(s)) .. "'"
 end
 
 ---@internal

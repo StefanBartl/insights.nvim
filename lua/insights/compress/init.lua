@@ -139,12 +139,13 @@ end
 
 ---@internal
 ---Quote a value for a single-quoted PowerShell string literal (SEC-03):
----PowerShell escapes an embedded `'` by doubling it. Mirrors `tree/init.lua`'s
+---PowerShell escapes an embedded quote by doubling it, and counts U+2018 to
+---U+201B as quotes too (`lib.nvim.cross.powershell`). Mirrors `tree/init.lua`'s
 ---`q()`.
 ---@param s string
 ---@return string
 local function q(s)
-  return "'" .. tostring(s):gsub("'", "''") .. "'"
+  return "'" .. require("lib.nvim.cross.powershell").escape_single(tostring(s)) .. "'"
 end
 
 ---@internal

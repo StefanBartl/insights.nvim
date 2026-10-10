@@ -34,6 +34,9 @@ return {
       "nvim",
       -- tree_windows_regex_spec asks PowerShell for the real -match result of the Windows path regex.
       "pwsh",
+      -- ps_quote_spec runs the PowerShell commands of compress/tree for real (Windows only).
+      "powershell",
+      "powershell.exe",
       -- nvim's own Python provider probe (python3 -c "import neovim") runs when the symbols specs
       -- touch the provider machinery; it only exists on machines that have python3 on PATH (CI).
       -- The executable name is the interpreter of the runner image (exact match only).

@@ -46,10 +46,21 @@ return function(H)
 
       -- tree: the listing command runs and lists the file relative to the project
       local cmd = tree._internal.build_tree_cmd(sub, {})
+      -- (a bounded wait: a PowerShell that never ends is reported with what it printed, not waited for)
       local res = vim
         .system({ "powershell", "-NoProfile", "-NonInteractive", "-Command", cmd }, { text = true })
-        :wait()
-      H.eq(res.code, 0, "tree: the command parses and runs for " .. vim.inspect(name))
+        :wait(30000)
+      H.eq(
+        res.code,
+        0,
+        "tree: the command parses and runs for "
+          .. vim.inspect(name)
+          .. " (stderr: "
+          .. vim.inspect(res.stderr)
+          .. ", stdout: "
+          .. vim.inspect(res.stdout)
+          .. ")"
+      )
       H.contains(res.stdout or "", "a.txt", "tree: and lists the file for " .. vim.inspect(name))
       H.excludes(res.stdout or "", "INJECTED", "tree: no script text taken from the name")
 
@@ -61,9 +72,17 @@ return function(H)
         compress.compress(sub, { engine = "powershell", outdir = "" }, function(o, m)
           done, ok, msg = true, o, m
         end)
-        vim.wait(60000, function()
+        vim.wait(30000, function()
           return done
         end, 50)
+        H.ok(
+          done == true,
+          "compress: calls back within 30 s for "
+            .. vim.inspect(name)
+            .. " (done="
+            .. tostring(done)
+            .. ")"
+        )
         H.ok(ok, "compress: succeeds for " .. vim.inspect(name) .. " -- " .. tostring(msg))
         H.eq(
           vim.fn.filereadable(sub .. "/compressed/" .. name .. ".zip"),

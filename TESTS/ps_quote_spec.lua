@@ -84,7 +84,7 @@ return function(H)
           .. probe(
             "Get-Date PSMP",
             "Get-Date -Format o",
-            { PSModulePath = "C:Windowssystem32WindowsPowerShell\v1.0Modules" }
+            { PSModulePath = "C:/Windows/system32/WindowsPowerShell/v1.0/Modules" }
           )
           .. " ; "
           .. probe("Get-Date LAD", "Get-Date -Format o", { LOCALAPPDATA = win })

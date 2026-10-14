@@ -88,6 +88,27 @@ return function(H)
             vim.inspect((r.stdout or ""):sub(1, 80)),
             vim.inspect((r.stderr or ""):sub(1, 80))
           )
+        -- the listing on its own, the directory handed over in the environment (no path text in the command line)
+        local function env_probe(label, command, where)
+          local t1 = vim.uv.hrtime()
+          local pr = vim
+            .system(
+              { "powershell", "-NoProfile", "-NonInteractive", "-Command", command },
+              { text = true, stdin = false, env = { PSQ_DIR = where } }
+            )
+            :wait(8000)
+          return (" ; %s: code=%s %.1fs out=%s"):format(
+            label,
+            tostring(pr.code),
+            (vim.uv.hrtime() - t1) / 1e9,
+            vim.inspect((pr.stdout or ""):sub(1, 60))
+          )
+        end
+        local list =
+          "Get-ChildItem -LiteralPath $env:PSQ_DIR -Recurse -File | Select-Object -ExpandProperty FullName"
+        probes = probes
+          .. env_probe("gci temp (ascii)", list, vim.uv.os_tmpdir())
+          .. env_probe("gci fixture (env)", list, sub)
       end
       H.eq(
         res.code,

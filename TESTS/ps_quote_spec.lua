@@ -6,11 +6,9 @@
 -- string early (a parse error, or script text taken from the directory name).
 -- Needs Windows and a real powershell: the commands are run, not just read.
 --
--- The spec runs PowerShell with the system default `PSModulePath`. On the
--- windows-latest runner the inherited value makes the first cmdlet (even
--- `Get-Date`) hang until the process is killed, while plain .NET calls run; with
--- the default value the same cmdlets answer in well under a second. The quote
--- handling under test does not depend on the module path.
+-- Needs testing.nvim with PSModulePath on its child-environment allowlist: without
+-- it the first Windows PowerShell 5.1 call of the child rebuilds its module cache
+-- (20 to 30 s) and a 30 s wait kills it before the cache is written.
 
 return function(H)
   local platform = require("insights.util.platform")
@@ -42,10 +40,6 @@ return function(H)
 
   ---@type table<string, true>
   local compress_names = { [names[1]] = true, [names[5]] = true, [names[7]] = true }
-
-  local saved_module_path = vim.env.PSModulePath
-  local system_root = vim.env.SystemRoot or "C:/Windows"
-  vim.env.PSModulePath = system_root:gsub("\\", "/") .. "/System32/WindowsPowerShell/v1.0/Modules"
 
   local dir, cleanup = H.fixture("ps-quote")
   local ok_body, err_body = pcall(function()
@@ -118,7 +112,6 @@ return function(H)
       end
     end
   end)
-  vim.env.PSModulePath = saved_module_path
   cleanup()
   if not ok_body then
     error(err_body, 0)

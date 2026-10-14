@@ -72,6 +72,22 @@ return function(H)
           .. probe("version", "$PSVersionTable.PSVersion.ToString()", nil)
           .. " ; "
           .. probe("same command, stdin closed", cmd, false)
+        -- the same command as -EncodedCommand (UTF-16LE base64): no command-line codepage involved
+        local enc = vim.base64.encode(vim.iconv(cmd, "utf-8", "utf-16le") or "")
+        local t0 = vim.uv.hrtime()
+        local r = vim
+          .system(
+            { "powershell", "-NoProfile", "-NonInteractive", "-EncodedCommand", enc },
+            { text = true, stdin = false }
+          )
+          :wait(15000)
+        probes = probes
+          .. (" ; encoded: code=%s %.1fs out=%s err=%s"):format(
+            tostring(r.code),
+            (vim.uv.hrtime() - t0) / 1e9,
+            vim.inspect((r.stdout or ""):sub(1, 80)),
+            vim.inspect((r.stderr or ""):sub(1, 80))
+          )
       end
       H.eq(
         res.code,

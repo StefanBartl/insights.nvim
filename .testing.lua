@@ -51,9 +51,6 @@ return {
       "python3.14",
     },
   },
-  -- ps_quote_spec starts about fourteen PowerShell processes; a Windows runner needs more than the default 60 s for them
-  -- (about 9 s on a developer machine). Still a guard against a hang, not a performance budget.
-  timeouts = { file_ms = 180000 },
   -- Findings the minimal conformance editor cannot avoid (docs/CONFORMANCE.md of testing.nvim); reviewed 2026-10-14.
   conformance = {
     -- gated: a failed check makes `scripts/test.sh conformance` exit 1

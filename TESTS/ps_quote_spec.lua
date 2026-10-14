@@ -50,6 +50,29 @@ return function(H)
       local res = vim
         .system({ "powershell", "-NoProfile", "-NonInteractive", "-Command", cmd }, { text = true })
         :wait(30000)
+      local probes = ""
+      if res.code == 124 then
+        -- the process was killed after 30 s: say whether PowerShell works at all here, and whether a closed stdin helps
+        local function probe(label, command, stdin)
+          local t0 = vim.uv.hrtime()
+          local r = vim
+            .system(
+              { "powershell", "-NoProfile", "-NonInteractive", "-Command", command },
+              { text = true, stdin = stdin }
+            )
+            :wait(15000)
+          return ("%s: code=%s %.1fs out=%s"):format(
+            label,
+            tostring(r.code),
+            (vim.uv.hrtime() - t0) / 1e9,
+            vim.inspect((r.stdout or ""):sub(1, 80))
+          )
+        end
+        probes = " | probes: "
+          .. probe("version", "$PSVersionTable.PSVersion.ToString()", nil)
+          .. " ; "
+          .. probe("same command, stdin closed", cmd, false)
+      end
       H.eq(
         res.code,
         0,
@@ -60,6 +83,7 @@ return function(H)
           .. ", stdout: "
           .. vim.inspect(res.stdout)
           .. ")"
+          .. probes
       )
       H.contains(res.stdout or "", "a.txt", "tree: and lists the file for " .. vim.inspect(name))
       H.excludes(res.stdout or "", "INJECTED", "tree: no script text taken from the name")

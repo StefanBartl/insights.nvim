@@ -99,6 +99,18 @@ return function(H)
         vim.wait(30000, function()
           return done
         end, 50)
+        local stage = ""
+        if not done then
+          -- how far it got: the listing is written between the two PowerShell runs, the archive by the second one
+          local function size(path)
+            local st = vim.uv.fs_stat(path)
+            return st and tostring(st.size) or "absent"
+          end
+          stage = (" [file-list.txt: %s, zip: %s]"):format(
+            size(sub .. "/compressed/file-list.txt"),
+            size(sub .. "/compressed/" .. name .. ".zip")
+          )
+        end
         H.ok(
           done == true,
           "compress: calls back within 30 s for "
@@ -106,6 +118,7 @@ return function(H)
             .. " (done="
             .. tostring(done)
             .. ")"
+            .. stage
         )
         H.ok(ok, "compress: succeeds for " .. vim.inspect(name) .. " -- " .. tostring(msg))
         H.eq(

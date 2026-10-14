@@ -91,6 +91,7 @@ return function(H)
         "ui.nvim",
         "External tools",
         "Optional pickers",
+        "inline graph preview",
         "PDF export",
         "Tree-sitter",
         "Configuration",

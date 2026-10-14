@@ -242,6 +242,18 @@ local function check_todos()
 end
 
 ---@internal
+local function check_images()
+  start_s("Optional: inline graph preview")
+  if pcall(require, "images") then
+    ok_s("images.nvim found: the import graph (:Insights imports graph) is shown inline")
+  else
+    info_s(
+      "images.nvim not installed: the import graph is still written as a PNG, but not shown inline"
+    )
+  end
+end
+
+---@internal
 local function check_pdfport()
   start_s("Optional: PDF export (metrics.output_file ending .pdf)")
   local ok_pp, pdfport = pcall(require, "pdfport")
@@ -503,6 +515,7 @@ function M.check()
   check_ui_nvim()
   check_tools()
   check_pickers()
+  check_images()
   check_pdfport()
   check_treesitter()
   check_config()

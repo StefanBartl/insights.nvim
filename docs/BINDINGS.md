@@ -121,6 +121,7 @@ for the full config knobs (`events` overrides, patterns, prompts).
 | `BufWinEnter`, `FileType` | `todos.highlight.enable` | Colour annotation keywords in the buffer's visible lines |
 | `TextChanged`, `TextChangedI`, `WinScrolled` | `todos.highlight.enable` | Re-scan the visible lines (debounced by `todos.highlight.debounce_ms`) |
 | `BufUnload`, `BufWipeout` | `todos.highlight.enable` | Drop the buffer's highlight state |
+| `ColorScheme`, `OptionSet` (group `insights_todos`) | `todos.highlight.enable` | Re-define the todo highlight groups after a colour scheme or `background` change (registered by `lib.nvim.ui.hl.persist`) |
 
 One more, from elsewhere: `imports/index.lua` creates a `BufWritePost` autocmd
 (augroup `InsightsImportIndex`) the first time a scan is remembered, and not

@@ -69,7 +69,7 @@ return function(H)
           )
         end
         -- every cmdlet hangs here (Get-Date too), plain .NET calls run: is it this editor's environment?
-        local win = "C:WindowsTemp"
+        local win = "C:/Windows/Temp"
         probes = " | probes: "
           .. probe(
             "env",

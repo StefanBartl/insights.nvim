@@ -6,10 +6,13 @@
 -- string early (a parse error, or script text taken from the directory name).
 -- Needs Windows and a real powershell: the commands are run, not just read.
 --
--- The spec runs PowerShell with the system default `PSModulePath`. On the
--- windows-latest runner the inherited value makes the first cmdlet (even
--- `Get-Date`) hang until the process is killed, while plain .NET calls run; with
--- the default value the same cmdlets answer in well under a second. The quote
+-- The spec runs PowerShell with `PSModulePath` set to the system modules directory.
+-- Inside the testing.nvim child editor on windows-latest every Windows PowerShell
+-- 5.1 cmdlet (even `Get-Date`) takes 22 to 25 s with the inherited value, longer
+-- than the waits below, while plain .NET calls are fast; with the override the same
+-- cmdlets answer in about 0.5 s. Outside the child the same runner is fast, and the
+-- cause is not found yet (testing.nvim task
+-- powershell-im-testing-kind-auf-windows-latest-jedes-cmdlet-b). The quote
 -- handling under test does not depend on the module path.
 
 return function(H)
@@ -44,11 +47,12 @@ return function(H)
   local compress_names = { [names[1]] = true, [names[5]] = true, [names[7]] = true }
 
   local saved_module_path = vim.env.PSModulePath
-  local system_root = vim.env.SystemRoot or "C:/Windows"
-  vim.env.PSModulePath = system_root:gsub("\\", "/") .. "/System32/WindowsPowerShell/v1.0/Modules"
-
-  local dir, cleanup = H.fixture("ps-quote")
+  local dir, cleanup
   local ok_body, err_body = pcall(function()
+    -- set inside the protected scope: a throwing H.fixture must not leave the override behind
+    local system_root = vim.env.SystemRoot or "C:/Windows"
+    vim.env.PSModulePath = system_root:gsub("\\", "/") .. "/System32/WindowsPowerShell/v1.0/Modules"
+    dir, cleanup = H.fixture("ps-quote")
     for _, name in ipairs(names) do
       local sub = dir .. "/" .. name
       vim.fn.mkdir(sub, "p")
@@ -119,7 +123,9 @@ return function(H)
     end
   end)
   vim.env.PSModulePath = saved_module_path
-  cleanup()
+  if cleanup then
+    cleanup()
+  end
   if not ok_body then
     error(err_body, 0)
   end

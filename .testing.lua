@@ -51,4 +51,16 @@ return {
       "python3.14",
     },
   },
+  -- Findings the minimal conformance editor cannot avoid (docs/CONFORMANCE.md of testing.nvim); reviewed 2026-10-14.
+  conformance = {
+    waivers = {
+      {
+        check = "K6",
+        level = "error",
+        text = "ui.kit",
+        reason = "ui.nvim is deliberately not a dependency: the suite stubs ui.kit and ui_fileinfo_spec.lua breaks with the real one",
+        expires = "2027-04-14",
+      },
+    },
+  },
 }

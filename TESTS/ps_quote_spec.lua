@@ -60,7 +60,7 @@ return function(H)
               { "powershell", "-NoProfile", "-NonInteractive", "-Command", command },
               { text = true, stdin = stdin }
             )
-            :wait(8000)
+            :wait(6000)
           return ("%s: code=%s %.1fs out=%s"):format(
             label,
             tostring(r.code),
@@ -68,47 +68,23 @@ return function(H)
             vim.inspect((r.stdout or ""):sub(1, 80))
           )
         end
+        -- Get-ChildItem on an ASCII path hangs too (an earlier run), so it is not the quote: which cmdlets run at all?
         probes = " | probes: "
-          .. probe("version", "$PSVersionTable.PSVersion.ToString()", nil)
+          .. probe("version", "$PSVersionTable.PSVersion.ToString()", false)
           .. " ; "
-          .. probe("same command, stdin closed", cmd, false)
-        -- the same command as -EncodedCommand (UTF-16LE base64): no command-line codepage involved
-        local enc = vim.base64.encode(vim.iconv(cmd, "utf-8", "utf-16le") or "")
-        local t0 = vim.uv.hrtime()
-        local r = vim
-          .system(
-            { "powershell", "-NoProfile", "-NonInteractive", "-EncodedCommand", enc },
-            { text = true, stdin = false }
+          .. probe("Get-Date", "Get-Date -Format o", false)
+          .. " ; "
+          .. probe("Get-Item", "(Get-Item -LiteralPath $env:TEMP).FullName", false)
+          .. " ; "
+          .. probe("GetFiles", "[IO.Directory]::GetFiles($env:TEMP).Length", false)
+          .. " ; "
+          .. probe(
+            "Get-ChildItem",
+            "(Get-ChildItem -LiteralPath $env:TEMP -File | Select-Object -First 1).Name",
+            false
           )
-          :wait(8000)
-        probes = probes
-          .. (" ; encoded: code=%s %.1fs out=%s err=%s"):format(
-            tostring(r.code),
-            (vim.uv.hrtime() - t0) / 1e9,
-            vim.inspect((r.stdout or ""):sub(1, 80)),
-            vim.inspect((r.stderr or ""):sub(1, 80))
-          )
-        -- the listing on its own, the directory handed over in the environment (no path text in the command line)
-        local function env_probe(label, command, where)
-          local t1 = vim.uv.hrtime()
-          local pr = vim
-            .system(
-              { "powershell", "-NoProfile", "-NonInteractive", "-Command", command },
-              { text = true, stdin = false, env = { PSQ_DIR = where } }
-            )
-            :wait(8000)
-          return (" ; %s: code=%s %.1fs out=%s"):format(
-            label,
-            tostring(pr.code),
-            (vim.uv.hrtime() - t1) / 1e9,
-            vim.inspect((pr.stdout or ""):sub(1, 60))
-          )
-        end
-        local list =
-          "Get-ChildItem -LiteralPath $env:PSQ_DIR -Recurse -File | Select-Object -ExpandProperty FullName"
-        probes = probes
-          .. env_probe("gci temp (ascii)", list, vim.uv.os_tmpdir())
-          .. env_probe("gci fixture (env)", list, sub)
+          .. " ; "
+          .. probe("Get-Command", "(Get-Command Get-ChildItem).Source", false)
       end
       H.eq(
         res.code,

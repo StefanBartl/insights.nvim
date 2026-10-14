@@ -5,6 +5,12 @@
 -- double only the ASCII `'`, so a project directory called `it’s` closed the
 -- string early (a parse error, or script text taken from the directory name).
 -- Needs Windows and a real powershell: the commands are run, not just read.
+--
+-- The spec runs PowerShell with the system default `PSModulePath`. On the
+-- windows-latest runner the inherited value makes the first cmdlet (even
+-- `Get-Date`) hang until the process is killed, while plain .NET calls run; with
+-- the default value the same cmdlets answer in well under a second. The quote
+-- handling under test does not depend on the module path.
 
 return function(H)
   local platform = require("insights.util.platform")
@@ -37,6 +43,10 @@ return function(H)
   ---@type table<string, true>
   local compress_names = { [names[1]] = true, [names[5]] = true, [names[7]] = true }
 
+  local saved_module_path = vim.env.PSModulePath
+  local system_root = vim.env.SystemRoot or "C:/Windows"
+  vim.env.PSModulePath = system_root:gsub("\\", "/") .. "/System32/WindowsPowerShell/v1.0/Modules"
+
   local dir, cleanup = H.fixture("ps-quote")
   local ok_body, err_body = pcall(function()
     for _, name in ipairs(names) do
@@ -46,49 +56,13 @@ return function(H)
 
       -- tree: the listing command runs and lists the file relative to the project
       local cmd = tree._internal.build_tree_cmd(sub, {})
-      -- (a bounded wait: a PowerShell that never ends is reported with what it printed, not waited for)
+      -- (a bounded wait: a PowerShell that never ends is reported, not waited for)
       local res = vim
-        .system({ "powershell", "-NoProfile", "-NonInteractive", "-Command", cmd }, { text = true })
-        :wait(10000)
-      local probes = ""
-      if res.code == 124 then
-        -- the process was killed after 30 s: say whether PowerShell works at all here, and whether a closed stdin helps
-        local function probe(label, command, env)
-          local t0 = vim.uv.hrtime()
-          local r = vim
-            .system(
-              { "powershell", "-NoProfile", "-NonInteractive", "-Command", command },
-              { text = true, stdin = false, env = env }
-            )
-            :wait(6000)
-          return ("%s: code=%s %.1fs out=%s"):format(
-            label,
-            tostring(r.code),
-            (vim.uv.hrtime() - t0) / 1e9,
-            vim.inspect((r.stdout or ""):sub(1, 200))
-          )
-        end
-        -- every cmdlet hangs here (Get-Date too), plain .NET calls run: is it this editor's environment?
-        local win = "C:/Windows/Temp"
-        probes = " | probes: "
-          .. probe(
-            "env",
-            "'TEMP=' + $env:TEMP + ' exists=' + [IO.Directory]::Exists($env:TEMP) + ' TMP=' + $env:TMP + ' PSMP=' + $env:PSModulePath + ' LAD=' + $env:LOCALAPPDATA + ' PD=' + $env:ProgramData",
-            nil
-          )
-          .. " ; "
-          .. probe("Get-Date", "Get-Date -Format o", nil)
-          .. " ; "
-          .. probe("Get-Date TEMP=win", "Get-Date -Format o", { TEMP = win, TMP = win })
-          .. " ; "
-          .. probe(
-            "Get-Date PSMP",
-            "Get-Date -Format o",
-            { PSModulePath = "C:/Windows/system32/WindowsPowerShell/v1.0/Modules" }
-          )
-          .. " ; "
-          .. probe("Get-Date LAD", "Get-Date -Format o", { LOCALAPPDATA = win })
-      end
+        .system(
+          { "powershell", "-NoProfile", "-NonInteractive", "-Command", cmd },
+          { text = true, stdin = false }
+        )
+        :wait(30000)
       H.eq(
         res.code,
         0,
@@ -99,7 +73,6 @@ return function(H)
           .. ", stdout: "
           .. vim.inspect(res.stdout)
           .. ")"
-          .. probes
       )
       H.contains(res.stdout or "", "a.txt", "tree: and lists the file for " .. vim.inspect(name))
       H.excludes(res.stdout or "", "INJECTED", "tree: no script text taken from the name")
@@ -145,6 +118,7 @@ return function(H)
       end
     end
   end)
+  vim.env.PSModulePath = saved_module_path
   cleanup()
   if not ok_body then
     error(err_body, 0)

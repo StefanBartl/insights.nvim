@@ -49,7 +49,7 @@ return function(H)
       -- (a bounded wait: a PowerShell that never ends is reported with what it printed, not waited for)
       local res = vim
         .system({ "powershell", "-NoProfile", "-NonInteractive", "-Command", cmd }, { text = true })
-        :wait(30000)
+        :wait(10000)
       local probes = ""
       if res.code == 124 then
         -- the process was killed after 30 s: say whether PowerShell works at all here, and whether a closed stdin helps
@@ -60,7 +60,7 @@ return function(H)
               { "powershell", "-NoProfile", "-NonInteractive", "-Command", command },
               { text = true, stdin = stdin }
             )
-            :wait(15000)
+            :wait(8000)
           return ("%s: code=%s %.1fs out=%s"):format(
             label,
             tostring(r.code),
@@ -80,7 +80,7 @@ return function(H)
             { "powershell", "-NoProfile", "-NonInteractive", "-EncodedCommand", enc },
             { text = true, stdin = false }
           )
-          :wait(15000)
+          :wait(8000)
         probes = probes
           .. (" ; encoded: code=%s %.1fs out=%s err=%s"):format(
             tostring(r.code),

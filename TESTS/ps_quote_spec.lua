@@ -53,38 +53,41 @@ return function(H)
       local probes = ""
       if res.code == 124 then
         -- the process was killed after 30 s: say whether PowerShell works at all here, and whether a closed stdin helps
-        local function probe(label, command, stdin)
+        local function probe(label, command, env)
           local t0 = vim.uv.hrtime()
           local r = vim
             .system(
               { "powershell", "-NoProfile", "-NonInteractive", "-Command", command },
-              { text = true, stdin = stdin }
+              { text = true, stdin = false, env = env }
             )
             :wait(6000)
           return ("%s: code=%s %.1fs out=%s"):format(
             label,
             tostring(r.code),
             (vim.uv.hrtime() - t0) / 1e9,
-            vim.inspect((r.stdout or ""):sub(1, 80))
+            vim.inspect((r.stdout or ""):sub(1, 200))
           )
         end
-        -- Get-ChildItem on an ASCII path hangs too (an earlier run), so it is not the quote: which cmdlets run at all?
+        -- every cmdlet hangs here (Get-Date too), plain .NET calls run: is it this editor's environment?
+        local win = "C:WindowsTemp"
         probes = " | probes: "
-          .. probe("version", "$PSVersionTable.PSVersion.ToString()", false)
-          .. " ; "
-          .. probe("Get-Date", "Get-Date -Format o", false)
-          .. " ; "
-          .. probe("Get-Item", "(Get-Item -LiteralPath $env:TEMP).FullName", false)
-          .. " ; "
-          .. probe("GetFiles", "[IO.Directory]::GetFiles($env:TEMP).Length", false)
-          .. " ; "
           .. probe(
-            "Get-ChildItem",
-            "(Get-ChildItem -LiteralPath $env:TEMP -File | Select-Object -First 1).Name",
-            false
+            "env",
+            "'TEMP=' + $env:TEMP + ' exists=' + [IO.Directory]::Exists($env:TEMP) + ' TMP=' + $env:TMP + ' PSMP=' + $env:PSModulePath + ' LAD=' + $env:LOCALAPPDATA + ' PD=' + $env:ProgramData",
+            nil
           )
           .. " ; "
-          .. probe("Get-Command", "(Get-Command Get-ChildItem).Source", false)
+          .. probe("Get-Date", "Get-Date -Format o", nil)
+          .. " ; "
+          .. probe("Get-Date TEMP=win", "Get-Date -Format o", { TEMP = win, TMP = win })
+          .. " ; "
+          .. probe(
+            "Get-Date PSMP",
+            "Get-Date -Format o",
+            { PSModulePath = "C:Windowssystem32WindowsPowerShell\v1.0Modules" }
+          )
+          .. " ; "
+          .. probe("Get-Date LAD", "Get-Date -Format o", { LOCALAPPDATA = win })
       end
       H.eq(
         res.code,

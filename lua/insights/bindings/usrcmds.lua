@@ -145,16 +145,21 @@ local IMPORT_UIS = { "telescope", "fzf", "scratch", "graph" }
 ---@internal
 ---Completion candidates for `:Insights imports` (group names, language ids,
 ---and the picker-UI tokens — all order-independent, like SYMBOL_TOKENS).
+---`without_uis` leaves the picker tokens out, for `imports unused`: its handler
+---takes no UI, so they would only act as module-prefix filters there.
 ---@param arglead string
+---@param without_uis? boolean
 ---@return string[]
-local function import_tokens(arglead)
+local function import_tokens(arglead, without_uis)
   local cfg = require("insights.config").get()
   local out = {}
   for name, _ in pairs((cfg.imports and cfg.imports.groups) or {}) do
     out[#out + 1] = name
   end
   vim.list_extend(out, IMPORT_LANG_IDS)
-  vim.list_extend(out, IMPORT_UIS)
+  if not without_uis then
+    vim.list_extend(out, IMPORT_UIS)
+  end
   out = vim.tbl_filter(function(c)
     return c:sub(1, #arglead) == arglead
   end, out)
@@ -566,6 +571,17 @@ composer.register_type("INSIGHTS_IMPORT_GROUP", {
   end,
 })
 
+-- `imports unused` takes the same filters but no picker UI.
+composer.register_type("INSIGHTS_IMPORT_FILTER", {
+  desc = "Import filter: group, language or module prefix",
+  validate = function(raw)
+    return true, raw, nil
+  end,
+  complete = function(arg_lead)
+    return import_tokens(arg_lead, true)
+  end,
+})
+
 -- compress's path/outdir are directories that need NOT already exist (outdir
 -- especially — it's created on demand), so this stays soft like the original
 -- (built-in DIR would hard-reject a not-yet-created outdir).
@@ -755,7 +771,7 @@ function M.setup()
     {
       path = { "imports", "unused" },
       args = repeated_args(
-        "INSIGHTS_IMPORT_GROUP",
+        "INSIGHTS_IMPORT_FILTER",
         6,
         "Group, language or module prefix to limit the check to"
       ),

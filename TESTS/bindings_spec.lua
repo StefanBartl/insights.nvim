@@ -309,6 +309,19 @@ return function(H)
     H.ok(import_tokens.lua, "alongside the language ids")
     H.ok(import_tokens.graph, "and the graph UI")
     H.ok(import_tokens.reverse, "reverse is reachable as a sub-route")
+
+    -- `imports unused` evaluates no picker UI, so none is offered (the groups stay).
+    local unused_tokens = complete("", "Insights imports unused ")
+    H.ok(unused_tokens.mygroup and unused_tokens.lua, "unused offers the groups and language ids")
+    H.ok(
+      not (
+          unused_tokens.telescope
+          or unused_tokens.fzf
+          or unused_tokens.scratch
+          or unused_tokens.graph
+        ),
+      "but no picker UI token"
+    )
     config.setup({})
 
     local metrics_flags = complete("", "Insights metrics --")

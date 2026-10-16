@@ -10,7 +10,7 @@ lua/insights/
   bindings/
     usrcmds.lua         :Insights dispatcher + tab-completion
     keymaps.lua         optional global keymaps (which-key discoverable)
-    autocmds.lua        conflicts/unimported/devserver autocmds, each gated by its own `enable` key
+    autocmds.lua        conflicts/unimported/devserver/todos autocmds, each gated by its own `enable` key (todos: `setup_todos`, the in-buffer highlight)
   util/
     notify.lua          re-exports lib.nvim's notify factory
     platform.lua        is_windows() (via lib.nvim), run_shell(), copy_to_clipboard()
@@ -37,6 +37,10 @@ lua/insights/
   conflicts/init.lua    git conflict scan (blocking + async) → quickfix list
   unimported/init.lua   used-but-unimported component tag check (JSX-flavoured filetypes)
   devserver/init.lua    dev-server detection in terminals, tracked kill-on-exit
+  todos/
+    init.lua            TODO/FIX/... annotation report: one ripgrep pass, shown in a picker or the quickfix list
+    highlight.lua       in-buffer half: colour the keyword and its comment, glyph in the sign column (visible lines only)
+    keywords.lua        shipped keyword table and colour categories
   ui/
     telescope.lua       telescope entry_maker + picker
     fzf.lua             fzf-lua picker

@@ -106,7 +106,7 @@
 ---@class Insights.CompressConfig
 ---@field enable boolean
 ---@field engine Insights.CompressEngine
----@field outdir string  "" = compressed/ next to the source directory
+---@field outdir string  "" = compressed/ inside the source directory
 
 ---@class Insights.Imports.DefinitionKeymaps
 ---@field jump string|false
@@ -274,7 +274,7 @@
 ---@class Insights.CompressOpts
 ---@field enable? boolean
 ---@field engine? Insights.CompressEngine
----@field outdir? string  "" = compressed/ next to the source directory
+---@field outdir? string  "" = compressed/ inside the source directory
 
 ---@class Insights.ImportsOpts
 ---@field enable?            boolean

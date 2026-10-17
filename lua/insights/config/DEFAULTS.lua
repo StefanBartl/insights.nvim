@@ -110,7 +110,7 @@ local defaults = {
     enable = true,
     ---@type Insights.CompressEngine
     engine = "auto",
-    outdir = "", -- "" = place compressed/ next to the source directory
+    outdir = "", -- "" = place compressed/ inside the source directory
   },
 
   imports = {

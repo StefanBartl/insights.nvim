@@ -53,7 +53,7 @@ automatically. Engine is configurable or auto-detected per platform.
 - **Usercmds:** `:Insights compress [path] [outdir]`
 - **Config:** `opts.compress.enable` (default `true`),
   `opts.compress.engine` (default `"auto"`), `opts.compress.outdir`
-  (default `""` — places `compressed/` next to the source directory)
+  (default `""` — places `compressed/` inside the source directory)
 
 ## Buffer-local report ergonomics
 

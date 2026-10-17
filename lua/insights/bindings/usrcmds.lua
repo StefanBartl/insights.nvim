@@ -550,6 +550,10 @@ local function handle_cache(args, offered)
         string.format("  Path     : %s", st.path or "?"),
         "=============================",
       }, "\n"))
+    elseif not cfg.enabled then
+      -- A disabled cache is never written (rg_index saves only when enabled):
+      -- offering a build would run a full index and still leave no cache.
+      notify.info("symbol cache is disabled (symbols.cache.enabled = false), nothing to build")
     elseif st_err and st_err ~= "no cache file" then
       -- The file exists but could not be read/parsed -- distinct from
       -- simply never having built a cache.

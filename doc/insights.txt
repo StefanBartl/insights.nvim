@@ -303,7 +303,9 @@ vim-plug: >
   file size, and cache file path. Without a cache for the current working
   directory (or with one that cannot be read) it asks whether to build it
   now; "Build cache" builds it and then prints the statistics, "Not now"
-  does nothing. `:checkhealth insights` only reports the missing cache.
+  does nothing. With `symbols.cache.enabled = false` no cache is ever
+  written, so it only says the cache is disabled and asks nothing.
+  `:checkhealth insights` only reports the missing cache.
 
                                      *:Insights-cache-clear*
 :Insights cache clear

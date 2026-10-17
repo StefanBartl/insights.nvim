@@ -300,7 +300,10 @@ vim-plug: >
 :Insights cache info
 
   Print cache statistics: number of indexed symbols, timestamp, CWD,
-  file size, and cache file path.
+  file size, and cache file path. Without a cache for the current working
+  directory (or with one that cannot be read) it asks whether to build it
+  now; "Build cache" builds it and then prints the statistics, "Not now"
+  does nothing. `:checkhealth insights` only reports the missing cache.
 
                                      *:Insights-cache-clear*
 :Insights cache clear

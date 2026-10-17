@@ -474,19 +474,63 @@ local function handle_devserver(args)
   end
 end
 
+local CACHE_BUILD = "Build cache"
+local CACHE_SKIP = "Not now"
+
+---@internal
+---Ask whether to build the symbol cache now (UI-05: a question instead of
+---"run :Insights cache build"). Uses lib.nvim's ui.kit confirm dialog and
+---falls back to `vim.ui.select` when the kit cannot be loaded. `on_build`
+---runs only on the build answer; "Not now" and a cancel do nothing.
+---@param question string
+---@param on_build fun()
+local function offer_cache_build(question, on_build)
+  local function answer(choice)
+    if choice == CACHE_BUILD then
+      on_build()
+    end
+  end
+  local ok, kit = pcall(require, "lib.nvim.ui.kit")
+  if ok and type(kit) == "table" and type(kit.confirm) == "function" then
+    -- The harmless answer first: the dialog starts on it.
+    kit.confirm({
+      question = "[insights] " .. question,
+      choices = { CACHE_SKIP, CACHE_BUILD },
+      on_answer = answer,
+    })
+  else
+    vim.ui.select({ CACHE_BUILD, CACHE_SKIP }, { prompt = "[insights] " .. question }, answer)
+  end
+end
+
+---@internal
+local function build_cache()
+  notify.info("rebuilding symbol cache…")
+  local entries, msg = require("insights.symbols").rebuild()
+  notify.info(msg or (string.format("%d symbols cached", #entries)))
+end
+
 ---@internal
 ---@param args string[]  args[1] is the subcommand, "build"|"info"|"clear"
-local function handle_cache(args)
+---@param offered? boolean  the build was already offered (and done) once: report, never ask again
+local function handle_cache(args, offered)
   local sub = args[1] or ""
   local sym_cfg = require("insights.config").get().symbols
   local cfg = sym_cfg.cache
   local cache_mod = require("insights.scan.cache")
   local variant = require("insights.symbols.rg_index").cache_variant(sym_cfg)
 
+  ---Offer the build, then carry on with the original subcommand.
+  ---@param question string
+  local function offer(question)
+    offer_cache_build(question, function()
+      build_cache()
+      handle_cache(args, true)
+    end)
+  end
+
   if sub == "build" then
-    notify.info("rebuilding symbol cache…")
-    local entries, msg = require("insights.symbols").rebuild()
-    notify.info(msg or (string.format("%d symbols cached", #entries)))
+    build_cache()
   elseif sub == "clear" then
     local ok, err = cache_mod.clear(cfg.dir, "symbols", variant)
     if ok then
@@ -509,11 +553,15 @@ local function handle_cache(args)
     elseif st_err and st_err ~= "no cache file" then
       -- The file exists but could not be read/parsed -- distinct from
       -- simply never having built a cache.
-      notify.warn(
-        "cache file present but unreadable (" .. st_err .. ") — run :Insights cache build"
-      )
+      if offered then
+        notify.warn("cache file still unreadable after the build (" .. st_err .. ")")
+      else
+        offer("Cache file present but unreadable (" .. st_err .. "). Rebuild the cache now?")
+      end
+    elseif offered then
+      notify.warn("still no cache for current CWD after the build")
     else
-      notify.info("no cache for current CWD — run :Insights cache build")
+      offer("No cache for the current CWD. Build the cache now?")
     end
   else
     notify.warn(":Insights cache: unknown subcommand '" .. sub .. "' — use build|info|clear")

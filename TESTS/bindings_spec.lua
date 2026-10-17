@@ -368,6 +368,11 @@ return function(H)
     local symbols_open_mod = require("insights.symbols.open")
     local real_symbols_open = symbols_open_mod.open
     symbols_open_mod.open = record("symbols.open")
+    -- `cache info` without a cache asks whether to build it (the dialog itself
+    -- is usrcmds_cache_offer_spec's subject); here it is only recorded.
+    local kit_mod = require("lib.nvim.ui.kit")
+    local real_kit_confirm = kit_mod.confirm
+    kit_mod.confirm = record("kit.confirm")
     package.loaded["insights.metrics"] = { run = record("metrics.run") }
     package.loaded["insights.smells"] = { run = record("smells.run") }
     package.loaded["insights.tree"] = {
@@ -512,7 +517,9 @@ return function(H)
 
       H.eq(run("Insights cache build")[1][1], "symbols.rebuild", "cache build rebuilds")
       H.eq(run("Insights cache clear")[1][1], "cache.clear", "cache clear clears")
-      H.eq(run("Insights cache info")[1][1], "cache.stats", "cache info reads the stats")
+      local cinfo = run("Insights cache info")
+      H.eq(cinfo[1][1], "cache.stats", "cache info reads the stats")
+      H.eq(cinfo[2][1], "kit.confirm", "and, without a cache, offers to build it")
 
       H.eq(#run("Insights devserver list"), 0, "listing tracked servers calls nothing else")
       local kill = run("Insights devserver kill")
@@ -542,6 +549,7 @@ return function(H)
     end)
 
     symbols_open_mod.open = real_symbols_open
+    kit_mod.confirm = real_kit_confirm
     for _, name in ipairs(dispatch_modules) do
       package.loaded[name] = saved[name]
     end

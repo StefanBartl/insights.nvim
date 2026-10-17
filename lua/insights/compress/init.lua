@@ -8,7 +8,7 @@
 ---   "auto"       — tar on Unix, powershell on Windows (default)
 ---
 --- outdir resolution (compress.outdir in config):
----   ""  (default) → <path>/compressed/    (adjacent to the project)
+---   ""  (default) → <path>/compressed/    (inside the project directory)
 ---   non-empty     → <outdir>/<name>-compressed/
 
 local platform = require("insights.util.platform")
@@ -25,7 +25,7 @@ local M = {}
 ---@internal
 ---Resolve and create the output directory.
 ---@param path       string  Absolute directory being compressed.
----@param cfg_outdir string  compress.outdir from config ("" = adjacent).
+---@param cfg_outdir string  compress.outdir from config ("" = <path>/compressed, inside the project).
 ---@return string|nil outdir
 ---@return string|nil errmsg
 local function resolve_outdir(path, cfg_outdir)

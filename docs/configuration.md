@@ -114,7 +114,7 @@ require("insights").setup({
     enable = true,
     ---@type Insights.CompressEngine  "auto"|"tar"|"zip"|"powershell"
     engine = "auto",   -- auto → tar on Unix, powershell on Windows
-    outdir = "",       -- "" = compressed/ next to the source directory
+    outdir = "",       -- "" = compressed/ inside the source directory
                        -- non-empty = <outdir>/<name>-compressed/
   },
 

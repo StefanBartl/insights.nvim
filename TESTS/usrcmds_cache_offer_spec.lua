@@ -129,6 +129,20 @@ return function(H)
     H.contains(asked[1].question, "Build the cache now?", "with the same question")
     H.eq(table.concat(calls, ","), "stats,rebuild,stats", "and the same build-then-info")
 
+    -- A disabled cache is never written, so a build cannot help: no question,
+    -- no index run, only the reason; a cache file still present is shown.
+    config.setup({ symbols = { cache = { enabled = false } } })
+    info({ { nil, "no cache file" } }, "Build cache")
+    H.eq(#asked, 0, "a disabled cache offers no build")
+    H.eq(table.concat(calls, ","), "stats", "and runs no index")
+    H.contains(all_notes(), "cache is disabled", "it says why there is no cache")
+    info({ { nil, "bad json" } }, "Build cache")
+    H.eq(#asked, 0, "not for an unreadable file either")
+    H.eq(table.concat(calls, ","), "stats", "which no build would rewrite")
+    info({ { STATS } }, nil)
+    H.contains(all_notes(), "=== Insights Cache ===", "a cache file left over is still shown")
+    config.setup({})
+
     -- Health never asks: it keeps its hint and opens no dialog.
     local health_src = table.concat(
       vim.fn.readfile(vim.api.nvim_get_runtime_file("lua/insights/health.lua", false)[1]),

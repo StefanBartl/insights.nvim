@@ -14,9 +14,6 @@ local M = {}
 ---@type InsightsConfig
 local defaults = require("insights.config.DEFAULTS")
 
----@type InsightsConfig
-local current = vim.deepcopy(defaults)
-
 -- Sub-tables with arbitrary user-chosen keys, not a fixed known set -- a new
 -- entry here is not a typo and must never be reported as an unknown key.
 local OPEN_KEY_PATHS = {
@@ -193,25 +190,41 @@ local function normalize_keymaps_switch(opts)
   return copy
 end
 
+--- To the schema that `lib.lua.config` infers from the defaults, every option is open: the checks
+--- are `check_known_keys` / `drop_mistyped` above, run before the merge (they know the sub-tables
+--- with user-chosen keys). An unknown top-level key is caught there as well.
+local ANY = "boolean|number|string|table|function"
+---@type table<string, string>
+local SCHEMA = {}
+for key in pairs(defaults) do
+  SCHEMA[key] = ANY
+end
+
+local cfg = require("lib.lua.config").new(defaults, {
+  name = "insights",
+  schema = SCHEMA,
+  normalize = function(opts)
+    local sanitized = sanitize(normalize_keymaps_switch(opts))
+    for key in pairs(opts) do
+      opts[key] = nil
+    end
+    for key, value in pairs(sanitized) do
+      opts[key] = value
+    end
+  end,
+  resolve = expand_paths,
+})
+
+---Set the options over the defaults. Every call starts from the defaults.
 ---@param opts InsightsOpts|nil
 function M.setup(opts)
-  local sanitized = sanitize(normalize_keymaps_switch(opts or {}))
-
-  -- `vim.tbl_deep_extend` only recurses into keys present on *both* sides;
-  -- a sub-table `opts` never touches (e.g. `metrics` when only `symbols` was
-  -- passed) is carried into the result by reference, not by value. Merging
-  -- against a deep copy of `defaults` instead of `defaults` itself means
-  -- `expand_paths` below -- which mutates fields of exactly those untouched
-  -- sub-tables in place -- can never leak into the shared DEFAULTS module,
-  -- even though the effect is currently masked by expand_path being a no-op
-  -- on the stdpath()-based absolute defaults.
-  current = vim.tbl_deep_extend("force", vim.deepcopy(defaults), sanitized)
-  expand_paths(current)
+  last_issues = {} -- `sanitize` only runs for a table; setup(nil) has nothing to report
+  cfg.setup(type(opts) == "table" and opts or nil)
 end
 
 ---@return InsightsConfig
 function M.get()
-  return current
+  return cfg.get()
 end
 
 ---@return string[]

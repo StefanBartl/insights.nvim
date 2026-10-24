@@ -48,11 +48,11 @@ conflicts, unused imports and stray dev servers.
 > **[images.nvim](https://github.com/StefanBartl/images.nvim)** — renders the
 > dependency graph in the editor rather than writing a PNG you then have to open.
 >
-> **[documentation.nvim](https://github.com/StefanBartl/documentation.nvim)** —
+> **[docmap.nvim](https://github.com/StefanBartl/docmap.nvim)** —
 > the deep, narrow counterpart. insights answers a question now, from a scan that
 > keeps nothing; that one writes a module map to disk (HTML, Markdown and a
 > deterministic JSON artifact) and gates CI when docs and code drift apart. Reach
-> for insights while you are in the code, for documentation.nvim when the answer
+> for insights while you are in the code, for docmap.nvim when the answer
 > has to persist.
 >
 > All of the above are soft: without them everything else works unchanged.

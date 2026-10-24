@@ -6,7 +6,7 @@
 --- Answers out of the remembered `:Insights imports` scan and never starts one
 --- itself — a cold index means silence, not a zero. See docs/hover.md for the
 --- full rationale, the scan-cost benchmarks behind that choice, staleness
---- handling, and how the float is shared with documentation.nvim.
+--- handling, and how the float is shared with docmap.nvim.
 ---@see insights.imports.index
 
 local M = {}
@@ -25,7 +25,7 @@ local MAX_FILES = 10
 --- The dotted name under `col`, or nil.
 ---
 --- Deliberately its own small reader rather than a shared one. The obvious
---- candidate is documentation.nvim's, which is public -- and depending on a
+--- candidate is docmap.nvim's, which is public -- and depending on a
 --- sibling plugin to answer "what is under my cursor" would make an optional
 --- integration a hard dependency of an unrelated one. The rule is the whole
 --- implementation: at least one dot, and the characters a module name is made

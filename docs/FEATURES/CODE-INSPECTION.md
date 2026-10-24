@@ -105,7 +105,7 @@ graph rendered inline via images.nvim.
 
 A full scan walks the working directory, reads every source file it finds and
 parses each one. Measured on 2026-09-03: **631 ms** for hover.nvim, 715 ms for
-this repository, **1.9 s** for documentation.nvim. That is fine for a report
+this repository, **1.9 s** for docmap.nvim. That is fine for a report
 someone asked for and is waiting on. It rules out anything that wants to answer
 *while* you read — a statusline, a hover, a preview — because there was nothing
 to consult: every query re-scanned.

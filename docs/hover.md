@@ -28,7 +28,7 @@ working directory, reads every source file and parses it. Measured 2026-09-03:
 | --- | --- | --- |
 | hover.nvim | 631 ms | **28 µs** |
 | insights.nvim | 715 ms | — |
-| documentation.nvim | 1.9 s | — |
+| docmap.nvim | 1.9 s | — |
 
 A hover that could set off the left-hand column from a cursor movement is
 exactly what hover.nvim's opt-in model exists to prevent — and the failure
@@ -60,16 +60,16 @@ A write marks the index stale, and the flag comes back with the answer:
 
 The list is not thrown away for it. An import list from before your last save
 is usually still right, and hiding that it might not be is the one thing worse
-than saying nothing — the same stance documentation.nvim's map preview takes,
+than saying nothing — the same stance docmap.nvim's map preview takes,
 for the same reason.
 
 `:Insights imports reverse` is stricter, and deliberately: it re-scans when the
 index is stale. An explicit report is the one place where waiting is the honest
 choice.
 
-## Sharing the float with documentation.nvim
+## Sharing the float with docmap.nvim
 
-Both plugins answer for a dotted name and both are right: documentation.nvim
+Both plugins answer for a dotted name and both are right: docmap.nvim
 says *what the module is*, this one says *who uses it*.
 
 hover.nvim steps between them — `<M-n>`, or `:Hover next` — so the second

@@ -7,7 +7,7 @@
 -- The property worth breaking the build over is not "does the lookup find the
 -- importers": it is **that a cold index answers `nil` instead of scanning**.
 -- A full scan was measured on 2026-09-03 at 631 ms for hover.nvim and 1.9 s
--- for documentation.nvim, and the whole reason this module exists is that a
+-- for docmap.nvim, and the whole reason this module exists is that a
 -- passive consumer — a statusline, a hover, anything that speaks while the
 -- reader reads — cannot start one. A `get` that quietly built the index would
 -- put those 631 ms back exactly where they must not be, and nothing in the

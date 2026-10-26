@@ -1,7 +1,7 @@
 # Contributing to insights.nvim
 
 Thank you for your interest! Bugs, ideas and questions are welcome in the
-[issue tracker](https://github.com/StefanBartl/insights.nvim/issues); pull
+[issue tracker](https://github.com/WKDSteve/insights.nvim/issues); pull
 requests very welcome.
 
 ## Getting the repository into a session
@@ -23,7 +23,7 @@ require("insights").setup({})
   dynamic dispatch, or anything reached without a call site naming it. Where an
   analysis could be read as "this is dead", it has to report what it actually
   measured — "no call site found in the scanned tree", not "unused".
-  [runtime-analysis.nvim](https://github.com/StefanBartl/runtime-analysis.nvim)
+  [runtime-analysis.nvim](https://github.com/WKDSteve/runtime-analysis.nvim)
   is the counter-check, and the honesty is what makes the pair useful.
 - **A cold index says nothing.** No analysis starts a scan behind the user's
   back, least of all from a hover. Silence is the correct answer to a question
@@ -72,7 +72,7 @@ require("insights").setup({})
 
 ## Tests
 
-`TESTS/` is a [testing.nvim](https://github.com/StefanBartl/testing.nvim)
+`TESTS/` is a [testing.nvim](https://github.com/WKDSteve/testing.nvim)
 suite over fixture trees; run it with `bash scripts/test.sh`.
 [GitHub Actions](../.github/workflows/ci.yml) runs it on every push and PR to
 `main`.

@@ -1,6 +1,6 @@
 ---@module 'insights.hover'
 ---@brief Who imports the module under the cursor, shown in
---- [hover.nvim](https://github.com/StefanBartl/hover.nvim)'s float for the
+--- [hover.nvim](https://github.com/WKDSteve/hover.nvim)'s float for the
 --- dotted name under the cursor.
 ---
 --- Answers out of the remembered `:Insights imports` scan and never starts one

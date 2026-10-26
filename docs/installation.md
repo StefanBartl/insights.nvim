@@ -5,20 +5,20 @@
 | Tool | Required | Purpose |
 |------|----------|---------|
 | Neovim | **≥ 0.9** | core |
-| [`lib.nvim`](https://github.com/StefanBartl/lib.nvim) | **yes** | shared notify, cross-platform helpers |
-| [`ui.nvim`](https://github.com/StefanBartl/ui.nvim) | **yes**, for the default config | `ui.kit.confirm` backs the dev-server-detected prompt (`devserver.prompt = true`, the default); no fallback — set `devserver.prompt = false` to opt out instead of installing it. The `?` cheatsheet in report scratch buffers uses `ui.kit.viewer` when available and falls back to a plain scratch buffer otherwise — it never blocks `:Insights metrics`/`smells`/`imports`/`symbols … scratch` |
+| [`lib.nvim`](https://github.com/WKDSteve/lib.nvim) | **yes** | shared notify, cross-platform helpers |
+| [`ui.nvim`](https://github.com/WKDSteve/ui.nvim) | **yes**, for the default config | `ui.kit.confirm` backs the dev-server-detected prompt (`devserver.prompt = true`, the default); no fallback — set `devserver.prompt = false` to opt out instead of installing it. The `?` cheatsheet in report scratch buffers uses `ui.kit.viewer` when available and falls back to a plain scratch buffer otherwise — it never blocks `:Insights metrics`/`smells`/`imports`/`symbols … scratch` |
 | `rg` (ripgrep) | **yes** | symbol indexing |
 | `git` | optional | conflict scan (`conflicts`) |
 | `telescope.nvim` | optional | telescope picker |
 | `fzf-lua` | optional | fzf picker |
 | `nvim-treesitter` | optional | TS-based Lua scanner + accurate import analysis |
 | `dot` (graphviz) | optional | layout for `:Insights imports graph` |
-| [`images.nvim`](https://github.com/StefanBartl/images.nvim) | optional | renders the dependency graph in the editor |
-| [`hover.nvim`](https://github.com/StefanBartl/hover.nvim) | optional | reverse-import info in a float |
+| [`images.nvim`](https://github.com/WKDSteve/images.nvim) | optional | renders the dependency graph in the editor |
+| [`hover.nvim`](https://github.com/WKDSteve/hover.nvim) | optional | reverse-import info in a float |
 
 `rg` and `dot` are declared in [docs/install.json](install.json) and read by
 lib.nvim's
-[deps module](https://github.com/StefanBartl/lib.nvim/blob/main/lua/lib/nvim/deps/README.md).
+[deps module](https://github.com/WKDSteve/lib.nvim/blob/main/lua/lib/nvim/deps/README.md).
 A popup explains what is missing the first time `setup()` runs after installing;
 `:Lib deps show insights.nvim` repeats it any time, and it is folded into
 `:checkhealth insights`. Turn the popup off in this plugin's own spec with
@@ -43,8 +43,8 @@ loading it eagerly.
 
 ```lua
 {
-  "StefanBartl/insights.nvim",
-  dependencies = { "StefanBartl/lib.nvim" },
+  "WKDSteve/insights.nvim",
+  dependencies = { "WKDSteve/lib.nvim" },
   cmd = "Insights",
   keys = {
     { "<leader>ps", desc = "Project symbols (telescope)" },
@@ -60,8 +60,8 @@ loading it eagerly.
 
 ```lua
 use {
-  "StefanBartl/insights.nvim",
-  requires = { "StefanBartl/lib.nvim" },
+  "WKDSteve/insights.nvim",
+  requires = { "WKDSteve/lib.nvim" },
   cmd = "Insights",
   config = function()
     require("insights").setup()
@@ -72,8 +72,8 @@ use {
 ### vim-plug
 
 ```vim
-Plug 'StefanBartl/lib.nvim'
-Plug 'StefanBartl/insights.nvim'
+Plug 'WKDSteve/lib.nvim'
+Plug 'WKDSteve/insights.nvim'
 ```
 
 ```lua

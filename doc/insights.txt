@@ -95,8 +95,8 @@ are `enable = false`.
 
 lazy.nvim: >
   {
-    "StefanBartl/insights.nvim",
-    dependencies = { "StefanBartl/lib.nvim" },
+    "WKDSteve/insights.nvim",
+    dependencies = { "WKDSteve/lib.nvim" },
     cmd  = "Insights",   -- lazy = false if you use the autocmds
     keys = {
       { "<leader>ps", desc = "Project symbols (telescope)" },
@@ -109,8 +109,8 @@ lazy.nvim: >
 <
 packer.nvim: >
   use {
-    "StefanBartl/insights.nvim",
-    requires = { "StefanBartl/lib.nvim" },
+    "WKDSteve/insights.nvim",
+    requires = { "WKDSteve/lib.nvim" },
     cmd    = "Insights",
     config = function()
       require("insights").setup()
@@ -118,8 +118,8 @@ packer.nvim: >
   }
 <
 vim-plug: >
-  Plug 'StefanBartl/lib.nvim'
-  Plug 'StefanBartl/insights.nvim'
+  Plug 'WKDSteve/lib.nvim'
+  Plug 'WKDSteve/insights.nvim'
 
   " after plug#end()
   require("insights").setup()
@@ -467,7 +467,7 @@ vim-plug: >
   layout engine, no pure-Lua substitute exists; reported as a clear error
   rather than a silent no-op when missing. Rendered to
   `imports.graph.outdir`/`{project}-imports.png` and shown inline through
-  images.nvim (https://github.com/StefanBartl/images.nvim) if installed,
+  images.nvim (https://github.com/WKDSteve/images.nvim) if installed,
   else just reported as a file path to open manually.
 
   Deliberately scoped to the dependency graph only, the one place in
@@ -741,7 +741,7 @@ All keys are optional. Unset keys use the defaults shown below.
   Path where the report is written (in addition to the scratch buffer). The
   directory is created automatically. Set to `""` to skip writing a file.
   Ending it in `.pdf` writes a PDF via pdfport.nvim
-  (github.com/StefanBartl/pdfport.nvim, optional dependency, needs pandoc +
+  (github.com/WKDSteve/pdfport.nvim, optional dependency, needs pandoc +
   a PDF engine) instead of plain text.
 
 `analyze_lua` / `analyze_misc`

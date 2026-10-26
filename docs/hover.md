@@ -13,7 +13,7 @@ it, out of the scan `:Insights imports` already ran.
 └────────────────────────────────────────┘
 ```
 
-Registered with [hover.nvim](https://github.com/StefanBartl/hover.nvim) as a
+Registered with [hover.nvim](https://github.com/WKDSteve/hover.nvim) as a
 **position** preview: the answer is about the *place* the cursor is in rather
 than about a target it points at, so nothing is opened and nothing is
 classified. `hover = false` in `setup()` turns it off; without hover.nvim

@@ -73,7 +73,7 @@ highlighting. Also covers Markdown/TXT/JSON documentation files.
 
 Written to `metrics.output_file` (default `{state}/insights/metrics.md`);
 ending it in `.pdf` routes through the optional
-[pdfport.nvim](https://github.com/StefanBartl/pdfport.nvim) dependency
+[pdfport.nvim](https://github.com/WKDSteve/pdfport.nvim) dependency
 instead of plain text.
 
 - **Module:** `metrics/analyzer.lua`, `metrics/report.lua`, `metrics/misc.lua`

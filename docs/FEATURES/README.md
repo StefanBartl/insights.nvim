@@ -29,7 +29,7 @@ misleading zero. The reasoning is [../hover.md](../hover.md).
 
 It reads the source text. What was *actually called* at runtime is a different
 question, and a parser cannot answer it — see
-[runtime-analysis.nvim](https://github.com/StefanBartl/runtime-analysis.nvim).
+[runtime-analysis.nvim](https://github.com/WKDSteve/runtime-analysis.nvim).
 
 - [Code inspection](CODE-INSPECTION.md) — symbols, metrics, imports: the
   three modules that answer "what does this codebase look like".

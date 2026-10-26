@@ -18,7 +18,7 @@
 | `:Insights devserver list` / `kill` | Dev servers started from Neovim |
 
 Plus one thing with no command at all: who imports the module under the cursor,
-in [hover.nvim](https://github.com/StefanBartl/hover.nvim)'s float — out of a
+in [hover.nvim](https://github.com/WKDSteve/hover.nvim)'s float — out of a
 scan that already ran, never starting one.
 
 The full surface, with flags and symbol types, is [commands.md](commands.md).

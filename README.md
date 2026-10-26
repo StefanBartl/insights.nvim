@@ -19,9 +19,9 @@
 [![Lua](https://img.shields.io/badge/Lua-5.1%2FLuaJIT-2C2D72?logo=lua&logoColor=white)](https://www.lua.org)
 ![Status](https://img.shields.io/badge/status-beta-orange)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey)
-[![wkd](https://img.shields.io/badge/wkd-family-c6ff3d)](https://stefanbartl.github.io/wkd/p/insights/)
+[![wkd](https://img.shields.io/badge/wkd-family-c6ff3d)](https://wkdsteve.github.io/wkd/p/insights/)
 
-> Part of the [wkd](https://stefanbartl.github.io/wkd/) family — see this plugin's [page](https://stefanbartl.github.io/wkd/p/insights/) on the site.
+> Part of the [wkd](https://wkdsteve.github.io/wkd/) family — see this plugin's [page](https://wkdsteve.github.io/wkd/p/insights/) on the site.
 
 Static analysis of the project you are in, from inside Neovim. One `:Insights`
 command over symbol indexing, multi-language import analysis, Lua code
@@ -33,22 +33,22 @@ conflicts, unused imports and stray dev servers.
 
 ## Around it
 
-> **[runtime-analysis.nvim](https://github.com/StefanBartl/runtime-analysis.nvim)** —
+> **[runtime-analysis.nvim](https://github.com/WKDSteve/runtime-analysis.nvim)** —
 > the counter-check. insights reads the source for what looks unused; that one
 > measures whether it was ever really called. A parser cannot see a callback, and
 > a counter cannot see dead text.
 >
-> **[buffer-ctx.nvim](https://github.com/StefanBartl/buffer-ctx.nvim)** — inserts
+> **[buffer-ctx.nvim](https://github.com/WKDSteve/buffer-ctx.nvim)** — inserts
 > or copies the current buffer's path and module name, the same resolution
 > `:Insights imports` uses.
 >
-> **[hover.nvim](https://github.com/StefanBartl/hover.nvim)** — shows who imports
+> **[hover.nvim](https://github.com/WKDSteve/hover.nvim)** — shows who imports
 > the module under the cursor, out of a scan that already ran.
 >
-> **[images.nvim](https://github.com/StefanBartl/images.nvim)** — renders the
+> **[images.nvim](https://github.com/WKDSteve/images.nvim)** — renders the
 > dependency graph in the editor rather than writing a PNG you then have to open.
 >
-> **[docmap.nvim](https://github.com/StefanBartl/docmap.nvim)** —
+> **[docmap.nvim](https://github.com/WKDSteve/docmap.nvim)** —
 > the deep, narrow counterpart. insights answers a question now, from a scan that
 > keeps nothing; that one writes a module map to disk (HTML, Markdown and a
 > deterministic JSON artifact) and gates CI when docs and code drift apart. Reach
@@ -56,7 +56,7 @@ conflicts, unused imports and stray dev servers.
 > has to persist.
 >
 > All of the above are soft: without them everything else works unchanged.
-> [lib.nvim](https://github.com/StefanBartl/lib.nvim) and `rg` are the real
+> [lib.nvim](https://github.com/WKDSteve/lib.nvim) and `rg` are the real
 > dependencies — see [Requirements](docs/installation.md#requirements).
 
 ---
@@ -94,7 +94,7 @@ each page answers.
 ### Working on it
 
 - [Contributing](docs/CONTRIBUTING.md) — ground rules, project layout, and how to add an analysis.
-- [Feedback](https://github.com/StefanBartl/insights.nvim/issues) — bugs, feature requests and usage questions; broader discussion in [Discussions](https://github.com/StefanBartl/insights.nvim/discussions).
+- [Feedback](https://github.com/WKDSteve/insights.nvim/issues) — bugs, feature requests and usage questions; broader discussion in [Discussions](https://github.com/WKDSteve/insights.nvim/discussions).
 
 `:help insights` is the same reference inside the editor.
 

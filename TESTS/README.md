@@ -9,7 +9,7 @@ bash scripts/test.sh --file config     # specs whose name contains "config"
 bash scripts/test.sh --json ir.json    # also write the machine-readable result
 ```
 
-The suite runs on [testing.nvim](https://github.com/StefanBartl/testing.nvim)
+The suite runs on [testing.nvim](https://github.com/WKDSteve/testing.nvim)
 (configured in `.testing.lua`, dialect `h` = the helper API of `harness.lua`).
 Exit 0 is a pass; any failing spec, or a missing nvim / testing.nvim / lib.nvim,
 exits 1. CI runs exactly `scripts/test.sh`.

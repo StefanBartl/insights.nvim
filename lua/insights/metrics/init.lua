@@ -293,7 +293,7 @@ function M.write_report(lines, out_path)
   return true, nil
 end
 
----Write report lines to a PDF via pdfport.nvim (github.com/StefanBartl/
+---Write report lines to a PDF via pdfport.nvim (github.com/WKDSteve/
 ---pdfport.nvim, optional dependency, soft-required). Byte-for-byte the same
 ---lines write_report() would write as plain text, handed to pdfport as
 ---`from = "text"` instead. Asynchronous, unlike write_report().

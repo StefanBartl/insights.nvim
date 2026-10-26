@@ -30,14 +30,14 @@ local function check_lib()
   if pcall(require, "lib.nvim.notify") then
     ok_s("lib.nvim installed (notify + cross-platform helpers)")
   else
-    err_s("lib.nvim not found", { "Install StefanBartl/lib.nvim as a dependency" })
+    err_s("lib.nvim not found", { "Install WKDSteve/lib.nvim as a dependency" })
   end
   if pcall(require, "lib.nvim.bindings.usercmd.composer") then
     ok_s("lib.nvim.bindings.usercmd.composer available (:Insights command layer)")
   else
     err_s(
       ":Insights will fail to register — lib.nvim.bindings.usercmd.composer not found",
-      { "Update StefanBartl/lib.nvim" }
+      { "Update WKDSteve/lib.nvim" }
     )
   end
 end
@@ -51,7 +51,7 @@ local function check_ui_nvim()
     err_s(
       "ui.kit not found — required for the dev-server prompt (devserver.prompt = true, the"
         .. " default); the `?` cheatsheet degrades to a plain scratch buffer without it",
-      { "Install StefanBartl/ui.nvim, or set devserver.prompt = false" }
+      { "Install WKDSteve/ui.nvim, or set devserver.prompt = false" }
     )
   end
 end
@@ -265,7 +265,7 @@ local function check_pdfport()
     )
   else
     info_s(
-      "pdfport.nvim not installed — metrics.output_file still works for .md/plain text (https://github.com/StefanBartl/pdfport.nvim)"
+      "pdfport.nvim not installed — metrics.output_file still works for .md/plain text (https://github.com/WKDSteve/pdfport.nvim)"
     )
   end
 end

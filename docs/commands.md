@@ -73,7 +73,7 @@ to analyze it instead (tab-completion suggests directories and flags) — useful
 when the editor's cwd differs from the project you want to measure. The report
 is also written to `metrics.output_file` (default:
 `{state}/insights/metrics.md`) — ending it in `.pdf` instead writes a PDF via
-[pdfport.nvim](https://github.com/StefanBartl/pdfport.nvim) (optional
+[pdfport.nvim](https://github.com/WKDSteve/pdfport.nvim) (optional
 dependency, needs pandoc + a PDF engine) rather than plain text.
 
 The report contains:
@@ -318,7 +318,7 @@ external modules (dashed grey). Rendered to
 `imports.graph.outdir`/`<project>-imports.png` via the Graphviz CLI
 (`imports.graph.layout`, default `"dot"` — needs Graphviz installed, no
 pure-Lua substitute exists for laying out a graph) and shown inline through
-[images.nvim](https://github.com/StefanBartl/images.nvim) if installed,
+[images.nvim](https://github.com/WKDSteve/images.nvim) if installed,
 else just reported as a file path to open manually.
 
 Deliberately scoped to the dependency graph only — the only place in

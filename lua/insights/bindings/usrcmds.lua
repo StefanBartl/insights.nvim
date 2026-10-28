@@ -485,22 +485,17 @@ local CACHE_SKIP = "Not now"
 ---@param question string
 ---@param on_build fun()
 local function offer_cache_build(question, on_build)
-  local function answer(choice)
-    if choice == CACHE_BUILD then
-      on_build()
+  -- The harmless answer first: the dialog starts on it; a dismissal builds nothing.
+  require("lib.nvim.ui.dialog").choose(
+    "[insights] " .. question,
+    { CACHE_SKIP, CACHE_BUILD },
+    1,
+    function(index)
+      if index == 2 then
+        on_build()
+      end
     end
-  end
-  local ok, kit = pcall(require, "lib.nvim.ui.kit")
-  if ok and type(kit) == "table" and type(kit.confirm) == "function" then
-    -- The harmless answer first: the dialog starts on it.
-    kit.confirm({
-      question = "[insights] " .. question,
-      choices = { CACHE_SKIP, CACHE_BUILD },
-      on_answer = answer,
-    })
-  else
-    vim.ui.select({ CACHE_BUILD, CACHE_SKIP }, { prompt = "[insights] " .. question }, answer)
-  end
+  )
 end
 
 ---@internal

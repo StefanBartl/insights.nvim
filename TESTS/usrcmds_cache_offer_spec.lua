@@ -1,26 +1,26 @@
 -- TESTS/usrcmds_cache_offer_spec.lua -- `:Insights cache info` without a (readable)
 -- cache asks whether to build it now (UI-05) instead of telling the user to run
 -- `:Insights cache build`. Yes builds and then carries on with `info`; no does
--- nothing more; without the kit the question goes through `vim.ui.select`.
+-- nothing more. The question goes through lib.nvim's shared dialog (`dialog.choose`).
 -- `:checkhealth insights` keeps its hint (health never asks).
 --
 -- Driven through the real `:Insights` command; only the cache module, the
 -- rebuild and the dialog are replaced.
 
 ---@diagnostic disable: duplicate-set-field
--- Why: the spec replaces `kit.confirm` and `vim.ui.select` with test doubles on purpose.
+-- Why: the spec replaces `dialog.choose` with a test double on purpose.
 
 return function(H)
   local config = require("insights.config")
   local usrcmds = require("insights.bindings.usrcmds")
-  local kit = require("lib.nvim.ui.kit")
+  local dialog = require("lib.nvim.ui.dialog")
 
   local doubled = { "insights.symbols", "insights.scan.cache" }
   local saved = {}
   for _, name in ipairs(doubled) do
     saved[name] = package.loaded[name]
   end
-  local orig_confirm, orig_select, orig_notify = kit.confirm, vim.ui.select, vim.notify
+  local orig_choose, orig_notify = dialog.choose, vim.notify
 
   local calls, notes, asked = {}, {}, {}
   local answer = nil -- what the next dialog answers
@@ -29,13 +29,17 @@ return function(H)
   vim.notify = function(msg)
     notes[#notes + 1] = tostring(msg)
   end
-  kit.confirm = function(opts)
-    asked[#asked + 1] = { via = "kit", question = opts.question, choices = opts.choices }
-    opts.on_answer(answer)
-  end
-  vim.ui.select = function(items, opts, on_choice)
-    asked[#asked + 1] = { via = "select", question = opts.prompt, choices = items }
-    on_choice(answer)
+  dialog.choose = function(question, choices, default, cb)
+    asked[#asked + 1] =
+      { via = "dialog", question = question, choices = choices, default = default }
+    -- the answer is the label; the dialog says the 1-based index, 0 when dismissed
+    local index = 0
+    for i, label in ipairs(choices) do
+      if label == answer then
+        index = i
+      end
+    end
+    cb(index)
   end
   package.loaded["insights.symbols"] = {
     rebuild = function()
@@ -55,11 +59,10 @@ return function(H)
   }
 
   local function restore()
-    kit.confirm, vim.ui.select, vim.notify = orig_confirm, orig_select, orig_notify
+    dialog.choose, vim.notify = orig_choose, orig_notify
     for _, name in ipairs(doubled) do
       package.loaded[name] = saved[name]
     end
-    package.loaded["lib.nvim.ui.kit"] = kit
   end
 
   ---@param seq table[]
@@ -87,7 +90,8 @@ return function(H)
     -- No cache, "Build cache": asks, builds, then shows the info it was asked for.
     info({ { nil, "no cache file" }, { STATS } }, "Build cache")
     H.eq(#asked, 1, "no cache: the command asks once")
-    H.eq(asked[1].via, "kit", "through the kit's confirm dialog")
+    H.eq(asked[1].via, "dialog", "through the shared dialog")
+    H.eq(asked[1].default, 1, "the harmless answer is focused")
     H.contains(asked[1].question, "Build the cache now?", "the question offers the build")
     H.eq(asked[1].choices[1], "Not now", "the harmless answer comes first")
     H.eq(asked[1].choices[2], "Build cache", "the build is the other answer")
@@ -119,15 +123,6 @@ return function(H)
     info({ { STATS } }, "Build cache")
     H.eq(#asked, 0, "a readable cache asks nothing")
     H.eq(table.concat(calls, ","), "stats", "and builds nothing")
-
-    -- Without the kit's confirm: vim.ui.select asks the same question.
-    package.loaded["lib.nvim.ui.kit"] = {}
-    info({ { nil, "no cache file" }, { STATS } }, "Build cache")
-    package.loaded["lib.nvim.ui.kit"] = kit
-    H.eq(#asked, 1, "the fallback asks once")
-    H.eq(asked[1].via, "select", "through vim.ui.select")
-    H.contains(asked[1].question, "Build the cache now?", "with the same question")
-    H.eq(table.concat(calls, ","), "stats,rebuild,stats", "and the same build-then-info")
 
     -- A disabled cache is never written, so a build cannot help: no question,
     -- no index run, only the reason; a cache file still present is shown.

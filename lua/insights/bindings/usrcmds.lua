@@ -479,8 +479,8 @@ local CACHE_SKIP = "Not now"
 
 ---@internal
 ---Ask whether to build the symbol cache now (UI-05: a question instead of
----"run :Insights cache build"). Uses lib.nvim's ui.kit confirm dialog and
----falls back to `vim.ui.select` when the kit cannot be loaded. `on_build`
+---"run :Insights cache build"). Asks through lib.nvim's shared dialog
+---(`dialog.choose`, "Not now" first and focused). `on_build`
 ---runs only on the build answer; "Not now" and a cancel do nothing.
 ---@param question string
 ---@param on_build fun()

@@ -370,9 +370,9 @@ return function(H)
     symbols_open_mod.open = record("symbols.open")
     -- `cache info` without a cache asks whether to build it (the dialog itself
     -- is usrcmds_cache_offer_spec's subject); here it is only recorded.
-    local kit_mod = require("lib.nvim.ui.kit")
-    local real_kit_confirm = kit_mod.confirm
-    kit_mod.confirm = record("kit.confirm")
+    local dialog_mod = require("lib.nvim.ui.dialog")
+    local real_dialog_choose = dialog_mod.choose
+    dialog_mod.choose = record("dialog.choose")
     package.loaded["insights.metrics"] = { run = record("metrics.run") }
     package.loaded["insights.smells"] = { run = record("smells.run") }
     package.loaded["insights.tree"] = {
@@ -519,7 +519,7 @@ return function(H)
       H.eq(run("Insights cache clear")[1][1], "cache.clear", "cache clear clears")
       local cinfo = run("Insights cache info")
       H.eq(cinfo[1][1], "cache.stats", "cache info reads the stats")
-      H.eq(cinfo[2][1], "kit.confirm", "and, without a cache, offers to build it")
+      H.eq(cinfo[2][1], "dialog.choose", "and, without a cache, offers to build it")
 
       H.eq(#run("Insights devserver list"), 0, "listing tracked servers calls nothing else")
       local kill = run("Insights devserver kill")
@@ -549,7 +549,7 @@ return function(H)
     end)
 
     symbols_open_mod.open = real_symbols_open
-    kit_mod.confirm = real_kit_confirm
+    dialog_mod.choose = real_dialog_choose
     for _, name in ipairs(dispatch_modules) do
       package.loaded[name] = saved[name]
     end

@@ -45,7 +45,12 @@ return function(H)
   H.ok(seen > 0, "the routes' flags were actually walked")
 
   -- The same house style for the positional arguments: a text of the argument's own or of its
-  -- type, one short line, no trailing full stop.
+  -- type, one short line, no trailing full stop. A lib.nvim without `entries.arg_desc` fails the
+  -- check by name instead of skipping it (NEW-43).
+  H.ok(
+    type(entries.arg_desc) == "function",
+    "argument texts: lib.nvim lacks composer.help.entries.arg_desc, update lib.nvim"
+  )
   if type(entries.arg_desc) == "function" then
     local walked = 0
     for _, route in ipairs(handle:spec().routes or {}) do
